@@ -1,0 +1,3372 @@
+{
+  "schema_version": 1,
+  "visibility": "public",
+  "dataset_id": "tugspublicarchetypes",
+  "dataset_version": "1.2.0",
+  "format_id": "gen9tugs",
+  "patch_version": "1.2",
+  "display_name": "Public TUGS archetypes 1.2.0",
+  "metadata": {
+    "authorization": "Generic public design prior authored without closed-submission data.",
+    "weight_policy": "Authored design weights only: 4 primary, 3 common alternative, 2 meaningful secondary, 1 niche legitimate; not empirical usage."
+  },
+  "sources": [
+    {
+      "source_id": "publicformatpatch12",
+      "kind": "public_format",
+      "public_version": "1.2",
+      "description": "Public TUGS format, legal roster, Patch 1 and Patch 1.2 mechanics, and current gen9tugs server data."
+    },
+    {
+      "source_id": "publicmanualv1",
+      "kind": "public_manual",
+      "public_version": "1.0.0",
+      "description": "Explicitly public generic archetype design judgment based only on public format facts and base-game mechanics."
+    }
+  ],
+  "species": [
+    {
+      "species_id": "aerodactyl",
+      "variants": [
+        {
+          "variant_id": "choiceband",
+          "weight": 3,
+          "item_id": "choiceband",
+          "base_ability_id": "pressure",
+          "move_ids": [
+            "earthquake",
+            "stoneedge",
+            "dualwingbeat",
+            "firefang"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "immediate physical wallbreaker",
+            "rationale": "Choice Band and maximum Attack apply immediate pressure while dual STAB coverage, Earthquake, and Fire Fang avoid relying on setup.",
+            "distinguishing_evidence": "Choice Band reveal, choice locking, Dual Wingbeat, or Fire Fang narrows toward the immediate breaker.",
+            "weight_reason": "Credible secondary role with strong immediate damage but less flexibility than the lead."
+          }
+        },
+        {
+          "variant_id": "dragondance",
+          "weight": 3,
+          "item_id": "lifeorb",
+          "base_ability_id": "unnerve",
+          "move_ids": [
+            "dragondance",
+            "earthquake",
+            "stoneedge",
+            "dualwingbeat"
+          ],
+          "nature_id": "adamant",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical setup sweeper",
+            "rationale": "Dragon Dance turns Aerodactyl's natural Speed into sweeping pressure while Life Orb boosts its broad coverage without move locking.",
+            "distinguishing_evidence": "Dragon Dance, Life Orb, Unnerve, or the combined Rock, Ground, and Flying coverage identifies this setup line.",
+            "weight_reason": "Credible secondary win condition that requires a setup opportunity."
+          }
+        },
+        {
+          "variant_id": "sashlead",
+          "weight": 4,
+          "item_id": "focussash",
+          "base_ability_id": "pressure",
+          "move_ids": [
+            "earthquake",
+            "stoneedge",
+            "taunt",
+            "stealthrock"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast hazard lead",
+            "rationale": "Focus Sash and maximum Speed support reliable Stealth Rock or Taunt while Earthquake and Stone Edge retain offensive pressure.",
+            "distinguishing_evidence": "Focus Sash activation, Taunt, or Stealth Rock strongly narrows toward the dedicated lead.",
+            "weight_reason": "Primary broadly applicable Aerodactyl role and the authoritative coverage baseline."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "altaria",
+      "variants": [
+        {
+          "variant_id": "perishtrap",
+          "weight": 2,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "naturalcure",
+          "move_ids": [
+            "perishsong",
+            "firespin",
+            "roost",
+            "defog"
+          ],
+          "nature_id": "calm",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 0,
+            "spa": 4,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "specially defensive trapping and removal utility",
+            "rationale": "Heavy-Duty Boots preserve entry opportunities while Perish Song and Fire Spin create a specialized trapping line alongside Roost and Defog.",
+            "distinguishing_evidence": "Perish Song, Fire Spin, Heavy-Duty Boots, or Defog without a physical attack narrows toward this trapping utility set.",
+            "weight_reason": "Experimental specialized role whose trapping plan is matchup-dependent."
+          }
+        },
+        {
+          "variant_id": "physicalutility",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "naturalcure",
+          "move_ids": [
+            "defog",
+            "roost",
+            "bravebird",
+            "willowisp"
+          ],
+          "nature_id": "impish",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 240,
+            "spa": 0,
+            "spd": 0,
+            "spe": 16
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physically defensive removal and status utility",
+            "rationale": "Heavy-Duty Boots, physical bulk, reliable recovery, and Will-O-Wisp support repeated removal while Brave Bird prevents complete passivity.",
+            "distinguishing_evidence": "Brave Bird, Will-O-Wisp, Heavy-Duty Boots, or physically defensive behavior narrows toward this utility set.",
+            "weight_reason": "Broadly reliable primary defensive role with removal, recovery, and status utility."
+          }
+        },
+        {
+          "variant_id": "choicespecs",
+          "weight": 3,
+          "item_id": "choicespecs",
+          "base_ability_id": "naturalcure",
+          "move_ids": [
+            "dracometeor",
+            "flamethrower",
+            "hurricane",
+            "moonblast"
+          ],
+          "nature_id": "timid",
+          "evs": {
+            "hp": 0,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 4,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "immediate special wallbreaker",
+            "rationale": "Choice Specs and maximum Special Attack and Speed create immediate pressure through four complementary special attacks.",
+            "distinguishing_evidence": "Choice Specs, choice locking, Draco Meteor, Moonblast, or Hurricane narrows toward the special breaker.",
+            "weight_reason": "Credible secondary offensive role with immediate power but move-locking constraints."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "arcaninehisui",
+      "base_species_id": "arcanine",
+      "variants": [
+        {
+          "variant_id": "bootsrocks",
+          "weight": 3,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "rockhead",
+          "move_ids": [
+            "headsmash",
+            "flareblitz",
+            "extremespeed",
+            "stealthrock"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 0,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 4,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast offensive hazard setter using recoil-free Rock Head attacks",
+            "rationale": "Rock Head enables Head Smash and Flare Blitz pressure while Heavy-Duty Boots and Stealth Rock combine offensive entry control with Extreme Speed.",
+            "distinguishing_evidence": "Heavy-Duty Boots, Rock Head, Stealth Rock, or Head Smash narrows toward this offensive hazard set.",
+            "weight_reason": "Credible secondary role combining reliable recoil-free pressure with hazard utility."
+          }
+        },
+        {
+          "variant_id": "choiceband",
+          "weight": 4,
+          "item_id": "choiceband",
+          "base_ability_id": "rockhead",
+          "move_ids": [
+            "headsmash",
+            "flareblitz",
+            "extremespeed",
+            "closecombat"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 0,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 4,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "immediate physical wallbreaker",
+            "rationale": "Choice Band and Rock Head maximize immediate Head Smash and Flare Blitz pressure while Extreme Speed and Close Combat broaden finishing coverage.",
+            "distinguishing_evidence": "Choice Band, choice locking, Close Combat, or unusually high physical damage narrows toward this wallbreaker.",
+            "weight_reason": "Broadly reliable primary attacking role with strong immediate damage and priority."
+          }
+        },
+        {
+          "variant_id": "intimidateutility",
+          "weight": 3,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "intimidate",
+          "move_ids": [
+            "stealthrock",
+            "morningsun",
+            "flareblitz",
+            "extremespeed"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 0,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 4,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "offensive Intimidate utility with recovery and hazards",
+            "rationale": "Intimidate, Morning Sun, and Heavy-Duty Boots support repeated defensive entries while Stealth Rock, Flare Blitz, and Extreme Speed retain pressure.",
+            "distinguishing_evidence": "Intimidate, Morning Sun, Stealth Rock, or Heavy-Duty Boots narrows toward this utility set.",
+            "weight_reason": "Credible secondary role whose defensive value depends on effective Intimidate cycling."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "bastiodon",
+      "variants": [
+        {
+          "variant_id": "defensivepivot",
+          "weight": 4,
+          "item_id": "leftovers",
+          "base_ability_id": "soundproof",
+          "move_ids": [
+            "stealthrock",
+            "partingshot",
+            "bodypress",
+            "toxic"
+          ],
+          "nature_id": "careful",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 4,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "special defensive pivot",
+            "rationale": "Soundproof and Leftovers support repeated entry; hazards, poison, Defense-based damage, and Parting Shot compress support roles.",
+            "distinguishing_evidence": "Soundproof immunity, Leftovers recovery, or any of Stealth Rock, Toxic, and Parting Shot separates it from the setup and Sturdy lines.",
+            "weight_reason": "Primary broadly useful Bastiodon support role."
+          }
+        },
+        {
+          "variant_id": "irondefense",
+          "weight": 2,
+          "item_id": "chestoberry",
+          "base_ability_id": "soundproof",
+          "move_ids": [
+            "irondefense",
+            "bodypress",
+            "rest",
+            "rockblast"
+          ],
+          "nature_id": "impish",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical setup tank",
+            "rationale": "ChestoRest gives one reliable reset while Iron Defense powers Body Press; Rock Blast prevents total passivity into Ghost targets.",
+            "distinguishing_evidence": "Iron Defense or Chesto Berry is decisive evidence; Rest and Rock Blast further distinguish the set.",
+            "weight_reason": "Meaningful secondary win-condition role with narrower matchups."
+          }
+        },
+        {
+          "variant_id": "sturdymetalburst",
+          "weight": 1,
+          "item_id": "custapberry",
+          "base_ability_id": "sturdy",
+          "move_ids": [
+            "metalburst",
+            "stealthrock",
+            "partingshot",
+            "bodypress"
+          ],
+          "nature_id": "sassy",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 4,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 0
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "emergency Sturdy utility",
+            "rationale": "Minimum Speed supports Metal Burst; Sturdy guarantees a full-HP survival and Custap enables emergency hazards, damage, or pivoting afterward.",
+            "distinguishing_evidence": "Sturdy, Custap Berry, Metal Burst, or minimum-Speed ordering identifies this niche line.",
+            "weight_reason": "Niche but coherent emergency line, kept at the lowest prior."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "bombirdier",
+      "variants": [
+        {
+          "variant_id": "bootsutility",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "bigpecks",
+          "move_ids": [
+            "uturn",
+            "stealthrock",
+            "knockoff",
+            "memento"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast utility lead or pivot",
+            "rationale": "Heavy-Duty Boots and maximum Speed support repeated U-turn and Knock Off utility, with Stealth Rock and Memento providing lead value.",
+            "distinguishing_evidence": "Heavy-Duty Boots, Stealth Rock, Memento, or Big Pecks narrows toward this utility set.",
+            "weight_reason": "Broadly reliable primary utility role with hazards, item disruption, pivoting, and sacrifice value."
+          }
+        },
+        {
+          "variant_id": "choicescarf",
+          "weight": 3,
+          "item_id": "choicescarf",
+          "base_ability_id": "rockypayload",
+          "move_ids": [
+            "uturn",
+            "knockoff",
+            "stoneedge",
+            "bravebird"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "Choice Scarf revenge killer and pivot",
+            "rationale": "Choice Scarf supplies revenge-killing speed while Rocky Payload strengthens Stone Edge and U-turn preserves momentum.",
+            "distinguishing_evidence": "Rocky Payload, Choice Scarf, choice locking, Stone Edge, or unexpected speed narrows toward this revenge killer.",
+            "weight_reason": "Credible secondary speed-control role with useful pivoting but choice-locking constraints."
+          }
+        },
+        {
+          "variant_id": "choiceband",
+          "weight": 3,
+          "item_id": "choiceband",
+          "base_ability_id": "bigpecks",
+          "move_ids": [
+            "suckerpunch",
+            "uturn",
+            "knockoff",
+            "bravebird"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical breaker with priority",
+            "rationale": "Choice Band adds immediate physical pressure while Sucker Punch supplies priority and U-turn and Knock Off maintain utility.",
+            "distinguishing_evidence": "Choice Band, choice locking, Sucker Punch, or Big Pecks narrows toward this breaker.",
+            "weight_reason": "Credible secondary breaking role with priority and momentum but move-locking constraints."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "chesnaught",
+      "variants": [
+        {
+          "variant_id": "helmetspikes",
+          "weight": 4,
+          "item_id": "rockyhelmet",
+          "base_ability_id": "bulletproof",
+          "move_ids": [
+            "bodypress",
+            "knockoff",
+            "spikes",
+            "synthesis"
+          ],
+          "nature_id": "impish",
+          "evs": {
+            "hp": 252,
+            "atk": 4,
+            "def": 252,
+            "spa": 0,
+            "spd": 0,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical wall and Spikes setter",
+            "rationale": "Maximum physical bulk, Rocky Helmet, and Synthesis support repeated contact punishment while Spikes, Body Press, and Knock Off generate progress.",
+            "distinguishing_evidence": "Rocky Helmet, Spikes, Synthesis, or Body Press narrows toward this physical wall.",
+            "weight_reason": "Broadly reliable primary defensive role with hazards, recovery, and contact punishment."
+          }
+        },
+        {
+          "variant_id": "leftoversutility",
+          "weight": 3,
+          "item_id": "leftovers",
+          "base_ability_id": "bulletproof",
+          "move_ids": [
+            "spikyshield",
+            "toxic",
+            "knockoff",
+            "drainpunch"
+          ],
+          "nature_id": "impish",
+          "evs": {
+            "hp": 252,
+            "atk": 4,
+            "def": 252,
+            "spa": 0,
+            "spd": 0,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "defensive disruption and longevity",
+            "rationale": "Leftovers, Spiky Shield, and Drain Punch sustain Chesnaught while Toxic and Knock Off disrupt defensive answers.",
+            "distinguishing_evidence": "Leftovers, Spiky Shield, Toxic, or Drain Punch narrows toward this disruption set.",
+            "weight_reason": "Credible secondary defensive role that trades hazards for broader disruption and passive recovery."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "claydol",
+      "variants": [
+        {
+          "variant_id": "levitateutility",
+          "weight": 3,
+          "item_id": "leftovers",
+          "base_ability_id": "levitate",
+          "move_ids": [
+            "earthpower",
+            "psychic",
+            "rapidspin",
+            "toxic"
+          ],
+          "nature_id": "calm",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 4,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "special utility spinner",
+            "rationale": "Levitate supplies a Ground immunity while Leftovers, dual STAB, Toxic, and Rapid Spin support a special wall and remover role.",
+            "distinguishing_evidence": "Levitate activation, Psychic, Toxic, or passive Leftovers recovery distinguishes it from Regenerator pivoting and Trick Room.",
+            "weight_reason": "Common alternative that emphasizes immunity and special durability."
+          }
+        },
+        {
+          "variant_id": "regeneratorpivot",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "regenerator",
+          "move_ids": [
+            "earthpower",
+            "rapidspin",
+            "stealthrock",
+            "teleport"
+          ],
+          "nature_id": "bold",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical utility pivot",
+            "rationale": "Regenerator, Boots, Rapid Spin, Stealth Rock, and Teleport support repeated physical-wall entries and slow momentum.",
+            "distinguishing_evidence": "Regenerator healing, Boots hazard behavior, Teleport, or Stealth Rock identifies the pivot package.",
+            "weight_reason": "Primary role because it uniquely combines public Regenerator with hazard control and pivoting."
+          }
+        },
+        {
+          "variant_id": "trickroomsetter",
+          "weight": 2,
+          "item_id": "mentalherb",
+          "base_ability_id": "levitate",
+          "move_ids": [
+            "trickroom",
+            "teleport",
+            "earthpower",
+            "icebeam"
+          ],
+          "nature_id": "sassy",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 4,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 0
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "slow Trick Room setter",
+            "rationale": "Mental Herb protects setup, minimum Speed exploits the public six-turn room, and Teleport passes turns safely to a slow attacker.",
+            "distinguishing_evidence": "Trick Room, Mental Herb, Ice Beam, or minimum-Speed ordering distinguishes it immediately.",
+            "weight_reason": "Meaningful secondary mode enabler, but less universally applicable than utility sets."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "cursola",
+      "variants": [
+        {
+          "variant_id": "specialutility",
+          "weight": 4,
+          "item_id": "leftovers",
+          "base_ability_id": "perishbody",
+          "move_ids": [
+            "hex",
+            "scald",
+            "stealthrock",
+            "willowisp"
+          ],
+          "nature_id": "calm",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 0,
+            "spa": 4,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "specially defensive status and hazard utility",
+            "rationale": "Special bulk and Leftovers support repeated entries while Will-O-Wisp and Scald enable Hex and Stealth Rock adds persistent utility.",
+            "distinguishing_evidence": "Perish Body, Leftovers, Will-O-Wisp, Hex, or Stealth Rock narrows toward this utility set.",
+            "weight_reason": "Broadly reliable primary utility role with status synergy, hazards, and special bulk."
+          }
+        },
+        {
+          "variant_id": "perishbodyspecs",
+          "weight": 3,
+          "item_id": "choicespecs",
+          "base_ability_id": "perishbody",
+          "move_ids": [
+            "shadowball",
+            "surf",
+            "earthpower",
+            "icebeam"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "bulky immediate special wallbreaker retaining Perish Body",
+            "rationale": "Choice Specs and maximum Special Attack provide immediate coverage pressure while HP investment and Perish Body retain defensive interaction value.",
+            "distinguishing_evidence": "Perish Body, Choice Specs, choice locking, Ice Beam, or Earth Power narrows toward this bulky breaker.",
+            "weight_reason": "Credible secondary breaker with immediate power and bulk but limited Speed."
+          }
+        },
+        {
+          "variant_id": "weakarmorspecs",
+          "weight": 2,
+          "item_id": "choicespecs",
+          "base_ability_id": "weakarmor",
+          "move_ids": [
+            "shadowball",
+            "surf",
+            "earthpower",
+            "icebeam"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 0,
+            "atk": 0,
+            "def": 4,
+            "spa": 252,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "offensive Weak Armor wallbreaker capable of gaining Speed after a physical hit",
+            "rationale": "Choice Specs supplies immediate power while maximum Speed and Weak Armor can turn a physical hit into a faster offensive position.",
+            "distinguishing_evidence": "Weak Armor, Choice Specs, maximum-Speed behavior, choice locking, Ice Beam, or Earth Power narrows toward this offensive breaker.",
+            "weight_reason": "Experimental matchup-dependent role that relies on surviving and exploiting a physical hit."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "dhelmise",
+      "variants": [
+        {
+          "variant_id": "swordsdance",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "steelworker",
+          "move_ids": [
+            "anchorshot",
+            "swordsdance",
+            "powerwhip",
+            "knockoff"
+          ],
+          "nature_id": "adamant",
+          "evs": {
+            "hp": 248,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 8,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "bulky setup breaker",
+            "rationale": "Heavy-Duty Boots protect entry opportunities while Swords Dance and Steelworker-backed Anchor Shot create strong setup pressure alongside Power Whip and Knock Off.",
+            "distinguishing_evidence": "Heavy-Duty Boots, Swords Dance, Knock Off, or Anchor Shot narrows toward this setup breaker.",
+            "weight_reason": "Broadly reliable primary role combining entry resilience, setup pressure, and item disruption."
+          }
+        },
+        {
+          "variant_id": "choiceband",
+          "weight": 3,
+          "item_id": "choiceband",
+          "base_ability_id": "steelworker",
+          "move_ids": [
+            "powerwhip",
+            "knockoff",
+            "anchorshot",
+            "poltergeist"
+          ],
+          "nature_id": "adamant",
+          "evs": {
+            "hp": 248,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 8,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "immediate physical wallbreaker",
+            "rationale": "Choice Band and Steelworker provide immediate physical pressure through dual STAB attacks, Poltergeist, and Knock Off.",
+            "distinguishing_evidence": "Choice Band, choice locking, Poltergeist, or unusually high damage narrows toward this wallbreaker.",
+            "weight_reason": "Credible secondary breaker with high immediate damage but move-locking constraints."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "drapion",
+      "variants": [
+        {
+          "variant_id": "swordsdance",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "battlearmor",
+          "move_ids": [
+            "knockoff",
+            "poisonjab",
+            "earthquake",
+            "swordsdance"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast physical setup attacker",
+            "rationale": "Heavy-Duty Boots preserve entry opportunities while Swords Dance boosts three complementary physical attacks at maximum Speed.",
+            "distinguishing_evidence": "Swords Dance, Poison Jab, or Heavy-Duty Boots narrows toward this setup attacker.",
+            "weight_reason": "Broadly reliable primary offensive role with flexible coverage and setup pressure."
+          }
+        },
+        {
+          "variant_id": "toxicspikes",
+          "weight": 3,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "battlearmor",
+          "move_ids": [
+            "earthquake",
+            "knockoff",
+            "toxicspikes",
+            "taunt"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast hazard and anti-defensive utility",
+            "rationale": "Maximum Speed enables quick Toxic Spikes and Taunt while Earthquake and Knock Off prevent passive hazard play.",
+            "distinguishing_evidence": "Toxic Spikes, Taunt, or Heavy-Duty Boots narrows toward this utility set.",
+            "weight_reason": "Credible secondary role with valuable hazard pressure that depends on matchup and removal dynamics."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "druddigon",
+      "variants": [
+        {
+          "variant_id": "roughskinutility",
+          "weight": 4,
+          "item_id": "rockyhelmet",
+          "base_ability_id": "roughskin",
+          "move_ids": [
+            "cragmend",
+            "glare",
+            "dragontail",
+            "stealthrock"
+          ],
+          "nature_id": "impish",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "durable contact punisher",
+            "rationale": "Rocky Helmet plus Rough Skin punishes contact; Crag Mend sustains the current 85-HP physical wall while Glare, phazing, and rocks create progress.",
+            "distinguishing_evidence": "Crag Mend, Glare, Dragon Tail, Rocky Helmet recoil, or Rough Skin reveals the durable utility package.",
+            "weight_reason": "Primary role because it most directly uses Druddigon's public durability upgrade and custom recovery."
+          }
+        },
+        {
+          "variant_id": "sheerforcebreaker",
+          "weight": 3,
+          "item_id": "lifeorb",
+          "base_ability_id": "sheerforce",
+          "move_ids": [
+            "dragonclaw",
+            "gunkshot",
+            "firepunch",
+            "rockslide"
+          ],
+          "nature_id": "adamant",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast physical coverage breaker",
+            "rationale": "Life Orb and Sheer Force amplify three secondary-effect coverage moves while Dragon Claw preserves reliable STAB; maximum Speed avoids a fabricated creep benchmark.",
+            "distinguishing_evidence": "Life Orb recoil behavior, Sheer Force suppression of secondary effects, or the coverage moves separates it from defensive and slow Band sets.",
+            "weight_reason": "Common offensive alternative with broad generic coverage."
+          }
+        },
+        {
+          "variant_id": "slowbandbreaker",
+          "weight": 2,
+          "item_id": "choiceband",
+          "base_ability_id": "moldbreaker",
+          "move_ids": [
+            "outrage",
+            "earthquake",
+            "gunkshot",
+            "suckerpunch"
+          ],
+          "nature_id": "brave",
+          "evs": {
+            "hp": 252,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 0
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "slow physical breaker",
+            "rationale": "Choice Band, Mold Breaker, maximum bulk and Attack, and minimum Speed form a strong Trick Room beneficiary with priority outside the room.",
+            "distinguishing_evidence": "Choice locking, Mold Breaker messages, Outrage, Sucker Punch, or minimum-Speed ordering distinguishes it.",
+            "weight_reason": "Meaningful secondary slow-breaking mode, less flexible than Life Orb."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "dudunsparce",
+      "variants": [
+        {
+          "variant_id": "calmmind",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "thickfat",
+          "move_ids": [
+            "calmmind",
+            "boomburst",
+            "shadowball",
+            "roost"
+          ],
+          "nature_id": "bold",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 4,
+            "spd": 0,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physically defensive special win condition",
+            "rationale": "Heavy-Duty Boots and physical bulk support repeated Calm Mind and Roost opportunities while Boomburst and Shadow Ball provide broad special coverage.",
+            "distinguishing_evidence": "Thick Fat, Calm Mind, Shadow Ball, or Heavy-Duty Boots narrows toward this special setup set.",
+            "weight_reason": "Broadly reliable primary setup role with recovery, physical bulk, and strong neutral coverage."
+          }
+        },
+        {
+          "variant_id": "glareutility",
+          "weight": 2,
+          "item_id": "chopleberry",
+          "base_ability_id": "thickfat",
+          "move_ids": [
+            "glare",
+            "boomburst",
+            "hex",
+            "stealthrock"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 116,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 0,
+            "spe": 140
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "specially offensive paralysis and hazard utility",
+            "rationale": "Chople Berry and the tailored Speed spread support a specialized Glare and Stealth Rock line while paralysis powers Hex and Boomburst retains immediate damage.",
+            "distinguishing_evidence": "Thick Fat, Chople Berry, Glare, Hex, or Stealth Rock narrows toward this utility set.",
+            "weight_reason": "Experimental specialized role with a tailored spread and several competing utility goals."
+          }
+        },
+        {
+          "variant_id": "coil",
+          "weight": 3,
+          "item_id": "leftovers",
+          "base_ability_id": "serenegrace",
+          "move_ids": [
+            "coil",
+            "bodyslam",
+            "dragontail",
+            "roost"
+          ],
+          "nature_id": "careful",
+          "evs": {
+            "hp": 252,
+            "atk": 4,
+            "def": 0,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "specially defensive physical setup and paralysis pressure",
+            "rationale": "Special bulk, Leftovers, and Roost support Coil setup while Serene Grace Body Slam spreads paralysis and Dragon Tail disrupts opposing setup.",
+            "distinguishing_evidence": "Serene Grace, Coil, Body Slam, Dragon Tail, or Leftovers narrows toward this physical setup set.",
+            "weight_reason": "Credible secondary setup role with useful paralysis pressure but gradual damage output."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "dudunsparcethreesegment",
+      "base_species_id": "dudunsparce",
+      "variants": [
+        {
+          "variant_id": "calmmind",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "thickfat",
+          "move_ids": [
+            "calmmind",
+            "boomburst",
+            "shadowball",
+            "roost"
+          ],
+          "nature_id": "bold",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 4,
+            "spd": 0,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physically defensive special win condition",
+            "rationale": "Heavy-Duty Boots and physical bulk support repeated Calm Mind and Roost opportunities while Boomburst and Shadow Ball provide broad special coverage.",
+            "distinguishing_evidence": "Thick Fat, Calm Mind, Shadow Ball, or Heavy-Duty Boots narrows toward this exact-form special setup set.",
+            "weight_reason": "Broadly reliable primary setup role with recovery, physical bulk, and strong neutral coverage."
+          }
+        },
+        {
+          "variant_id": "glareutility",
+          "weight": 2,
+          "item_id": "chopleberry",
+          "base_ability_id": "thickfat",
+          "move_ids": [
+            "glare",
+            "boomburst",
+            "hex",
+            "stealthrock"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 116,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 0,
+            "spe": 140
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "specially offensive paralysis and hazard utility",
+            "rationale": "Chople Berry and the tailored Speed spread support a specialized Glare and Stealth Rock line while paralysis powers Hex and Boomburst retains immediate damage.",
+            "distinguishing_evidence": "Thick Fat, Chople Berry, Glare, Hex, or Stealth Rock narrows toward this exact-form utility set.",
+            "weight_reason": "Experimental specialized role with a tailored spread and several competing utility goals."
+          }
+        },
+        {
+          "variant_id": "coil",
+          "weight": 3,
+          "item_id": "leftovers",
+          "base_ability_id": "serenegrace",
+          "move_ids": [
+            "coil",
+            "bodyslam",
+            "dragontail",
+            "roost"
+          ],
+          "nature_id": "careful",
+          "evs": {
+            "hp": 252,
+            "atk": 4,
+            "def": 0,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "specially defensive physical setup and paralysis pressure",
+            "rationale": "Special bulk, Leftovers, and Roost support Coil setup while Serene Grace Body Slam spreads paralysis and Dragon Tail disrupts opposing setup.",
+            "distinguishing_evidence": "Serene Grace, Coil, Body Slam, Dragon Tail, or Leftovers narrows toward this exact-form physical setup set.",
+            "weight_reason": "Credible secondary setup role with useful paralysis pressure but gradual damage output."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "dugtrioalola",
+      "base_species_id": "dugtrio",
+      "variants": [
+        {
+          "variant_id": "sashsetup",
+          "weight": 3,
+          "item_id": "focussash",
+          "base_ability_id": "tanglinghair",
+          "move_ids": [
+            "suckerpunch",
+            "swordsdance",
+            "earthquake",
+            "ironhead"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "Focus Sash setup attacker",
+            "rationale": "Focus Sash creates a setup opportunity for Swords Dance while Sucker Punch adds priority to Earthquake and Iron Head coverage.",
+            "distinguishing_evidence": "Focus Sash activation, Swords Dance, or Sucker Punch narrows toward this setup attacker.",
+            "weight_reason": "Credible secondary setup role whose reliability depends on preserving Focus Sash."
+          }
+        },
+        {
+          "variant_id": "sashlead",
+          "weight": 4,
+          "item_id": "focussash",
+          "base_ability_id": "tanglinghair",
+          "move_ids": [
+            "stealthrock",
+            "earthquake",
+            "ironhead",
+            "memento"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast hazard and sacrifice lead",
+            "rationale": "Focus Sash and maximum Speed support reliable Stealth Rock while Memento converts the lead into setup momentum after Earthquake and Iron Head pressure.",
+            "distinguishing_evidence": "Focus Sash activation, Stealth Rock, or Memento narrows toward this dedicated lead.",
+            "weight_reason": "Broadly reliable primary lead role with hazards and a clear sacrifice plan."
+          }
+        },
+        {
+          "variant_id": "choicescarf",
+          "weight": 2,
+          "item_id": "choicescarf",
+          "base_ability_id": "tanglinghair",
+          "move_ids": [
+            "earthquake",
+            "ironhead",
+            "stoneedge",
+            "pursuit"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "Choice Scarf revenge killer",
+            "rationale": "Choice Scarf supplies revenge-killing Speed while Pursuit threatens withdrawing targets and Earthquake, Iron Head, and Stone Edge provide coverage.",
+            "distinguishing_evidence": "Choice Scarf, choice locking, Pursuit, or unexpected Speed narrows toward this revenge killer.",
+            "weight_reason": "Experimental specialized speed-control role whose Pursuit value is matchup-dependent."
+          }
+        },
+        {
+          "variant_id": "choiceband",
+          "weight": 3,
+          "item_id": "choiceband",
+          "base_ability_id": "tanglinghair",
+          "move_ids": [
+            "earthquake",
+            "ironhead",
+            "stoneedge",
+            "suckerpunch"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "immediate physical wallbreaker with priority",
+            "rationale": "Choice Band provides immediate physical pressure while Sucker Punch supplies priority and the remaining attacks offer broad coverage.",
+            "distinguishing_evidence": "Choice Band, choice locking, Sucker Punch, or unusually high damage narrows toward this wallbreaker.",
+            "weight_reason": "Credible secondary breaker with priority and immediate damage but move-locking constraints."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "dustox",
+      "variants": [
+        {
+          "variant_id": "levitateutility",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "levitate",
+          "move_ids": [
+            "roost",
+            "defog",
+            "uturn",
+            "corrosivegas"
+          ],
+          "nature_id": "calm",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 4,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "special utility pivot",
+            "rationale": "Levitate and Boots minimize hazard pressure while Roost, Defog, U-turn, and public Corrosive Gas provide repeatable removal and item disruption.",
+            "distinguishing_evidence": "Levitate, Boots hazard behavior, U-turn, Defog, or Corrosive Gas identifies this package.",
+            "weight_reason": "Primary role because it exercises Dustox's new ability and move while preserving removal and momentum."
+          }
+        },
+        {
+          "variant_id": "shielddustphazer",
+          "weight": 3,
+          "item_id": "blacksludge",
+          "base_ability_id": "shielddust",
+          "move_ids": [
+            "roost",
+            "toxic",
+            "whirlwind",
+            "bugbuzz"
+          ],
+          "nature_id": "bold",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical status phazer",
+            "rationale": "Shield Dust blocks secondary effects; Black Sludge and Roost sustain Toxic and Whirlwind cycling, while Bug Buzz prevents complete passivity.",
+            "distinguishing_evidence": "Shield Dust effect blocking, Black Sludge, Toxic, Whirlwind, or Bug Buzz separates it from the Levitate remover.",
+            "weight_reason": "Common alternative with a materially different defensive axis and no invented third permutation."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "forretress",
+      "variants": [
+        {
+          "variant_id": "hazardpivot",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "overcoat",
+          "move_ids": [
+            "spikes",
+            "rapidspin",
+            "voltswitch",
+            "gyroball"
+          ],
+          "nature_id": "relaxed",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 0
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical hazard pivot",
+            "rationale": "Overcoat protects utility from powder and weather chip; Boots, Spikes, Spin, Volt Switch, and minimum-Speed Gyro Ball support repeated slow pivoting.",
+            "distinguishing_evidence": "Overcoat, Spikes, Gyro Ball, Boots behavior, or very slow Volt Switch distinguishes this line.",
+            "weight_reason": "Primary deliberately approved hazard-removal and pivot role."
+          }
+        },
+        {
+          "variant_id": "sturdyrocks",
+          "weight": 3,
+          "item_id": "leftovers",
+          "base_ability_id": "sturdy",
+          "move_ids": [
+            "stealthrock",
+            "rapidspin",
+            "bodypress",
+            "voltswitch"
+          ],
+          "nature_id": "impish",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "Sturdy rock setter",
+            "rationale": "Sturdy secures emergency action, Leftovers helps restore it, and Defense investment supports Body Press alongside rocks, Spin, and slow pivoting.",
+            "distinguishing_evidence": "Sturdy activation, Leftovers, Stealth Rock, or Body Press distinguishes it from Spikes and offensive Custap lines.",
+            "weight_reason": "Common alternative with different hazard, ability, and damage choices."
+          }
+        },
+        {
+          "variant_id": "toxicspikesboom",
+          "weight": 1,
+          "item_id": "custapberry",
+          "base_ability_id": "sturdy",
+          "move_ids": [
+            "toxicspikes",
+            "explosion",
+            "rapidspin",
+            "gyroball"
+          ],
+          "nature_id": "brave",
+          "evs": {
+            "hp": 252,
+            "atk": 252,
+            "def": 4,
+            "spa": 0,
+            "spd": 0,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 0
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "sacrificial hazard lead",
+            "rationale": "Sturdy and Custap support a final action; Toxic Spikes, maximum-Attack Explosion, Spin, and minimum-Speed Gyro Ball create a coherent lead package.",
+            "distinguishing_evidence": "Toxic Spikes, Custap Berry, Explosion, or Attack investment reveals the line.",
+            "weight_reason": "Niche legitimate lead, intentionally downweighted to avoid excessive hazard permutations."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "jellicent",
+      "variants": [
+        {
+          "variant_id": "choicespecs",
+          "weight": 2,
+          "item_id": "choicespecs",
+          "base_ability_id": "waterabsorb",
+          "move_ids": [
+            "waterspout",
+            "shadowball",
+            "energyball",
+            "icebeam"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 0,
+            "atk": 0,
+            "def": 4,
+            "spa": 252,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "proactive special wallbreaker",
+            "rationale": "Choice Specs and a full-health Water Spout create immediate pressure while three coverage attacks punish common Water answers.",
+            "distinguishing_evidence": "Choice locking, Choice Specs, Water Spout, Energy Ball, or Ice Beam narrows toward the offensive line.",
+            "weight_reason": "Experimental proactive role because it trades Jellicent's usual longevity for immediate damage."
+          }
+        },
+        {
+          "variant_id": "cursedbodyutility",
+          "weight": 3,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "cursedbody",
+          "move_ids": [
+            "hex",
+            "willowisp",
+            "recover",
+            "scald"
+          ],
+          "nature_id": "calm",
+          "evs": {
+            "hp": 248,
+            "atk": 0,
+            "def": 8,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "special defensive status utility",
+            "rationale": "Heavy-Duty Boots and Recover support repeated entries while burns empower Hex and Cursed Body can disrupt repeated attacks.",
+            "distinguishing_evidence": "Cursed Body activation, Heavy-Duty Boots behavior, Hex, or the Scald and Will-O-Wisp pairing narrows toward this line.",
+            "weight_reason": "Plausible secondary defensive axis with clear ability and status evidence."
+          }
+        },
+        {
+          "variant_id": "defensivespinblocker",
+          "weight": 4,
+          "item_id": "leftovers",
+          "base_ability_id": "waterabsorb",
+          "move_ids": [
+            "scald",
+            "recover",
+            "taunt",
+            "willowisp"
+          ],
+          "nature_id": "bold",
+          "evs": {
+            "hp": 248,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 0,
+            "spe": 8
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical defensive spinblocker",
+            "rationale": "Physical bulk, Water Absorb, and recovery sustain the Ghost-type removal deterrent while Taunt and burns deny passive progress.",
+            "distinguishing_evidence": "Water Absorb, Leftovers, Taunt, or Will-O-Wisp narrows toward the primary defensive package.",
+            "weight_reason": "Primary broadly useful Jellicent role with repeatable recovery and disruption."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "jynx",
+      "variants": [
+        {
+          "variant_id": "choicespecs",
+          "weight": 2,
+          "item_id": "choicespecs",
+          "base_ability_id": "dryskin",
+          "move_ids": [
+            "icebeam",
+            "psychic",
+            "focusblast",
+            "trick"
+          ],
+          "nature_id": "timid",
+          "evs": {
+            "hp": 0,
+            "atk": 0,
+            "def": 4,
+            "spa": 252,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast special wallbreaker",
+            "rationale": "Choice Specs boosts immediate dual-STAB pressure while Focus Blast covers resistant targets and Trick can disable a defensive answer.",
+            "distinguishing_evidence": "Choice locking, Choice Specs, Focus Blast, or Trick narrows toward the non-setup breaker.",
+            "weight_reason": "Plausible secondary attacker with immediate power but prediction costs."
+          }
+        },
+        {
+          "variant_id": "nastyplot",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "dryskin",
+          "move_ids": [
+            "lovelykiss",
+            "nastyplot",
+            "icebeam",
+            "psyshock"
+          ],
+          "nature_id": "timid",
+          "evs": {
+            "hp": 0,
+            "atk": 0,
+            "def": 4,
+            "spa": 252,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "special setup attacker",
+            "rationale": "Dry Skin and Heavy-Duty Boots improve setup access while Lovely Kiss can create a turn for Nasty Plot and dual STAB attacks.",
+            "distinguishing_evidence": "Nasty Plot or Heavy-Duty Boots is decisive; Psyshock further separates it from the disruption lead.",
+            "weight_reason": "Primary high-upside Jynx role built around its strongest setup and public ability."
+          }
+        },
+        {
+          "variant_id": "sashdisruption",
+          "weight": 3,
+          "item_id": "focussash",
+          "base_ability_id": "dryskin",
+          "move_ids": [
+            "lovelykiss",
+            "taunt",
+            "icebeam",
+            "psychic"
+          ],
+          "nature_id": "timid",
+          "evs": {
+            "hp": 0,
+            "atk": 0,
+            "def": 4,
+            "spa": 252,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast disruption lead",
+            "rationale": "Focus Sash guarantees an emergency action while Lovely Kiss and Taunt disrupt setup or defensive plans before Jynx attacks.",
+            "distinguishing_evidence": "Focus Sash activation, Taunt, or Psychic alongside Lovely Kiss narrows toward this line.",
+            "weight_reason": "Credible alternative lead with clear public evidence and no setup dependency."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "lapras",
+      "variants": [
+        {
+          "variant_id": "ancientshellperishtrap",
+          "weight": 2,
+          "item_id": "leftovers",
+          "base_ability_id": "ancientshell",
+          "move_ids": [
+            "whirlpool",
+            "perishsong",
+            "protect",
+            "freezedry"
+          ],
+          "nature_id": "bold",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical perish trapper",
+            "rationale": "Ancient Shell's public super-effective reduction and physical bulk improve trapping longevity; Whirlpool, Perish Song, Protect, and Freeze-Dry form one coherent plan.",
+            "distinguishing_evidence": "Whirlpool, Perish Song, Protect, physical bulk, or Leftovers distinguishes it from pivot and RestTalk lines.",
+            "weight_reason": "Meaningful secondary control role with narrower execution requirements."
+          }
+        },
+        {
+          "variant_id": "ancientshellpivot",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "ancientshell",
+          "move_ids": [
+            "freezedry",
+            "surf",
+            "chillyreception",
+            "healbell"
+          ],
+          "nature_id": "calm",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 4,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "special defensive weather pivot",
+            "rationale": "Ancient Shell reduces super-effective damage, Boots preserve entry health, dual STAB pressures targets, Chilly Reception pivots, and Heal Bell supplies team utility.",
+            "distinguishing_evidence": "Ancient Shell damage, Boots behavior, Chilly Reception, or Heal Bell identifies the role.",
+            "weight_reason": "Primary role because it directly uses both public Lapras additions in a broadly useful package."
+          }
+        },
+        {
+          "variant_id": "waterabsorbtank",
+          "weight": 3,
+          "item_id": "leftovers",
+          "base_ability_id": "waterabsorb",
+          "move_ids": [
+            "freezedry",
+            "surf",
+            "rest",
+            "sleeptalk"
+          ],
+          "nature_id": "calm",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 4,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "special RestTalk tank",
+            "rationale": "Water Absorb trades Ancient Shell mitigation for a Water immunity; Leftovers plus RestTalk provides long-duration status absorption with dual STAB.",
+            "distinguishing_evidence": "Water Absorb healing, Rest, Sleep Talk, or lack of Ancient Shell distinguishes this tank.",
+            "weight_reason": "Common alternative representing a public base ability and different recovery model."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "mawile",
+      "variants": [
+        {
+          "variant_id": "choicebandinterceptor",
+          "weight": 4,
+          "item_id": "choiceband",
+          "base_ability_id": "closingjaws",
+          "move_ids": [
+            "playrough",
+            "ironhead",
+            "knockoff",
+            "suckerpunch"
+          ],
+          "nature_id": "adamant",
+          "evs": {
+            "hp": 252,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "Choice Band switch interceptor",
+            "rationale": "Closing Jaws can intercept a manual switch with the selected damaging move; Band, dual STAB, Knock Off, and priority make each selection consequential.",
+            "distinguishing_evidence": "Choice locking and the first revealed attack distinguish it; Sucker Punch failure on a switch remains public mechanic evidence, not a successful intercept.",
+            "weight_reason": "Primary direct-attacking expression of Mawile's only legal ability."
+          }
+        },
+        {
+          "variant_id": "mixedcoverage",
+          "weight": 2,
+          "item_id": "expertbelt",
+          "base_ability_id": "closingjaws",
+          "move_ids": [
+            "playrough",
+            "knockoff",
+            "flamethrower",
+            "suckerpunch"
+          ],
+          "nature_id": "brave",
+          "evs": {
+            "hp": 4,
+            "atk": 252,
+            "def": 0,
+            "spa": 252,
+            "spd": 0,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 0
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "slow mixed coverage attacker",
+            "rationale": "Expert Belt avoids choice locking; Brave preserves both offenses, maximum mixed investment and minimum Speed create a Trick Room-oriented attacker, and Flamethrower broadens interception choices.",
+            "distinguishing_evidence": "Flamethrower damage, Expert Belt behavior, mixed damage, or minimum-Speed ordering separates it from physical lines.",
+            "weight_reason": "Meaningful secondary coverage line; downweighted because mixed investment is less generally durable."
+          }
+        },
+        {
+          "variant_id": "swordsdancebreaker",
+          "weight": 3,
+          "item_id": "lifeorb",
+          "base_ability_id": "closingjaws",
+          "move_ids": [
+            "swordsdance",
+            "playrough",
+            "knockoff",
+            "suckerpunch"
+          ],
+          "nature_id": "adamant",
+          "evs": {
+            "hp": 252,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "setup physical breaker",
+            "rationale": "Life Orb supplies flexible power; Swords Dance creates a setup route while Play Rough, Knock Off, and Sucker Punch retain switch-interception choices when an attack is selected.",
+            "distinguishing_evidence": "Swords Dance, Life Orb recoil, and lack of choice lock distinguish it from Band and mixed coverage.",
+            "weight_reason": "Common alternative because setup changes play materially without inventing a new ability or marginal permutation."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "obstagoon",
+      "variants": [
+        {
+          "variant_id": "bulkysetup",
+          "weight": 2,
+          "item_id": "leftovers",
+          "base_ability_id": "defiant",
+          "move_ids": [
+            "bulkup",
+            "knockoff",
+            "bodypress",
+            "obstruct"
+          ],
+          "nature_id": "careful",
+          "evs": {
+            "hp": 252,
+            "atk": 4,
+            "def": 0,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "bulky setup disruptor",
+            "rationale": "Special bulk and Leftovers provide setup opportunities; Bulk Up strengthens both Knock Off and Defense-based Body Press while Obstruct scouts and punishes contact.",
+            "distinguishing_evidence": "Bulk Up, Body Press, Obstruct, Leftovers, or Defiant narrows toward the bulky line.",
+            "weight_reason": "Experimental secondary role whose legal Body Press coverage replaced the rejected Drain Punch draft."
+          }
+        },
+        {
+          "variant_id": "choicescarf",
+          "weight": 3,
+          "item_id": "choicescarf",
+          "base_ability_id": "defiant",
+          "move_ids": [
+            "knockoff",
+            "closecombat",
+            "doubleedge",
+            "switcheroo"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 0,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 4,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast choice attacker",
+            "rationale": "Choice Scarf patches Obstagoon's Speed while three strong attacks and Switcheroo provide immediate offense and defensive disruption.",
+            "distinguishing_evidence": "Choice Scarf, choice locking, Double-Edge, or Switcheroo narrows toward the fast attacker.",
+            "weight_reason": "Plausible secondary role that exchanges Guts power for speed and utility."
+          }
+        },
+        {
+          "variant_id": "flameorbguts",
+          "weight": 4,
+          "item_id": "flameorb",
+          "base_ability_id": "guts",
+          "move_ids": [
+            "facade",
+            "knockoff",
+            "closecombat",
+            "obstruct"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 0,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 4,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "Guts physical wallbreaker",
+            "rationale": "Flame Orb activates Guts and a powerful Facade while Knock Off and Close Combat provide broad coverage and Obstruct safely enables activation.",
+            "distinguishing_evidence": "Flame Orb, burn without Attack loss, Guts, or Facade decisively identifies the breaker.",
+            "weight_reason": "Primary established Obstagoon role with the clearest ability and item synergy."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "porygon2",
+      "variants": [
+        {
+          "variant_id": "downloadattacker",
+          "weight": 3,
+          "item_id": "eviolite",
+          "base_ability_id": "download",
+          "move_ids": [
+            "triattack",
+            "icebeam",
+            "thunderbolt",
+            "recover"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "special tank attacker",
+            "rationale": "Eviolite and Recover preserve bulk while Download and maximum Special Attack power reliable STAB and broad BoltBeam coverage.",
+            "distinguishing_evidence": "Download boost, Modest damage, Thunderbolt, or the absence of Trick Room and status separates it.",
+            "weight_reason": "Common offensive alternative with a clear public role."
+          }
+        },
+        {
+          "variant_id": "traceutility",
+          "weight": 4,
+          "item_id": "eviolite",
+          "base_ability_id": "trace",
+          "move_ids": [
+            "foulplay",
+            "discharge",
+            "toxic",
+            "recover"
+          ],
+          "nature_id": "calm",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 4,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "special utility wall",
+            "rationale": "Trace creates matchup-dependent public information; Eviolite, Recover, Toxic, paralysis chance, and target-Attack-based Foul Play support a low-investment wall.",
+            "distinguishing_evidence": "The copied ability, Toxic, Discharge paralysis, or Foul Play identifies the utility package.",
+            "weight_reason": "Primary broadly useful defensive role and the clearest contrast to unsupported National Dex marginals."
+          }
+        },
+        {
+          "variant_id": "trickroomsetter",
+          "weight": 2,
+          "item_id": "eviolite",
+          "base_ability_id": "download",
+          "move_ids": [
+            "trickroom",
+            "recover",
+            "triattack",
+            "icebeam"
+          ],
+          "nature_id": "quiet",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 0
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "slow Trick Room setter",
+            "rationale": "Quiet maximum Special Attack and minimum Speed exploit the public six-turn room; Eviolite and Recover improve repeat setup while Download supplies pressure.",
+            "distinguishing_evidence": "Trick Room, minimum-Speed ordering, or Quiet damage distinguishes it from the faster Download attacker.",
+            "weight_reason": "Meaningful secondary mode setter, less universal than the wall and attacker."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "starmie",
+      "variants": [
+        {
+          "variant_id": "analyticbreaker",
+          "weight": 3,
+          "item_id": "lifeorb",
+          "base_ability_id": "analytic",
+          "move_ids": [
+            "hydropump",
+            "psyshock",
+            "thunderbolt",
+            "icebeam"
+          ],
+          "nature_id": "timid",
+          "evs": {
+            "hp": 0,
+            "atk": 0,
+            "def": 4,
+            "spa": 252,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast special wallbreaker",
+            "rationale": "Life Orb and Analytic punish switches while high Speed and four attacks provide immediate broad coverage.",
+            "distinguishing_evidence": "Analytic damage, Life Orb recoil, Hydro Pump, Thunderbolt, or Ice Beam narrows toward the all-out attacker.",
+            "weight_reason": "Established offensive alternative with strong coverage but no recovery or removal."
+          }
+        },
+        {
+          "variant_id": "rapidspinutility",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "naturalcure",
+          "move_ids": [
+            "scald",
+            "psyshock",
+            "rapidspin",
+            "recover"
+          ],
+          "nature_id": "timid",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 0,
+            "spa": 4,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "fast removal utility",
+            "rationale": "Heavy-Duty Boots, Natural Cure, Rapid Spin, and Recover support repeatable hazard removal while dual STAB attacks prevent passivity.",
+            "distinguishing_evidence": "Natural Cure, Heavy-Duty Boots behavior, Rapid Spin, Recover, or Scald narrows toward the utility line.",
+            "weight_reason": "Primary broadly applicable Starmie role; a third variant was omitted to avoid a negligible offensive permutation."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "swampert",
+      "variants": [
+        {
+          "variant_id": "choiceband",
+          "weight": 3,
+          "item_id": "choiceband",
+          "base_ability_id": "torrent",
+          "move_ids": [
+            "waterfall",
+            "earthquake",
+            "icepunch",
+            "flipturn"
+          ],
+          "nature_id": "adamant",
+          "evs": {
+            "hp": 0,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 4,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical wallbreaker",
+            "rationale": "Choice Band and maximum Attack power dual STAB and Ice Punch while Flip Turn preserves momentum against unfavorable answers.",
+            "distinguishing_evidence": "Choice Band, choice locking, Ice Punch, or unusually strong Flip Turn narrows toward the breaker.",
+            "weight_reason": "Plausible secondary offensive role with immediate pressure and limited flexibility."
+          }
+        },
+        {
+          "variant_id": "cursechesto",
+          "weight": 2,
+          "item_id": "chestoberry",
+          "base_ability_id": "torrent",
+          "move_ids": [
+            "curse",
+            "waterfall",
+            "earthquake",
+            "rest"
+          ],
+          "nature_id": "careful",
+          "evs": {
+            "hp": 252,
+            "atk": 4,
+            "def": 0,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "bulky setup tank",
+            "rationale": "Special bulk complements Curse boosts, and Chesto Berry enables one full Rest recovery before Swampert attacks with dual STAB.",
+            "distinguishing_evidence": "Curse, Chesto Berry, Rest, or Careful damage ordering narrows toward the setup line.",
+            "weight_reason": "Plausible but narrower win condition that depends on finding setup turns."
+          }
+        },
+        {
+          "variant_id": "rockypivot",
+          "weight": 4,
+          "item_id": "leftovers",
+          "base_ability_id": "torrent",
+          "move_ids": [
+            "stealthrock",
+            "earthquake",
+            "flipturn",
+            "toxic"
+          ],
+          "nature_id": "relaxed",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "bulky Stealth Rock pivot",
+            "rationale": "Physical bulk and Leftovers support repeated Stealth Rock and slow Flip Turn use while Earthquake and Toxic create progress.",
+            "distinguishing_evidence": "Stealth Rock, Toxic, Leftovers, or slow Flip Turn narrows toward the defensive pivot.",
+            "weight_reason": "Primary role because it compresses hazards, defensive utility, and momentum."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "sylveon",
+      "variants": [
+        {
+          "variant_id": "calmmind",
+          "weight": 3,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "pixilate",
+          "move_ids": [
+            "calmmind",
+            "hypervoice",
+            "mysticalfire",
+            "wish"
+          ],
+          "nature_id": "bold",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 4,
+            "spd": 0,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "bulky special setup",
+            "rationale": "Physical investment and Heavy-Duty Boots create setup opportunities while Wish sustains Calm Mind pressure and Mystical Fire covers Steel targets.",
+            "distinguishing_evidence": "Calm Mind, Heavy-Duty Boots, or the Calm Mind and Wish pairing narrows toward the setup line.",
+            "weight_reason": "Plausible secondary win condition with meaningful defensive investment."
+          }
+        },
+        {
+          "variant_id": "choicespecs",
+          "weight": 3,
+          "item_id": "choicespecs",
+          "base_ability_id": "pixilate",
+          "move_ids": [
+            "hypervoice",
+            "psyshock",
+            "mysticalfire",
+            "shadowball"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 0,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 4,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "immediate special wallbreaker",
+            "rationale": "Choice Specs and Pixilate turn Hyper Voice into immediate pressure while three coverage attacks punish common Fairy answers.",
+            "distinguishing_evidence": "Choice Specs, choice locking, Psyshock, or Shadow Ball narrows toward the immediate breaker.",
+            "weight_reason": "Established offensive alternative with high immediate power and no recovery."
+          }
+        },
+        {
+          "variant_id": "wishsupport",
+          "weight": 4,
+          "item_id": "leftovers",
+          "base_ability_id": "pixilate",
+          "move_ids": [
+            "hypervoice",
+            "wish",
+            "protect",
+            "healbell"
+          ],
+          "nature_id": "bold",
+          "evs": {
+            "hp": 252,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 4,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "Wish support wall",
+            "rationale": "Maximum physical bulk, Leftovers, Wish, Protect, and Heal Bell provide durable team support while Pixilate Hyper Voice prevents passivity.",
+            "distinguishing_evidence": "Wish, Protect, Heal Bell, or Leftovers narrows toward the dedicated support package.",
+            "weight_reason": "Primary broadly applicable Sylveon role with reliable public evidence."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "tinkaton",
+      "variants": [
+        {
+          "variant_id": "assaultvest",
+          "weight": 3,
+          "item_id": "assaultvest",
+          "base_ability_id": "moldbreaker",
+          "move_ids": [
+            "gigatonhammer",
+            "knockoff",
+            "playrough",
+            "fakeout"
+          ],
+          "nature_id": "careful",
+          "evs": {
+            "hp": 252,
+            "atk": 4,
+            "def": 0,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "special defensive attacker",
+            "rationale": "Assault Vest reinforces Tinkaton's special bulk while four physical attacks combine item disruption, dual STAB, and priority chip.",
+            "distinguishing_evidence": "Assault Vest, Fake Out, or four revealed attacks narrows toward the bulky attacking line.",
+            "weight_reason": "Plausible secondary role with clear item evidence and no status moves."
+          }
+        },
+        {
+          "variant_id": "rocksutility",
+          "weight": 4,
+          "item_id": "leftovers",
+          "base_ability_id": "moldbreaker",
+          "move_ids": [
+            "gigatonhammer",
+            "knockoff",
+            "stealthrock",
+            "thunderwave"
+          ],
+          "nature_id": "careful",
+          "evs": {
+            "hp": 252,
+            "atk": 4,
+            "def": 0,
+            "spa": 0,
+            "spd": 252,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "Stealth Rock utility",
+            "rationale": "Special bulk and Leftovers enable repeated Knock Off, Stealth Rock, and Thunder Wave use while Gigaton Hammer supplies immediate Steel damage.",
+            "distinguishing_evidence": "Stealth Rock, Thunder Wave, or Leftovers narrows toward the dedicated utility package.",
+            "weight_reason": "Primary role because it compresses hazards, item removal, speed control, and offense."
+          }
+        },
+        {
+          "variant_id": "swordsdance",
+          "weight": 2,
+          "item_id": "airballoon",
+          "base_ability_id": "moldbreaker",
+          "move_ids": [
+            "swordsdance",
+            "gigatonhammer",
+            "playrough",
+            "knockoff"
+          ],
+          "nature_id": "jolly",
+          "evs": {
+            "hp": 0,
+            "atk": 252,
+            "def": 0,
+            "spa": 0,
+            "spd": 4,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 31,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "physical setup attacker",
+            "rationale": "Air Balloon can create a Ground-immune setup turn while Swords Dance amplifies dual STAB and Knock Off pressure.",
+            "distinguishing_evidence": "Swords Dance, Air Balloon, maximum-Speed ordering, or the dual-STAB package narrows toward the attacker.",
+            "weight_reason": "Experimental offensive line because Tinkaton's base Attack limits sweeping consistency."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "torkoal",
+      "variants": [
+        {
+          "variant_id": "droughtspinner",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "drought",
+          "move_ids": [
+            "lavaplume",
+            "rapidspin",
+            "stealthrock",
+            "yawn"
+          ],
+          "nature_id": "bold",
+          "evs": {
+            "hp": 248,
+            "atk": 0,
+            "def": 252,
+            "spa": 0,
+            "spd": 8,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "defensive sun and removal support",
+            "rationale": "Heavy-Duty Boots and maximum physical bulk enable repeated Drought, Rapid Spin, and Stealth Rock support while Lava Plume and Yawn deter setup.",
+            "distinguishing_evidence": "Heavy-Duty Boots behavior, Lava Plume, Yawn, or the Spin and rocks combination narrows toward the defensive support line.",
+            "weight_reason": "Primary broadly useful Torkoal role with durable weather and hazard control."
+          }
+        },
+        {
+          "variant_id": "overheatmomentum",
+          "weight": 3,
+          "item_id": "ejectpack",
+          "base_ability_id": "drought",
+          "move_ids": [
+            "overheat",
+            "earthpower",
+            "rapidspin",
+            "stealthrock"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 248,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 8,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "Overheat momentum support",
+            "rationale": "Sun-boosted Overheat triggers Eject Pack momentum while Special Attack investment, Earth Power, Rapid Spin, and Stealth Rock retain useful pressure.",
+            "distinguishing_evidence": "Eject Pack activation after Overheat, Earth Power, or unusually strong Overheat damage narrows toward the momentum line.",
+            "weight_reason": "Plausible secondary support role with a distinctive one-time pivot mechanism."
+          }
+        },
+        {
+          "variant_id": "sunbreaker",
+          "weight": 2,
+          "item_id": "choicespecs",
+          "base_ability_id": "drought",
+          "move_ids": [
+            "eruption",
+            "overheat",
+            "earthpower",
+            "solarbeam"
+          ],
+          "nature_id": "quiet",
+          "evs": {
+            "hp": 248,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 8,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 0
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "slow sun wallbreaker",
+            "rationale": "Choice Specs, Drought, maximum Special Attack, and minimum Speed create a strong slow attacker using Eruption and broad special coverage.",
+            "distinguishing_evidence": "Choice Specs, choice locking, Eruption, Solar Beam, or minimum-Speed ordering narrows toward the breaker.",
+            "weight_reason": "Experimental immediate-damage role that is powerful but sensitive to entry damage."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "vikavolt",
+      "variants": [
+        {
+          "variant_id": "bootspivot",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "levitate",
+          "move_ids": [
+            "thunderbolt",
+            "bugbuzz",
+            "voltswitch",
+            "roost"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 248,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 8,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "durable Volt Switch pivot",
+            "rationale": "Heavy-Duty Boots, Roost, and bulk support repeated slow Volt Switch use while high Special Attack keeps both STAB attacks threatening.",
+            "distinguishing_evidence": "Heavy-Duty Boots behavior, Roost, or repeated slow Volt Switch use narrows toward the durable pivot.",
+            "weight_reason": "Primary broadly applicable Vikavolt role with longevity and momentum."
+          }
+        },
+        {
+          "variant_id": "specsbreaker",
+          "weight": 3,
+          "item_id": "choicespecs",
+          "base_ability_id": "levitate",
+          "move_ids": [
+            "thunderbolt",
+            "bugbuzz",
+            "voltswitch",
+            "energyball"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 248,
+            "atk": 0,
+            "def": 0,
+            "spa": 252,
+            "spd": 8,
+            "spe": 0
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "slow special wallbreaker",
+            "rationale": "Choice Specs maximizes Vikavolt's immediate Special Attack while dual STAB, Energy Ball, and Volt Switch cover damage and momentum.",
+            "distinguishing_evidence": "Choice Specs, choice locking, Energy Ball, or exceptionally strong Volt Switch narrows toward the breaker.",
+            "weight_reason": "Plausible secondary attacker with immediate power but no recovery."
+          }
+        },
+        {
+          "variant_id": "stickyweb",
+          "weight": 3,
+          "item_id": "focussash",
+          "base_ability_id": "levitate",
+          "move_ids": [
+            "stickyweb",
+            "thunderbolt",
+            "bugbuzz",
+            "energyball"
+          ],
+          "nature_id": "modest",
+          "evs": {
+            "hp": 0,
+            "atk": 0,
+            "def": 4,
+            "spa": 252,
+            "spd": 0,
+            "spe": 252
+          },
+          "ivs": {
+            "hp": 31,
+            "atk": 0,
+            "def": 31,
+            "spa": 31,
+            "spd": 31,
+            "spe": 31
+          },
+          "level": 100,
+          "source_ids": [
+            "publicformatpatch12",
+            "publicmanualv1"
+          ],
+          "metadata": {
+            "role": "Sticky Web lead",
+            "rationale": "Focus Sash supports reliable Sticky Web while maximum Special Attack and Speed let Vikavolt threaten removal attempts with three attacks.",
+            "distinguishing_evidence": "Focus Sash activation, Sticky Web, or maximum-Speed ordering narrows toward the lead.",
+            "weight_reason": "Established utility alternative with clear hazard evidence and meaningful offensive presence."
+          }
+        }
+      ]
+    }
+  ]
+}

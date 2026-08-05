@@ -2,11 +2,14 @@ import logging
 
 from fp import constants
 from fp.battle.inference import is_opponent
+from fp.battle.public_prior_context import PublicPriorFallback
 from fp.battle.protocol import process_battle_updates
 from fp.battle.helpers import maximum_ev
+from fp.battle.team_inference import TeamSheetPolicy
 from fp.config import FoulPlayConfig
 from fp.constants import BattleType
 from fp.data.sets import SmogonSets, TeamDatasets
+from fp.data.team_pools import TeamPoolRegistry
 from fp.format_spec import FormatSpec
 from fp.modes.base import (
     BattleMode,
@@ -29,10 +32,20 @@ class StandardBattleMode(BattleMode):
         self.smogon_sets = SmogonSets()
 
     async def start_battle(
-        self, ps_websocket_client: PSWebsocketClient, pokemon_battle_type, team_dict
+        self,
+        ps_websocket_client: PSWebsocketClient,
+        pokemon_battle_type,
+        team_dict,
+        *,
+        team_pool_registry: TeamPoolRegistry | None = None,
+        team_sheet_policy: TeamSheetPolicy | None = None,
+        public_prior_context=None,
     ):
+        common_kwargs = {"team_sheet_policy": team_sheet_policy}
+        if public_prior_context is not None:
+            common_kwargs["public_prior_context"] = public_prior_context
         battle, msg = await self.start_battle_common(
-            ps_websocket_client, pokemon_battle_type
+            ps_websocket_client, pokemon_battle_type, **common_kwargs
         )
         battle.user.team_dict = team_dict
 
@@ -59,13 +72,9 @@ class StandardBattleMode(BattleMode):
             unique_pkmn_names = set(
                 [p.name for p in battle.user.reserve] + [battle.user.active.name]
             )
-            self.smogon_sets.initialize(
-                FormatSpec.from_format_string(
-                    FoulPlayConfig.smogon_stats or pokemon_battle_type
-                ),
-                unique_pkmn_names,
+            self.initialize_datasets_if_enabled(
+                battle, pokemon_battle_type, unique_pkmn_names
             )
-            self.team_datasets.initialize(battle.format_spec, unique_pkmn_names)
 
             # apply the messages that were held onto
             process_battle_updates(battle)
@@ -95,19 +104,35 @@ class StandardBattleMode(BattleMode):
 
             await get_first_request_json(ps_websocket_client, battle)
             battle.initialize_team_preview(opponent_pokemon, pokemon_battle_type)
+            self.match_team_preview(battle, team_pool_registry)
             battle.during_team_preview()
 
             unique_pkmn_names = set(
                 p.name for p in battle.opponent.reserve + battle.user.reserve
             )
 
-            self.initialize_team_preview_datasets(
-                pokemon_battle_type, unique_pkmn_names, msg
+            self.initialize_datasets_if_enabled(
+                battle,
+                pokemon_battle_type,
+                unique_pkmn_names,
+                team_preview_message=msg,
             )
 
             await self.handle_team_preview(battle, ps_websocket_client)
 
         return battle
+
+    @staticmethod
+    def match_team_preview(
+        battle, team_pool_registry: TeamPoolRegistry | None = None
+    ):
+        """Match the fully initialized opponent preview into battle-local state."""
+
+        battle.team_inference.match_preview(
+            tuple(battle.opponent.reserve),
+            team_pool_registry,
+            battle.pokemon_format,
+        )
 
     def initialize_team_preview_datasets(
         self, pokemon_battle_type, unique_pkmn_names, msg
@@ -122,11 +147,53 @@ class StandardBattleMode(BattleMode):
             FormatSpec.from_format_string(pokemon_battle_type), unique_pkmn_names
         )
 
+    @staticmethod
+    def generic_datasets_enabled(battle) -> bool:
+        context = battle.public_prior_context
+        return (
+            context is None
+            or context.fallback_policy is PublicPriorFallback.GENERIC
+        )
+
+    def initialize_datasets_if_enabled(
+        self,
+        battle,
+        pokemon_battle_type,
+        unique_pkmn_names,
+        *,
+        team_preview_message=None,
+    ) -> bool:
+        """Initialize generic data only when it is a permitted fallback."""
+
+        if not self.generic_datasets_enabled(battle):
+            logger.info(
+                "Skipping generic TeamDatasets and SmogonSets initialization "
+                "because public-prior fallback is none"
+            )
+            return False
+
+        if team_preview_message is None:
+            self.smogon_sets.initialize(
+                FormatSpec.from_format_string(
+                    FoulPlayConfig.smogon_stats or pokemon_battle_type
+                ),
+                unique_pkmn_names,
+            )
+            self.team_datasets.initialize(battle.format_spec, unique_pkmn_names)
+        else:
+            self.initialize_team_preview_datasets(
+                pokemon_battle_type, unique_pkmn_names, team_preview_message
+            )
+        return True
+
     def add_revealed_pokemon(self, battle, pkmn):
         # for standard battles gen4 and lower
         # we want to add the new pokemon to the datasets as they are revealed
         # because there is no teampreview
-        if not battle.gen.has_team_preview:
+        if (
+            self.generic_datasets_enabled(battle)
+            and not battle.gen.has_team_preview
+        ):
             self.smogon_sets.add_new_pokemon(pkmn.name)
             self.team_datasets.add_new_pokemon(pkmn.name)
             logger.info("Adding new pokemon '{}' to the datasets".format(pkmn.name))
@@ -157,6 +224,9 @@ class StandardBattleMode(BattleMode):
     ):
         # in battle factory we can deduce that there is a zoroark in front of us
         # if we see a move that is not in the known moveset and a zoroark is in the reserves
+        if not self.generic_datasets_enabled(battle):
+            return pkmn
+
         if (
             is_opponent(battle, split_msg)
             and zoroark_from_reserves is not None
@@ -189,6 +259,9 @@ class StandardBattleMode(BattleMode):
             )  # assume as fast as possible
 
     def dataset_possibilities(self, battle):
+        if not self.generic_datasets_enabled(battle):
+            return [], None, True
+
         possibilites = self.team_datasets.get_pkmn_sets_from_pkmn_name(
             battle.opponent.active
         )

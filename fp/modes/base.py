@@ -118,7 +118,11 @@ class BattleMode:
         pass
 
     async def start_battle_common(
-        self, ps_websocket_client: PSWebsocketClient, pokemon_battle_type
+        self,
+        ps_websocket_client: PSWebsocketClient,
+        pokemon_battle_type,
+        team_sheet_policy=None,
+        public_prior_context=None,
     ):
         battle_tag, opponent_name = await get_battle_tag_and_opponent(
             ps_websocket_client
@@ -128,12 +132,25 @@ class BattleMode:
                 "{}_{}.log".format(battle_tag, opponent_name)
             )
 
-        battle = Battle(battle_tag)
+        battle = Battle(
+            battle_tag,
+            team_sheet_policy=team_sheet_policy,
+            public_prior_context=public_prior_context,
+        )
         battle.opponent.account_name = opponent_name
         battle.pokemon_format = pokemon_battle_type
         battle.generation = battle.format_spec.generation
         battle.battle_type = battle.format_spec.battle_type
         battle.mode = self
+        if battle.public_prior_context is not None:
+            logger.info(
+                "Public prior context attached: battle={} format={} datasets={} fallback={}".format(
+                    battle.battle_tag,
+                    battle.public_prior_context.format_id,
+                    len(battle.public_prior_context.selected_identities),
+                    battle.public_prior_context.fallback_policy.value,
+                )
+            )
 
         # wait until the opponent's identifier is received. This will be `p1` or `p2`.
         #

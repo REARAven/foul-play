@@ -12,6 +12,9 @@ from fp.websocket_client import PSWebsocketClient
 from fp.data import all_move_json
 from fp.data import pokedex
 from fp.data.mods.apply_mods import apply_mods
+from fp.data.public_priors.runtime import (
+    load_public_prior_runtime_configuration,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +44,13 @@ def check_dictionaries_are_unmodified(original_pokedex, original_move_json):
 
 
 async def run_foul_play():
-    FoulPlayConfig.configure()
+    public_prior_options = FoulPlayConfig.configure()
     init_logging(FoulPlayConfig.log_level, FoulPlayConfig.log_to_file)
     apply_mods(FoulPlayConfig.format_spec)
+    public_prior_configuration = load_public_prior_runtime_configuration(
+        public_prior_options,
+        FoulPlayConfig.pokemon_format,
+    )
 
     original_pokedex = deepcopy(pokedex)
     original_move_json = deepcopy(all_move_json)
@@ -95,7 +102,10 @@ async def run_foul_play():
             raise ValueError("Invalid Bot Mode: {}".format(FoulPlayConfig.bot_mode))
 
         winner = await pokemon_battle(
-            ps_websocket_client, FoulPlayConfig.pokemon_format, team_dict
+            ps_websocket_client,
+            FoulPlayConfig.pokemon_format,
+            team_dict,
+            public_prior_configuration=public_prior_configuration,
         )
         if winner == FoulPlayConfig.username:
             wins += 1

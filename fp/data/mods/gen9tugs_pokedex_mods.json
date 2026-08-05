@@ -1,0 +1,63 @@
+{
+    "claydol": {
+        "abilities": {
+            "0": "Levitate",
+            "H": "Regenerator"
+        }
+    },
+    "druddigon": {
+        "baseStats": {
+            "hp": 85,
+            "attack": 120,
+            "defense": 90,
+            "special-attack": 60,
+            "special-defense": 90,
+            "speed": 48
+        }
+    },
+    "dudunsparce": {
+        "abilities": {
+            "0": "Serene Grace",
+            "H": "Thick Fat"
+        }
+    },
+    "dudunsparcethreesegment": {
+        "abilities": {
+            "0": "Serene Grace",
+            "H": "Thick Fat"
+        }
+    },
+    "dustox": {
+        "baseStats": {
+            "hp": 80,
+            "attack": 50,
+            "defense": 90,
+            "special-attack": 70,
+            "special-defense": 110,
+            "speed": 65
+        },
+        "abilities": {
+            "0": "Shield Dust",
+            "H": "Levitate"
+        }
+    },
+    "jynx": {
+        "abilities": {
+            "0": "Oblivious",
+            "1": "Unburden",
+            "H": "Dry Skin"
+        }
+    },
+    "lapras": {
+        "abilities": {
+            "0": "Water Absorb",
+            "1": "Shell Armor",
+            "H": "Ancient Shell"
+        }
+    },
+    "mawile": {
+        "abilities": {
+            "0": "Closing Jaws"
+        }
+    }
+}

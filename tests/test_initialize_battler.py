@@ -1,8 +1,25 @@
+import copy
+
 import pytest
 
 from fp import constants
+from fp.data import all_move_json, pokedex
+from fp.data.mods.apply_mods import apply_mods
+from fp.format_spec import FormatSpec
 from fp.battle.state import Battler, Move, LastUsedMove
 from fp.battle.state import Pokemon
+
+
+@pytest.fixture
+def tugs_data():
+    saved_moves = copy.deepcopy(all_move_json)
+    saved_pokedex = copy.deepcopy(pokedex)
+    apply_mods(FormatSpec.from_format_string("gen9tugs"))
+    yield
+    all_move_json.clear()
+    all_move_json.update(saved_moves)
+    pokedex.clear()
+    pokedex.update(saved_pokedex)
 
 
 class TestUpdateFromRequestJson:
@@ -103,6 +120,70 @@ class TestUpdateFromRequestJson:
             Move("hiddenpowerice"),
             Move("nastyplot"),
         ]
+
+    def test_cragmend_as_first_request_move_preserves_move_state_and_indexes(
+        self, tugs_data
+    ):
+        request_dict = {
+            "active": [
+                {
+                    "moves": [
+                        {
+                            "move": "Crag Mend",
+                            "id": "cragmend",
+                            "pp": 7,
+                            "maxpp": 8,
+                            "target": "self",
+                            "disabled": True,
+                        },
+                        {
+                            "move": "Thunderbolt",
+                            "id": "thunderbolt",
+                            "pp": 3,
+                            "maxpp": 24,
+                            "target": "normal",
+                            "disabled": False,
+                        },
+                    ]
+                }
+            ],
+            "side": {
+                "name": "BigBluePikachu",
+                "id": "p2",
+                "pokemon": [
+                    {
+                        "ident": "p2: PikachuNickname",
+                        "details": "Pikachu, L84, M",
+                        "condition": "152/335",
+                        "active": True,
+                        "stats": {
+                            "atk": 200,
+                            "def": 210,
+                            "spa": 220,
+                            "spd": 230,
+                            "spe": 240,
+                        },
+                        "moves": ["cragmend", "thunderbolt"],
+                        "baseAbility": "static",
+                        "item": "lightball",
+                        "ability": "static",
+                    }
+                ],
+            },
+        }
+        self.battler.active = Pokemon("pikachu", 100)
+
+        self.battler.update_from_request_json(request_dict)
+
+        assert ["cragmend", "thunderbolt"] == [
+            move.name for move in self.battler.active.moves
+        ]
+        crag_mend, thunderbolt = self.battler.active.moves
+        assert 7 == crag_mend.current_pp
+        assert crag_mend.disabled
+        assert 3 == thunderbolt.current_pp
+        assert 24 == thunderbolt.max_pp
+        assert not thunderbolt.disabled
 
     def test_gigatonhammer_un_disabled_if_it_is_last_used_move(self):
         request_dict = {

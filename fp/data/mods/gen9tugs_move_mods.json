@@ -1,0 +1,24 @@
+{
+    "cragmend": {
+        "accuracy": true,
+        "basePower": 0,
+        "category": "status",
+        "flags": {
+            "heal": 1,
+            "metronome": 1,
+            "snatch": 1
+        },
+        "heal": [
+            1,
+            2
+        ],
+        "heal_target": "self",
+        "id": "cragmend",
+        "name": "Crag Mend",
+        "pp": 5,
+        "priority": 0,
+        "secondary": null,
+        "target": "self",
+        "type": "normal"
+    }
+}

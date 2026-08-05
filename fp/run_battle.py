@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from fp import constants
 from fp.config import FoulPlayConfig, SaveReplay
@@ -6,6 +9,9 @@ from fp.battle.protocol import async_update_battle
 from fp.format_spec import FormatSpec
 from fp.modes import battle_mode
 from fp.modes.base import async_pick_move
+
+if TYPE_CHECKING:
+    from fp.data.public_priors.runtime import PublicPriorRuntimeConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +24,25 @@ def battle_is_finished(battle_tag, msg):
     )
 
 
-async def start_battle(ps_websocket_client, pokemon_battle_type, team_dict):
+async def start_battle(
+    ps_websocket_client,
+    pokemon_battle_type,
+    team_dict,
+    *,
+    public_prior_configuration: PublicPriorRuntimeConfiguration | None = None,
+):
     format_spec = FormatSpec.from_format_string(pokemon_battle_type)
-    battle = await battle_mode(format_spec.battle_type).start_battle(
-        ps_websocket_client, pokemon_battle_type, team_dict
+    mode = battle_mode(format_spec.battle_type)
+    start_kwargs = {}
+    if public_prior_configuration is not None:
+        start_kwargs["public_prior_context"] = (
+            public_prior_configuration.create_battle_context(pokemon_battle_type)
+        )
+    battle = await mode.start_battle(
+        ps_websocket_client,
+        pokemon_battle_type,
+        team_dict,
+        **start_kwargs,
     )
 
     await ps_websocket_client.send_message(battle.battle_tag, ["hf"])
@@ -30,8 +51,19 @@ async def start_battle(ps_websocket_client, pokemon_battle_type, team_dict):
     return battle
 
 
-async def pokemon_battle(ps_websocket_client, pokemon_battle_type, team_dict):
-    battle = await start_battle(ps_websocket_client, pokemon_battle_type, team_dict)
+async def pokemon_battle(
+    ps_websocket_client,
+    pokemon_battle_type,
+    team_dict,
+    *,
+    public_prior_configuration: PublicPriorRuntimeConfiguration | None = None,
+):
+    battle = await start_battle(
+        ps_websocket_client,
+        pokemon_battle_type,
+        team_dict,
+        public_prior_configuration=public_prior_configuration,
+    )
     while True:
         msg = await ps_websocket_client.receive_message()
         if battle_is_finished(battle.battle_tag, msg):

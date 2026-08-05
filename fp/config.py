@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import argparse
 import logging
 import os
 import sys
 from enum import Enum, auto
 from logging.handlers import RotatingFileHandler
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from fp.format_spec import FormatSpec
+
+if TYPE_CHECKING:
+    from fp.data.public_priors.runtime import PublicPriorStartupOptions
 
 
 class CustomFormatter(logging.Formatter):
@@ -90,7 +95,7 @@ class _FoulPlayConfig:
     stdout_log_handler: logging.StreamHandler
     file_log_handler: Optional[CustomRotatingFileHandler]
 
-    def configure(self):
+    def configure(self, argv=None) -> PublicPriorStartupOptions | None:
         parser = argparse.ArgumentParser()
         parser.add_argument(
             "--websocket-uri",
@@ -115,6 +120,19 @@ class _FoulPlayConfig:
             "--smogon-stats-format",
             default=None,
             help="Overwrite which smogon stats are used to infer unknowns. If not set, defaults to the --pokemon-format value.",
+        )
+        parser.add_argument(
+            "--public-prior-file",
+            action="append",
+            default=[],
+            metavar="PATH",
+            help="Load exactly one local public-prior JSON file; repeat to set precedence order.",
+        )
+        parser.add_argument(
+            "--public-prior-fallback",
+            choices=("generic", "none"),
+            default=None,
+            help="Required with --public-prior-file: generic or none.",
         )
         parser.add_argument(
             "--search-time-ms",
@@ -182,7 +200,15 @@ class _FoulPlayConfig:
             help="When enabled, DEBUG logs will be written to a file in the logs/ directory",
         )
 
-        args = parser.parse_args()
+        args = parser.parse_args(argv)
+        if args.public_prior_file and args.public_prior_fallback is None:
+            parser.error(
+                "--public-prior-fallback is required when --public-prior-file is supplied"
+            )
+        if args.public_prior_fallback is not None and not args.public_prior_file:
+            parser.error(
+                "--public-prior-fallback requires at least one --public-prior-file"
+            )
         self.websocket_uri = args.websocket_uri
         self.username = args.ps_username
         self.password = args.ps_password
@@ -209,6 +235,15 @@ class _FoulPlayConfig:
         self.log_to_file = args.log_to_file
 
         self.validate_config()
+        if not args.public_prior_file:
+            return None
+        from fp.battle.public_prior_context import PublicPriorFallback
+        from fp.data.public_priors.runtime import PublicPriorStartupOptions
+
+        return PublicPriorStartupOptions(
+            file_paths=tuple(args.public_prior_file),
+            fallback_policy=PublicPriorFallback(args.public_prior_fallback),
+        )
 
     @property
     def format_spec(self) -> FormatSpec:

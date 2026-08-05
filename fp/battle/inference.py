@@ -192,6 +192,8 @@ def check_speed_ranges(battle, msg_lines):
         and moves[0][0].startswith(battle.opponent.name)
         and moves[0][1][constants.ID] != "pursuit"
     ):
+        if battle.user.last_selected_move.move.startswith("switch "):
+            return
         moves.append(
             (
                 "{}a: {}".format(battle.opponent.name, battle.user.active.name),
@@ -562,6 +564,10 @@ def update_dataset_possibilities(
         or "multiaccuracy" in all_move_json[damage_dealt.move]
         or damage_dealt.move.startswith(constants.HIDDEN_POWER)
         or damage_dealt.percent_damage == 0
+        or (
+            check_type == "damage_dealt"
+            and battle.user.last_selected_move.move.startswith("switch ")
+        )
         or (
             check_type == "damage_dealt"
             and battle.opponent.last_used_move.move != damage_dealt.move

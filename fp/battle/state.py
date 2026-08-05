@@ -14,6 +14,8 @@ from fp.battle.helpers import (
 )
 from fp.battle.helpers import normalize_name
 from fp.battle.helpers import calculate_stats
+from fp.battle.public_prior_context import PublicPriorSearchContext
+from fp.battle.team_inference import TeamInferenceContext, TeamSheetPolicy
 from fp.format_spec import FormatSpec
 from fp.generations import (
     GenerationMechanics,
@@ -68,8 +70,21 @@ boost_multiplier_lookup = {
 
 
 class Battle:
-    def __init__(self, battle_tag):
+    def __init__(
+        self,
+        battle_tag,
+        team_sheet_policy: TeamSheetPolicy | None = None,
+        public_prior_context: PublicPriorSearchContext | None = None,
+    ):
+        if public_prior_context is not None and not isinstance(
+            public_prior_context, PublicPriorSearchContext
+        ):
+            raise TypeError(
+                "public_prior_context must be a PublicPriorSearchContext or None"
+            )
         self.battle_tag = battle_tag
+        self.team_inference = TeamInferenceContext(team_sheet_policy)
+        self.public_prior_context = public_prior_context
         self.user = Battler()
         self.opponent = Battler()
         self.weather = None
@@ -79,6 +94,7 @@ class Battle:
         self.field_turns_remaining = 0
         self.trick_room = False
         self.trick_room_turns_remaining = 0
+        self.trick_room_duration_uncertain = False
         self.gravity = False
         self.team_preview = False
 
@@ -113,9 +129,29 @@ class Battle:
         self.user.active = None
 
         for pkmn_string in opponent_pokemon:
-            pokemon = Pokemon.from_switch_string(pkmn_string)
+            source_species_id = normalize_name(pkmn_string.split(",", 1)[0])
+            if source_species_id in pokedex:
+                pokemon = Pokemon.from_switch_string(pkmn_string)
+            else:
+                logger.warning(
+                    "Unresolved exact team-preview species/form: {}".format(
+                        source_species_id
+                    )
+                )
+                pokemon = Pokemon.get_dummy()
+                pokemon.name = source_species_id
+                pokemon.base_name = source_species_id
+                pokemon.unknown_forme = True
 
-            if pokemon.name in smart_team_preview.get(battle_type, {}):
+            # Pokemon's general constructor retains a legacy prefix fallback.
+            # Never allow that fallback to become an exact team-pool match.
+            if pokemon.name != source_species_id:
+                pokemon.unknown_forme = True
+
+            if (
+                not pokemon.unknown_forme
+                and pokemon.name in smart_team_preview.get(battle_type, {})
+            ):
                 new_pokemon_name = smart_team_preview[battle_type][pokemon.name]
                 logger.info(
                     "Smart team preview: Replaced {} with {}".format(
@@ -581,12 +617,23 @@ class Battler:
                     int(team_dict_pkmn["evs"]["spd"] or 0),
                     int(team_dict_pkmn["evs"]["spe"] or 0),
                 )
+                team_ivs = team_dict_pkmn.get("ivs", {})
+                pkmn.ivs = tuple(
+                    31
+                    if team_ivs.get(stat) in (None, "")
+                    else int(team_ivs[stat])
+                    for stat in ("hp", "atk", "def", "spa", "spd", "spe")
+                )
 
 
 class Pokemon:
-    def __init__(self, name: str, level: int, nature="serious", evs=None):
+    def __init__(
+        self, name: str, level: int, nature="serious", evs=None, ivs=None
+    ):
         if evs is None:
             evs = random_battles_evs()
+        if ivs is None:
+            ivs = (31,) * 6
 
         self.name = normalize_name(name)
         self.nickname = None
@@ -596,6 +643,7 @@ class Pokemon:
         self.level = level
         self.nature = nature
         self.evs = evs
+        self.ivs = tuple(ivs)
         self.speed_range = StatRange(min=0, max=float("inf"))
         self.hidden_power_possibilities = possible_hidden_power_types()
 
@@ -608,7 +656,11 @@ class Pokemon:
             self.base_stats = pokedex[self.name][constants.BASESTATS]
 
         self.stats = calculate_stats(
-            self.base_stats, self.level, nature=nature, evs=evs
+            self.base_stats,
+            self.level,
+            nature=nature,
+            evs=self.evs,
+            ivs=self.ivs,
         )
 
         self.max_hp = self.stats.pop(constants.HITPOINTS)
@@ -694,7 +746,13 @@ class Pokemon:
         self.name = new_pokemon.name
         self.hp = int(current_hp_percentage * self.max_hp)
         self.base_stats = new_pokemon.base_stats
-        self.stats = calculate_stats(self.base_stats, self.level)
+        self.stats = calculate_stats(
+            self.base_stats,
+            self.level,
+            ivs=self.ivs,
+            evs=self.evs,
+            nature=self.nature,
+        )
         self.ability = new_pokemon.ability
         self.types = new_pokemon.types
         self.forme_changed = True
@@ -739,16 +797,23 @@ class Pokemon:
         pkmn.nickname = nickname
         return pkmn
 
-    def set_spread(self, nature, evs):
+    def set_spread(self, nature, evs, ivs=None):
         if isinstance(evs, str):
             evs = [int(e) for e in evs.split(",")]
+        if ivs is None:
+            ivs = self.ivs
+        elif isinstance(ivs, str):
+            ivs = [int(iv) for iv in ivs.split(",")]
         hp_percent = self.hp / self.max_hp
         self.stats = calculate_stats(
-            self.base_stats, self.level, evs=evs, nature=nature
+            self.base_stats, self.level, ivs=ivs, evs=evs, nature=nature
         )
         self.nature = nature
         self.evs = evs
+        self.ivs = tuple(ivs)
         self.max_hp = self.stats.pop(constants.HITPOINTS)
+        if self.name == "shedinja":
+            self.max_hp = 1
         self.hp = round(self.max_hp * hp_percent)
 
     def add_move(self, move_name: str):

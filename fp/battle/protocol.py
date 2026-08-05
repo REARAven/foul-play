@@ -22,6 +22,7 @@ from fp.battle.inference import check_choicescarf
 from fp.battle.inference import get_damage_dealt
 from fp.battle.inference import update_dataset_possibilities
 from fp.battle.inference import check_heavydutyboots
+from fp.battle.team_inference import PublicObservationSource
 
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ def unlikely_to_have_choice_item(move_name):
         and move_dict[constants.CATEGORY] == constants.MoveCategory.STATUS
     ):
         return True
-    elif move_name in ["substitute", "roost", "recover"]:
+    elif move_name in ["substitute", "roost", "recover", "cragmend"]:
         return True
 
     return False
@@ -190,7 +191,11 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
                 )
             )
             side.active.stats = calculate_stats(
-                side.active.base_stats, side.active.level
+                side.active.base_stats,
+                side.active.level,
+                ivs=side.active.ivs,
+                evs=side.active.evs,
+                nature=side.active.nature,
             )
             side.active.ability = side.active.original_ability
             side.active.moves = []
@@ -631,6 +636,222 @@ def fail(battle, split_msg):
         ability_side.active.ability = ability
 
 
+def _move_is_from_closing_jaws(split_msg):
+    return any(
+        msg.startswith("[from] ability:")
+        and normalize_name(msg.split("ability:", 1)[-1]) == "closingjaws"
+        for msg in split_msg
+    )
+
+
+def _move_is_publicly_selected_set_evidence(split_msg):
+    move_name = normalize_name(split_msg[3])
+    if move_name == "struggle":
+        return False
+    if _move_is_from_closing_jaws(split_msg):
+        return True
+    return not any(
+        msg.startswith("[from]")
+        and msg.replace(" ", "").lower() != "[from]lockedmove"
+        for msg in split_msg[4:]
+    )
+
+
+def _opponent_observation_species(battle):
+    context = getattr(battle, "team_inference", None)
+    if context is None:
+        return None
+    pokemon = battle.opponent.active
+    if pokemon is None:
+        return None
+    return context.resolve_observed_species(
+        getattr(pokemon, "base_name", None), pokemon.name
+    )
+
+
+def _message_actor_is_opponent(battle, split_msg):
+    return (
+        len(split_msg) > 2
+        and isinstance(battle.opponent.name, str)
+        and split_msg[2].startswith(battle.opponent.name)
+    )
+
+
+def _record_public_team_observation(battle, action, split_msg):
+    """Central closed-safe hook, called after canonical protocol state updates."""
+
+    context = getattr(battle, "team_inference", None)
+    if context is None:
+        return
+
+    actor_is_opponent = _message_actor_is_opponent(battle, split_msg)
+    if action == "switch" and actor_is_opponent and battle.opponent.active is not None:
+        context.record_public_member(
+            battle.opponent.active.name, battle.opponent.active.level
+        )
+    species_id = _opponent_observation_species(battle) if actor_is_opponent else None
+
+    if action == "switch" and species_id is not None:
+        context.reset_current_ability_change(species_id)
+    elif (
+        action in {"-mega", "-formechange", "detailschange", "-transform"}
+        and species_id is not None
+    ):
+        context.mark_current_ability_changed(species_id)
+
+    if action == "move" and species_id is not None:
+        if constants.TRANSFORM in battle.opponent.active.volatile_statuses:
+            return
+        if _move_is_publicly_selected_set_evidence(split_msg):
+            source = (
+                PublicObservationSource.CLOSING_JAWS_SELECTED_MOVE
+                if _move_is_from_closing_jaws(split_msg)
+                else PublicObservationSource.SELECTED_MOVE
+            )
+            context.record_selected_move(
+                species_id, normalize_name(split_msg[3]), source
+            )
+
+    if action == "-item" and species_id is not None:
+        public_tags = {tag.strip().lower() for tag in split_msg[4:]}
+        if any(tag.startswith("[from] ability: frisk") for tag in public_tags):
+            pass
+        elif any(
+            tag.startswith("[from] move:") or tag.startswith("[from] ability:")
+            for tag in public_tags
+        ):
+            context.mark_item_ambiguous(species_id)
+        else:
+            context.record_initial_item(
+                species_id,
+                normalize_name(split_msg[3]),
+                PublicObservationSource.DIRECT_ITEM_REVEAL,
+            )
+
+    elif action == "-enditem" and species_id is not None:
+        consumed = any(
+            tag.strip().lower() in {"[eat]", "[consumed]"}
+            for tag in split_msg[4:]
+        )
+        context.record_initial_item(
+            species_id,
+            normalize_name(split_msg[3]),
+            (
+                PublicObservationSource.ITEM_CONSUMED
+                if consumed
+                else PublicObservationSource.ITEM_REMOVED
+            ),
+        )
+
+    elif action == "-activate" and species_id is not None:
+        normalized_effect = split_msg[3].lower()
+        if normalized_effect.startswith("item: "):
+            consumed = any(
+                tag.strip().lower() == "[consumed]" for tag in split_msg[4:]
+            )
+            context.record_initial_item(
+                species_id,
+                normalize_name(split_msg[3].split(":", 1)[1]),
+                (
+                    PublicObservationSource.ITEM_CONSUMED
+                    if consumed
+                    else PublicObservationSource.ITEM_ACTIVATION
+                ),
+            )
+        elif normalized_effect == "move: poltergeist" and len(split_msg) > 4:
+            context.record_initial_item(
+                species_id,
+                normalize_name(split_msg[4]),
+                PublicObservationSource.DIRECT_ITEM_REVEAL,
+            )
+
+    if action == "-ability" and species_id is not None:
+        trace_reveal = any(
+            normalize_name(tag) == "trace"
+            or tag.strip().lower() == "[from] ability: trace"
+            for tag in split_msg[4:]
+        )
+        if trace_reveal:
+            context.record_base_ability(
+                species_id,
+                "trace",
+                PublicObservationSource.TRACE_BASE_ABILITY,
+            )
+            context.mark_current_ability_changed(species_id)
+        elif any(tag.lower().startswith("[from]") for tag in split_msg[4:]):
+            context.mark_current_ability_changed(species_id)
+        else:
+            context.record_base_ability(
+                species_id, normalize_name(split_msg[3])
+            )
+        return
+
+    if action == "-ability" and any(
+        normalize_name(tag) == "trace"
+        or tag.strip().lower() == "[from] ability: trace"
+        for tag in split_msg[4:]
+    ):
+        source_tags = [
+            tag for tag in split_msg[4:] if tag.lower().startswith("[of] ")
+        ]
+        source_is_opponent = (
+            source_tags
+            and isinstance(battle.opponent.name, str)
+            and source_tags[0][5:].startswith(battle.opponent.name)
+        )
+        if source_is_opponent:
+            source_species = _opponent_observation_species(battle)
+            source_evidence = (
+                context.observation_ledger.member(source_species)
+                if source_species is not None
+                else None
+            )
+            if (
+                source_evidence is not None
+                and not source_evidence.current_ability_changed
+            ):
+                context.record_base_ability(
+                    source_species,
+                    normalize_name(split_msg[3]),
+                    PublicObservationSource.TRACE_BASE_ABILITY,
+                )
+        return
+
+    if (
+        action in {"-activate", "cant"}
+        and species_id is not None
+        and split_msg[3].lower().startswith("ability: ")
+    ):
+        context.record_base_ability(
+            species_id, normalize_name(split_msg[3].split(":", 1)[1])
+        )
+
+    ability_tags = [
+        tag for tag in split_msg[3:] if tag.lower().startswith("[from] ability:")
+    ]
+    if not ability_tags:
+        return
+    ability_id = normalize_name(ability_tags[0].split(":", 1)[1])
+    source_tags = [tag for tag in split_msg[3:] if tag.lower().startswith("[of] ")]
+    if source_tags:
+        source_is_opponent = (
+            isinstance(battle.opponent.name, str)
+            and source_tags[0][5:].startswith(battle.opponent.name)
+        )
+    else:
+        source_is_opponent = actor_is_opponent and action in {
+            "move",
+            "-boost",
+            "-unboost",
+            "-activate",
+            "cant",
+        }
+    if source_is_opponent:
+        source_species = _opponent_observation_species(battle)
+        if source_species is not None:
+            context.record_base_ability(source_species, ability_id)
+
+
 def move(battle, split_msg):
     if is_opponent(battle, split_msg):
         side = battle.opponent
@@ -727,7 +948,7 @@ def move(battle, split_msg):
     elif any(
         "[from]" in msg and msg != "[from]lockedmove" and msg != "[from] lockedmove"
         for msg in split_msg
-    ):
+    ) and not _move_is_from_closing_jaws(split_msg):
         if split_msg[-1].startswith("[from] ability:"):
             ability = normalize_name(split_msg[-1].split("ability: ")[-1])
             logger.info("Setting {}'s ability to: {}".format(pkmn.name, ability))
@@ -1410,6 +1631,71 @@ def weather(battle, split_msg):
         side.active.ability = ability
 
 
+def _side_from_source_identifier(battle, source_identifier):
+    try:
+        side_identifier, pokemon_identifier = source_identifier.split(":", 1)
+    except ValueError:
+        return None
+
+    for side in [battle.user, battle.opponent]:
+        if (
+            side.name is None
+            or not side_identifier.startswith(side.name)
+            or side.active is None
+        ):
+            continue
+
+        active_identifiers = {side.active.name, side.active.base_name}
+        if side.active.nickname is not None:
+            active_identifiers.add(normalize_name(side.active.nickname))
+        if normalize_name(pokemon_identifier) in active_identifiers:
+            return side
+
+    return None
+
+
+def _trick_room_setter_side(battle, split_msg):
+    for token in split_msg[3:]:
+        if token.startswith("[of]"):
+            source_identifier = token.removeprefix("[of]").strip()
+            return _side_from_source_identifier(battle, source_identifier)
+
+    candidates = []
+    for side in [battle.user, battle.opponent]:
+        if side.active is None:
+            continue
+        if (
+            side.last_used_move.move == constants.TRICK_ROOM
+            and side.last_used_move.turn == battle.turn
+            and side.last_used_move.pokemon_name == side.active.name
+        ):
+            candidates.append(side)
+
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def _has_effective_persistent(battle, setter_side):
+    """Return whether Persistent was effective, or None if the ability is unknown."""
+    setter = setter_side.active
+    opposing_side = battle.opponent if setter_side is battle.user else battle.user
+    opposing_active = opposing_side.active
+
+    if not setter.is_alive() or "gastroacid" in setter.volatile_statuses:
+        return False
+
+    if (
+        opposing_active is not None
+        and opposing_active.is_alive()
+        and normalize_name(opposing_active.ability or "") == "neutralizinggas"
+        and "gastroacid" not in opposing_active.volatile_statuses
+    ):
+        return False
+
+    if setter.ability is None:
+        return None
+    return normalize_name(setter.ability) == "persistent"
+
+
 def fieldstart(battle, split_msg):
     """Set the battle's field condition"""
     field_name = normalize_name(split_msg[2].split(":")[-1].strip())
@@ -1418,7 +1704,20 @@ def fieldstart(battle, split_msg):
     if field_name == constants.TRICK_ROOM:
         logger.info("Setting trickroom")
         battle.trick_room = True
-        battle.trick_room_turns_remaining = 5
+        battle.trick_room_duration_uncertain = False
+        if battle.format_spec.full_name == "gen9tugs":
+            battle.trick_room_turns_remaining = 6
+            setter_side = _trick_room_setter_side(battle, split_msg)
+            if setter_side is None:
+                battle.trick_room_duration_uncertain = True
+            else:
+                persistent = _has_effective_persistent(battle, setter_side)
+                if persistent:
+                    battle.trick_room_turns_remaining = 8
+                elif persistent is None:
+                    battle.trick_room_duration_uncertain = True
+        else:
+            battle.trick_room_turns_remaining = 5
     elif field_name == constants.GRAVITY:
         logger.info("Setting gravity")
         battle.gravity = True
@@ -1437,6 +1736,7 @@ def fieldend(battle, split_msg):
         logger.info("Removing trick room")
         battle.trick_room = False
         battle.trick_room_turns_remaining = 0
+        battle.trick_room_duration_uncertain = False
     elif field_name == constants.GRAVITY:
         logger.info("Removing gravity")
         battle.gravity = False
@@ -1965,7 +2265,19 @@ def cant(battle, split_msg):
 
 def upkeep(battle, _):
     if battle.trick_room:
-        battle.trick_room_turns_remaining -= 1
+        battle.trick_room_turns_remaining = max(
+            0, battle.trick_room_turns_remaining - 1
+        )
+        if (
+            battle.format_spec.full_name == "gen9tugs"
+            and battle.trick_room_turns_remaining == 0
+            and battle.trick_room_duration_uncertain
+        ):
+            logger.info(
+                "Uncertain TUGS Trick Room survived six turns; extending observed duration by two turns"
+            )
+            battle.trick_room_turns_remaining = 2
+            battle.trick_room_duration_uncertain = False
         logger.info(
             "Trick Room turns remaining: {}".format(battle.trick_room_turns_remaining)
         )
@@ -2346,6 +2658,7 @@ def process_battle_updates(battle: Battle):
         function_to_call = battle_modifiers_lookup.get(action)
         if function_to_call is not None:
             function_to_call(battle, split_msg)
+            _record_public_team_observation(battle, action, split_msg)
 
         if action == "move" and is_opponent(battle, split_msg):
             if normalize_name(split_msg[3].strip()) == constants.HIDDEN_POWER:

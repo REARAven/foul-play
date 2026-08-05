@@ -7,6 +7,7 @@ from fp.data import pokedex
 from fp.search.helpers import populate_pkmn_from_set
 from fp.battle.helpers import normalize_name
 from fp.battle.state import Pokemon, Battle
+from fp.battle.public_prior_context import PublicPriorFallback
 from fp.generations import current_generation_mechanics
 from fp.data.sets import (
     PokemonMoveset,
@@ -14,6 +15,11 @@ from fp.data.sets import (
     PredictedPokemonSet,
     RAW_COUNT,
     TEAMMATES,
+)
+from fp.search.public_prior_sampling import (
+    PublicPriorSelectionStatus,
+    populate_pokemon_from_public_variant,
+    select_public_prior_variant,
 )
 
 logger = logging.getLogger(__name__)
@@ -278,6 +284,7 @@ def populate_standardbattle_unrevealed_pkmn(battle: Battle):
     for pkmn in battle.opponent.reserve:
         existing_pkmn.append(pkmn)
         num_revealed_pkmn += 1
+
     if battle.opponent.active is not None:
         existing_pkmn.append(battle.opponent.active)
         num_revealed_pkmn += 1
@@ -293,6 +300,50 @@ def populate_standardbattle_unrevealed_pkmn(battle: Battle):
         num_revealed_pkmn += 1
 
 
+def _sample_opponent_pokemon(pkmn: Pokemon, battle_copy: Battle, mode) -> bool:
+    """Try public priors, then apply only the explicitly configured fallback."""
+
+    context = battle_copy.public_prior_context
+    if context is None:
+        sample_pokemon(pkmn, mode)
+        return False
+
+    ledger = battle_copy.team_inference.observation_ledger
+    evidence = ledger.member(pkmn.base_name) or ledger.member(pkmn.name)
+    species_id = evidence.species_id if evidence is not None else pkmn.name
+    result = select_public_prior_variant(
+        context,
+        battle_format=battle_copy.pokemon_format,
+        species_id=species_id,
+        level=pkmn.level,
+        evidence=evidence,
+    )
+    if (
+        result.status is PublicPriorSelectionStatus.SELECTED
+        and result.variant is not None
+        and populate_pokemon_from_public_variant(pkmn, result.variant, evidence)
+    ):
+        logger.debug(
+            "Public prior selected: species={} dataset={} version={} variant={}".format(
+                species_id,
+                result.dataset_identity.dataset_id,
+                result.dataset_identity.dataset_version,
+                result.variant.variant_id,
+            )
+        )
+        return True
+    logger.debug(
+        "Public prior miss: species={} fallback={} status={}".format(
+            species_id,
+            context.fallback_policy.value,
+            result.status.value,
+        )
+    )
+    if context.fallback_policy is PublicPriorFallback.GENERIC:
+        sample_pokemon(pkmn, mode)
+    return False
+
+
 def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
     sampled_battles = []
     for index in range(num_battles):
@@ -305,12 +356,23 @@ def prepare_battles(battle: Battle, num_battles: int) -> list[(Battle, float)]:
                 battle.mode.smogon_sets,
             )
 
-        sample_pokemon(battle_copy.opponent.active, battle.mode)
+        if (
+            battle_copy.opponent.active is not None
+            and battle_copy.opponent.active.is_alive()
+        ):
+            _sample_opponent_pokemon(
+                battle_copy.opponent.active, battle_copy, battle.mode
+            )
         for pkmn in filter(lambda x: x.is_alive(), battle_copy.opponent.reserve):
-            sample_pokemon(pkmn, battle.mode)
+            _sample_opponent_pokemon(pkmn, battle_copy, battle.mode)
 
         if not battle.gen.has_team_preview:
-            populate_standardbattle_unrevealed_pkmn(battle_copy)
+            context = battle_copy.public_prior_context
+            if (
+                context is None
+                or context.fallback_policy is PublicPriorFallback.GENERIC
+            ):
+                populate_standardbattle_unrevealed_pkmn(battle_copy)
         battle_copy.opponent.lock_moves()
         sampled_battles.append((battle_copy, 1 / num_battles))
 

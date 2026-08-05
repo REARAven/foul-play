@@ -134,6 +134,17 @@ def apply_gen9_champions_mods():
             mv[constants.PP] = 20
 
 
+def apply_gen9_tugs_mods():
+    with open("{}/gen9tugs_move_mods.json".format(PWD), "r") as f:
+        move_mods = json.load(f)
+    all_move_json.update(move_mods)
+
+    with open("{}/gen9tugs_pokedex_mods.json".format(PWD), "r") as f:
+        pokedex_mods = json.load(f)
+    for pokemon, modifications in pokedex_mods.items():
+        pokedex[pokemon].update(modifications)
+
+
 def undo_physical_special_split():
     for move_name, move_data in all_move_json.items():
         if move_data[constants.CATEGORY] in constants.DAMAGING_CATEGORIES:
@@ -148,7 +159,9 @@ def undo_physical_special_split():
 
 
 def apply_mods(format_spec: FormatSpec):
-    if format_spec.generation == "gen9champions":
+    if format_spec.full_name == "gen9tugs":
+        apply_gen9_tugs_mods()
+    elif format_spec.generation == "gen9champions":
         apply_gen9_champions_mods()
     elif format_spec.gen_number == 1:
         apply_gen_1_mods()

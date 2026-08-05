@@ -1,8 +1,12 @@
 import copy
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
 from fp import constants
+from fp.battle.state import Move
 from fp.data import all_move_json
 from fp.data import pokedex
 from fp.battle.helpers import (
@@ -113,6 +117,55 @@ class TestApplyMods:
         # values from gen9champions_move_mods.json
         assert 90 == all_move_json["anchorshot"]["basePower"]
         assert 5 == all_move_json["banefulbunker"][constants.PP]
+
+    @pytest.mark.parametrize("format_name", ["gen9ou", "gen9nationaldex"])
+    def test_fresh_ordinary_gen9_process_does_not_contain_cragmend(
+        self, format_name
+    ):
+        script = (
+            "from fp.data import all_move_json; "
+            "from fp.data.mods.apply_mods import apply_mods; "
+            "from fp.format_spec import FormatSpec; "
+            f"apply_mods(FormatSpec.from_format_string({format_name!r})); "
+            "assert 'cragmend' not in all_move_json"
+        )
+        subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=Path(__file__).resolve().parents[1],
+            check=True,
+        )
+
+    def test_gen9tugs_inserts_cragmend_with_recover_schema(self):
+        recover_before = copy.deepcopy(all_move_json["recover"])
+
+        apply_mods(FormatSpec.from_format_string("gen9tugs"))
+
+        assert {
+            "accuracy": True,
+            "basePower": 0,
+            "category": "status",
+            "flags": {"heal": 1, "metronome": 1, "snatch": 1},
+            "heal": [1, 2],
+            "heal_target": "self",
+            "id": "cragmend",
+            "name": "Crag Mend",
+            "pp": 5,
+            "priority": 0,
+            "secondary": None,
+            "target": "self",
+            "type": "normal",
+        } == all_move_json["cragmend"]
+        assert recover_before == all_move_json["recover"]
+
+    def test_gen9tugs_cragmend_uses_standard_gen9_pp_up_behavior(self):
+        apply_mods(FormatSpec.from_format_string("gen9tugs"))
+
+        assert 8 == Move("cragmend").max_pp
+
+    def test_gen9tugs_still_applies_existing_pokedex_mods(self):
+        apply_mods(FormatSpec.from_format_string("gen9tugs"))
+
+        assert 85 == pokedex["druddigon"][constants.BASESTATS][constants.HITPOINTS]
 
     def test_gen9_is_a_noop(self):
         apply_mods(FormatSpec.from_format_string("gen9ou"))

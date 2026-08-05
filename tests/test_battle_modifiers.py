@@ -1,3 +1,4 @@
+import copy
 import pytest
 
 import asyncio
@@ -5,6 +6,8 @@ import json
 from collections import defaultdict
 
 from fp import constants
+from fp.data import all_move_json, pokedex
+from fp.data.mods.apply_mods import apply_mods
 from fp.format_spec import FormatSpec
 from fp.modes.battle_factory import BattleFactoryMode
 from fp.modes.random_battle import RandomBattleMode
@@ -64,6 +67,7 @@ from fp.battle.inference import check_speed_ranges
 from fp.battle.inference import check_choicescarf
 from fp.battle.inference import check_heavydutyboots
 from fp.battle.inference import get_damage_dealt
+from fp.battle.inference import update_dataset_possibilities
 from fp.battle.protocol import singleturn
 from fp.battle.protocol import transform
 from fp.battle.protocol import process_battle_updates
@@ -78,6 +82,18 @@ from fp.battle.protocol import mustrecharge
 from fp.battle.protocol import mega
 from fp.battle.protocol import update_battle
 from fp.battle.protocol import async_update_battle
+
+
+@pytest.fixture
+def tugs_data():
+    saved_moves = copy.deepcopy(all_move_json)
+    saved_pokedex = copy.deepcopy(pokedex)
+    apply_mods(FormatSpec.from_format_string("gen9tugs"))
+    yield
+    all_move_json.clear()
+    all_move_json.update(saved_moves)
+    pokedex.clear()
+    pokedex.update(saved_pokedex)
 
 
 class TestRequestMessage:
@@ -1942,6 +1958,14 @@ class TestMove:
 
         assert not self.battle.opponent.active.can_have_choice_item
 
+    def test_using_cragmend_sets_can_have_choice_item_to_false(self, tugs_data):
+        self.battle.opponent.active.can_have_choice_item = True
+        split_msg = ["", "move", "p2a: Caterpie", "Crag Mend"]
+
+        move(self.battle, split_msg)
+
+        assert not self.battle.opponent.active.can_have_choice_item
+
     def test_using_a_boosting_physical_move_does_not_set_can_have_choice_item_to_false(
         self,
     ):
@@ -2156,41 +2180,617 @@ class TestMove:
         )
 
 
+class TestClosingJawsProtocol:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.battle = Battle(None)
+        self.battle.generation = "gen9"
+        self.battle.pokemon_format = "gen9tugs"
+        self.battle.mode = StandardBattleMode()
+        self.battle.turn = 4
+        self.battle.user.name = "p1"
+        self.battle.opponent.name = "p2"
+
+        self.battle.user.active = self._pokemon("mawile", 400)
+        self.battle.user.reserve = [self._pokemon("magikarp", 181)]
+        self.battle.opponent.active = self._pokemon("snorlax", 461)
+        self.battle.opponent.reserve = [self._pokemon("magikarp", 181)]
+
+    @staticmethod
+    def _pokemon(name, hp):
+        pkmn = Pokemon(name, 100)
+        pkmn.max_hp = hp
+        pkmn.hp = hp
+        return pkmn
+
+    @staticmethod
+    def _known_move(pkmn, move_name, pp=5):
+        pkmn.add_move(move_name)
+        pkmn.get_move(move_name).current_pp = pp
+        return pkmn.get_move(move_name)
+
+    def _process(self, *messages):
+        self.battle.msg_list = list(messages)
+        process_battle_updates(self.battle)
+
+    def _activate_user_closing_jaws(self):
+        return "|-activate|p1a: Mawile|ability: Closing Jaws"
+
+    def _activate_opponent_closing_jaws(self):
+        return "|-activate|p2a: Mawile|ability: Closing Jaws"
+
+    def test_activate_records_current_closing_jaws_ability(self):
+        self._process(self._activate_user_closing_jaws())
+
+        assert "closingjaws" == self.battle.user.active.ability
+
+    def test_selected_closing_jaws_move_is_revealed_counted_and_attributed(self):
+        self.battle.wait = True
+        outgoing = self.battle.opponent.active
+
+        self._process(
+            self._activate_user_closing_jaws(),
+            "|move|p1a: Mawile|Iron Head|p2a: Snorlax|[from] ability: Closing Jaws",
+            "|-damage|p2a: Snorlax|75/100",
+        )
+
+        iron_head = self.battle.user.active.get_move("ironhead")
+        assert iron_head.max_pp - 1 == iron_head.current_pp
+        assert LastUsedMove("mawile", "ironhead", 4) == self.battle.user.last_used_move
+        assert outgoing.max_hp * 0.75 == outgoing.hp
+        assert self.battle.opponent.active is outgoing
+
+    def test_surviving_target_switch_keeps_damage_on_outgoing_and_pp_exact_once(self):
+        self.battle.wait = True
+        iron_head = self._known_move(self.battle.user.active, "ironhead")
+        outgoing = self.battle.opponent.active
+        incoming = self.battle.opponent.reserve[0]
+        self.battle.weather = constants.Weather.RAIN
+
+        self._process(
+            self._activate_user_closing_jaws(),
+            "|move|p1a: Mawile|Iron Head|p2a: Snorlax|[from] ability: Closing Jaws",
+            "|-damage|p2a: Snorlax|75/100",
+            "|switch|p2a: Magikarp|Magikarp|100/100",
+        )
+
+        assert 4 == iron_head.current_pp
+        assert LastUsedMove("mawile", "ironhead", 4) == self.battle.user.last_used_move
+        assert self.battle.opponent.active is incoming
+        assert incoming.max_hp == incoming.hp
+        assert outgoing in self.battle.opponent.reserve
+        assert outgoing.max_hp * 0.75 == outgoing.hp
+        assert constants.Weather.RAIN == self.battle.weather
+
+    def test_status_is_applied_to_outgoing_before_switch_and_move_counts_once(self):
+        self.battle.wait = True
+        thunder_wave = self._known_move(self.battle.user.active, "thunderwave")
+        outgoing = self.battle.opponent.active
+        incoming = self.battle.opponent.reserve[0]
+
+        self._process(
+            self._activate_user_closing_jaws(),
+            "|move|p1a: Mawile|Thunder Wave|p2a: Snorlax|[from] ability: Closing Jaws",
+            "|-status|p2a: Snorlax|par",
+            "|switch|p2a: Magikarp|Magikarp|100/100",
+        )
+
+        assert 4 == thunder_wave.current_pp
+        assert LastUsedMove(
+            "mawile", "thunderwave", 4
+        ) == self.battle.user.last_used_move
+        assert self.battle.opponent.active is incoming
+        assert incoming.status is None
+        assert outgoing in self.battle.opponent.reserve
+        assert constants.Status.PARALYZED == outgoing.status
+
+    def test_koed_target_remains_active_fainted_without_switch_or_second_pp_use(self):
+        self.battle.wait = True
+        iron_head = self._known_move(self.battle.user.active, "ironhead")
+        outgoing = self.battle.opponent.active
+        incoming = self.battle.opponent.reserve[0]
+
+        self._process(
+            self._activate_user_closing_jaws(),
+            "|move|p1a: Mawile|Iron Head|p2a: Snorlax|[from] ability: Closing Jaws",
+            "|-damage|p2a: Snorlax|0 fnt",
+            "|faint|p2a: Snorlax",
+        )
+
+        assert 4 == iron_head.current_pp
+        assert LastUsedMove("mawile", "ironhead", 4) == self.battle.user.last_used_move
+        assert self.battle.opponent.active is outgoing
+        assert 0 == outgoing.hp
+        assert [incoming] == self.battle.opponent.reserve
+
+    @pytest.mark.parametrize(
+        "terminal_message",
+        [
+            "|-miss|p1a: Mawile|p2a: Snorlax",
+            "|-immune|p2a: Snorlax",
+        ],
+        ids=["miss", "immunity"],
+    )
+    def test_miss_and_immunity_still_count_selected_move_without_damage(
+        self, terminal_message
+    ):
+        self.battle.wait = True
+        iron_head = self._known_move(self.battle.user.active, "ironhead")
+        outgoing_hp = self.battle.opponent.active.hp
+
+        self._process(
+            self._activate_user_closing_jaws(),
+            "|move|p1a: Mawile|Iron Head|p2a: Snorlax|[from] ability: Closing Jaws",
+            terminal_message,
+        )
+
+        assert 4 == iron_head.current_pp
+        assert LastUsedMove("mawile", "ironhead", 4) == self.battle.user.last_used_move
+        assert outgoing_hp == self.battle.opponent.active.hp
+
+    def test_sucker_punch_failure_counts_once_then_target_switches(self):
+        self.battle.wait = True
+        sucker_punch = self._known_move(self.battle.user.active, "suckerpunch")
+        outgoing = self.battle.opponent.active
+        incoming = self.battle.opponent.reserve[0]
+
+        self._process(
+            self._activate_user_closing_jaws(),
+            "|move|p1a: Mawile|Sucker Punch||[from] ability: Closing Jaws|[still]",
+            "|-fail|p1a: Mawile",
+            "|switch|p2a: Magikarp|Magikarp|100/100",
+        )
+
+        assert 4 == sucker_punch.current_pp
+        assert LastUsedMove(
+            "mawile", "suckerpunch", 4
+        ) == self.battle.user.last_used_move
+        assert self.battle.opponent.active is incoming
+        assert outgoing.max_hp == outgoing.hp
+
+    def test_trace_copy_preserves_original_ability_and_enables_later_bookkeeping(self):
+        self.battle.wait = True
+        self.battle.user.active = self._pokemon("porygon2", 374)
+        tackle = self._known_move(self.battle.user.active, "tackle")
+
+        self._process(
+            "|-ability|p1a: Porygon2|Closing Jaws|Trace|[from] ability: Trace|[of] p2a: Mawile",
+            "|move|p1a: Porygon2|Tackle|p2a: Snorlax|[from] ability: Closing Jaws",
+            "|-damage|p2a: Snorlax|90/100",
+        )
+
+        assert "trace" == self.battle.user.active.original_ability
+        assert "closingjaws" == self.battle.user.active.ability
+        assert 4 == tackle.current_pp
+        assert LastUsedMove("porygon2", "tackle", 4) == self.battle.user.last_used_move
+
+    def test_other_ability_called_move_keeps_existing_early_return_behavior(self):
+        string_shot = self._known_move(self.battle.user.active, "stringshot")
+        original_last_used = LastUsedMove("mawile", "tackle", 3)
+        self.battle.user.last_used_move = original_last_used
+
+        self._process(
+            "|move|p1a: Mawile|String Shot|p2a: Snorlax|[from] ability: Magic Bounce"
+        )
+
+        assert 5 == string_shot.current_pp
+        assert original_last_used == self.battle.user.last_used_move
+        assert "magicbounce" == self.battle.user.active.ability
+
+    def test_suppressed_closing_jaws_uses_ordinary_post_switch_move_bookkeeping(self):
+        self.battle.wait = True
+        self.battle.user.active.ability = "closingjaws"
+        iron_head = self._known_move(self.battle.user.active, "ironhead")
+        outgoing = self.battle.opponent.active
+        incoming = self.battle.opponent.reserve[0]
+
+        self._process(
+            "|switch|p2a: Magikarp|Magikarp|100/100",
+            "|move|p1a: Mawile|Iron Head|p2a: Magikarp",
+            "|-damage|p2a: Magikarp|50/100",
+        )
+
+        assert 4 == iron_head.current_pp
+        assert LastUsedMove("mawile", "ironhead", 4) == self.battle.user.last_used_move
+        assert self.battle.opponent.active is incoming
+        assert incoming.max_hp * 0.5 == incoming.hp
+        assert outgoing in self.battle.opponent.reserve
+        assert outgoing.max_hp == outgoing.hp
+
+    def _set_opponent_holder_and_user_switch_selection(self):
+        self.battle.opponent.active = self._pokemon("mawile", 400)
+        self.battle.opponent.reserve = [self._pokemon("magikarp", 181)]
+        iron_head = self._known_move(self.battle.opponent.active, "ironhead")
+        self.battle.user.active = self._pokemon("snorlax", 461)
+        self.battle.user.reserve = [self._pokemon("magikarp", 181)]
+        self.battle.user.last_selected_move = LastUsedMove(
+            "snorlax", "switch magikarp", 4
+        )
+        return iron_head
+
+    def test_opponent_holder_damages_outgoing_bot_target_before_selected_switch(self):
+        iron_head = self._set_opponent_holder_and_user_switch_selection()
+        outgoing = self.battle.user.active
+        incoming = self.battle.user.reserve[0]
+
+        self._process(
+            self._activate_opponent_closing_jaws(),
+            "|move|p2a: Mawile|Iron Head|p1a: Snorlax|[from] ability: Closing Jaws",
+            "|-damage|p1a: Snorlax|300/461",
+            "|switch|p1a: Magikarp|Magikarp|181/181",
+        )
+
+        assert 4 == iron_head.current_pp
+        assert LastUsedMove("mawile", "ironhead", 4) == self.battle.opponent.last_used_move
+        assert LastUsedMove(
+            "snorlax", "switch magikarp", 4
+        ) == self.battle.user.last_selected_move
+        assert self.battle.user.active is incoming
+        assert 181 == incoming.hp
+        assert outgoing in self.battle.user.reserve
+        assert 300 == outgoing.hp
+
+    def test_opponent_holder_ko_before_selected_switch_is_inference_safe(self):
+        iron_head = self._set_opponent_holder_and_user_switch_selection()
+        outgoing = self.battle.user.active
+        incoming = self.battle.user.reserve[0]
+        original_speed_range = self.battle.opponent.active.speed_range
+
+        self._process(
+            self._activate_opponent_closing_jaws(),
+            "|move|p2a: Mawile|Iron Head|p1a: Snorlax|[from] ability: Closing Jaws",
+            "|-damage|p1a: Snorlax|0 fnt",
+            "|faint|p1a: Snorlax",
+        )
+
+        assert 4 == iron_head.current_pp
+        assert self.battle.user.active is outgoing
+        assert 0 == outgoing.hp
+        assert [incoming] == self.battle.user.reserve
+        assert LastUsedMove(
+            "snorlax", "switch magikarp", 4
+        ) == self.battle.user.last_selected_move
+        assert original_speed_range == self.battle.opponent.active.speed_range
+
+    def test_switch_selection_skips_only_move_dependent_reverse_damage_inference(
+        self, monkeypatch
+    ):
+        self._set_opponent_holder_and_user_switch_selection()
+        self.battle.opponent.last_used_move = LastUsedMove("mawile", "ironhead", 4)
+
+        def unexpected_move_dependent_inference(*args, **kwargs):
+            raise AssertionError("selected switch was treated as a move")
+
+        monkeypatch.setattr(
+            self.battle.mode,
+            "dataset_possibilities",
+            unexpected_move_dependent_inference,
+        )
+
+        update_dataset_possibilities(
+            self.battle,
+            DamageDealt("mawile", "snorlax", "ironhead", 0.35, False),
+            "damage_dealt",
+        )
+
+
 class TestTrickRoom:
     @pytest.fixture(autouse=True)
     def _setup(self):
         self.battle = Battle(None)
         self.battle.generation = "gen9"
+        self.battle.turn = 3
         self.battle.mode = StandardBattleMode()
         self.battle.user.name = "p1"
         self.battle.opponent.name = "p2"
 
+        self.user_active = Pokemon("weedle", 100)
+        self.battle.user.active = self.user_active
         self.opponent_active = Pokemon("caterpie", 100)
         self.battle.opponent.active = self.opponent_active
 
-    def test_starts_trickroom_properly(self):
-        split_msg = [
-            "",
-            "-fieldstart",
-            "move: Trick Room",
-            "p1a: Bronzong",
-        ]
+    def _use_tugs_format(self):
+        self.battle.pokemon_format = "gen9tugs"
 
-        fieldstart(self.battle, split_msg)
+    def _start_trick_room(self, *tail):
+        fieldstart(
+            self.battle,
+            ["", "-fieldstart", "move: Trick Room", *tail],
+        )
+
+    def test_starts_trickroom_properly(self):
+        self._start_trick_room("[of] p1a: Weedle")
 
         assert True is self.battle.trick_room
         assert 5 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_ordinary_setup_turn_upkeep_leaves_four_turns(self):
+        self._start_trick_room("[of] p1a: Weedle")
+
+        upkeep(self.battle, "")
+
+        assert 4 == self.battle.trick_room_turns_remaining
+
+    def test_tugs_normal_trick_room_starts_at_six(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "swarm"
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_tugs_normal_setup_turn_upkeep_leaves_five_turns(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "swarm"
+        self._start_trick_room("[of] p1a: Weedle")
+
+        upkeep(self.battle, "")
+
+        assert 5 == self.battle.trick_room_turns_remaining
+
+    def test_tugs_effective_persistent_starts_at_eight(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+
+        self._start_trick_room("[of] p1a: Weedle", "[persistent]")
+
+        assert 8 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_tugs_persistent_setup_turn_upkeep_leaves_seven_turns(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+        self._start_trick_room("[of] p1a: Weedle", "[persistent]")
+
+        upkeep(self.battle, "")
+
+        assert 7 == self.battle.trick_room_turns_remaining
+
+    def test_server_persistent_activation_is_observed_before_fieldstart(self):
+        self._use_tugs_format()
+        activate(
+            self.battle,
+            [
+                "",
+                "-activate",
+                "p1a: Weedle",
+                "ability: Persistent",
+                "[move] Trick Room",
+            ],
+        )
+
+        self._start_trick_room("[of] p1a: Weedle", "[persistent]")
+
+        assert "persistent" == self.battle.user.active.ability
+        assert 8 == self.battle.trick_room_turns_remaining
+
+    @pytest.mark.parametrize(
+        ("source_token", "setter_side"),
+        [
+            ("[of] p1a: Weedle", "user"),
+            ("[of] p2a: Caterpie", "opponent"),
+        ],
+    )
+    def test_explicit_source_token_identifies_either_active_side(
+        self, source_token, setter_side
+    ):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "swarm"
+        self.battle.opponent.active.ability = "shielddust"
+        getattr(self.battle, setter_side).active.ability = "persistent"
+
+        self._start_trick_room("[extra-token]", source_token, "[persistent]")
+
+        assert 8 == self.battle.trick_room_turns_remaining
+
+    def test_explicit_source_takes_precedence_over_other_side_persistent(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "swarm"
+        self.battle.opponent.active.ability = "persistent"
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_explicit_unmatched_source_does_not_use_last_move_fallback(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+        self.battle.user.last_used_move = LastUsedMove(
+            "weedle", "trickroom", self.battle.turn
+        )
+
+        self._start_trick_room("[of] p1a: Caterpie")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert self.battle.trick_room_duration_uncertain
+
+    def test_current_turn_last_move_fallback_identifies_setter(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+        self.battle.user.last_used_move = LastUsedMove(
+            "weedle", "trickroom", self.battle.turn
+        )
+
+        self._start_trick_room()
+
+        assert 8 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    @pytest.mark.parametrize(
+        "last_used_move",
+        [
+            LastUsedMove("weedle", "trickroom", 2),
+            LastUsedMove("caterpie", "trickroom", 3),
+        ],
+        ids=["stale-turn", "active-identity-mismatch"],
+    )
+    def test_invalid_last_move_fallback_is_uncertain(self, last_used_move):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+        self.battle.user.last_used_move = last_used_move
+
+        self._start_trick_room()
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert self.battle.trick_room_duration_uncertain
+
+    def test_ambiguous_last_move_fallback_is_uncertain(self):
+        self._use_tugs_format()
+        self.battle.user.last_used_move = LastUsedMove(
+            "weedle", "trickroom", self.battle.turn
+        )
+        self.battle.opponent.last_used_move = LastUsedMove(
+            "caterpie", "trickroom", self.battle.turn
+        )
+
+        self._start_trick_room()
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert self.battle.trick_room_duration_uncertain
+
+    def test_known_nonpersistent_setter_uses_six(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "swarm"
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_current_persistent_ignores_different_original_ability(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+        self.battle.user.active.original_ability = "swarm"
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 8 == self.battle.trick_room_turns_remaining
+
+    def test_original_persistent_does_not_override_current_ability(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "swarm"
+        self.battle.user.active.original_ability = "persistent"
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+
+    def test_gastro_acid_on_setter_suppresses_persistent(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+        self.battle.user.active.volatile_statuses.append("gastroacid")
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_live_opposing_neutralizing_gas_suppresses_persistent(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+        self.battle.opponent.active.ability = "neutralizinggas"
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_fainted_opposing_neutralizing_gas_does_not_suppress_persistent(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+        self.battle.opponent.active.ability = "neutralizinggas"
+        self.battle.opponent.active.hp = 0
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 8 == self.battle.trick_room_turns_remaining
+
+    def test_gastro_acid_on_neutralizing_gas_side_prevents_suppression(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+        self.battle.opponent.active.ability = "neutralizinggas"
+        self.battle.opponent.active.volatile_statuses.append("gastroacid")
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 8 == self.battle.trick_room_turns_remaining
+
+    def test_reserve_abilities_do_not_affect_persistent_duration(self):
+        self._use_tugs_format()
+        reserve_persistent = Pokemon("lapras", 100)
+        reserve_persistent.ability = "persistent"
+        self.battle.user.reserve.append(reserve_persistent)
+        reserve_neutralizing_gas = Pokemon("dustox", 100)
+        reserve_neutralizing_gas.ability = "neutralizinggas"
+        self.battle.opponent.reserve.append(reserve_neutralizing_gas)
+        self.battle.user.active.ability = "swarm"
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        fieldend(self.battle, ["", "-fieldend", "move: Trick Room"])
+
+        self.battle.user.active.ability = "persistent"
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 8 == self.battle.trick_room_turns_remaining
+
+    def test_unknown_setter_ability_starts_uncertain_at_six(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = None
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert self.battle.trick_room_duration_uncertain
+
+    def test_suppression_proves_six_even_when_setter_ability_is_unknown(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = None
+        self.battle.user.active.volatile_statuses.append("gastroacid")
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_fainted_persistent_setter_cannot_extend_trick_room(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "persistent"
+        self.battle.user.active.hp = 0
+
+        self._start_trick_room("[of] p1a: Weedle")
+
+        assert 6 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
 
     def test_removes_trickroom_properly(self):
-        split_msg = [
-            "",
-            "-fieldend",
-            "move: Trick Room",
-        ]
+        self.battle.trick_room = True
+        self.battle.trick_room_turns_remaining = 2
+        self.battle.trick_room_duration_uncertain = True
 
-        fieldend(self.battle, split_msg)
+        fieldend(self.battle, ["", "-fieldend", "move: Trick Room"])
 
         assert False is self.battle.trick_room
+        assert 0 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_reusing_trick_room_relies_on_fieldend_not_move(self):
+        self._use_tugs_format()
+        self.battle.user.active.ability = "swarm"
+        self._start_trick_room("[of] p1a: Weedle")
+
+        move(self.battle, ["", "move", "p1a: Weedle", "Trick Room"])
+
+        assert self.battle.trick_room
+        assert 6 == self.battle.trick_room_turns_remaining
+
+        fieldend(self.battle, ["", "-fieldend", "move: Trick Room"])
+
+        assert not self.battle.trick_room
         assert 0 == self.battle.trick_room_turns_remaining
 
 
@@ -4468,6 +5068,71 @@ class TestUpkeep:
         self.battle.trick_room_turns_remaining = 5
         upkeep(self.battle, "")
         assert 4 == self.battle.trick_room_turns_remaining
+
+    def test_uncertain_tugs_trickroom_extends_by_two_once_at_zero(self):
+        self.battle.pokemon_format = "gen9tugs"
+        self.battle.trick_room = True
+        self.battle.trick_room_turns_remaining = 1
+        self.battle.trick_room_duration_uncertain = True
+
+        upkeep(self.battle, "")
+
+        assert 2 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+        upkeep(self.battle, "")
+        upkeep(self.battle, "")
+        upkeep(self.battle, "")
+
+        assert 0 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_known_six_turn_tugs_trickroom_does_not_receive_fallback(self):
+        self.battle.pokemon_format = "gen9tugs"
+        self.battle.trick_room = True
+        self.battle.trick_room_turns_remaining = 1
+        self.battle.trick_room_duration_uncertain = False
+
+        upkeep(self.battle, "")
+
+        assert 0 == self.battle.trick_room_turns_remaining
+
+    def test_fieldend_before_uncertain_boundary_prevents_fallback(self):
+        self.battle.pokemon_format = "gen9tugs"
+        self.battle.trick_room = True
+        self.battle.trick_room_turns_remaining = 1
+        self.battle.trick_room_duration_uncertain = True
+
+        fieldend(self.battle, ["", "-fieldend", "move: Trick Room"])
+        upkeep(self.battle, "")
+
+        assert not self.battle.trick_room
+        assert 0 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_fieldend_after_uncertain_boundary_overrides_fallback(self):
+        self.battle.pokemon_format = "gen9tugs"
+        self.battle.trick_room = True
+        self.battle.trick_room_turns_remaining = 1
+        self.battle.trick_room_duration_uncertain = True
+        upkeep(self.battle, "")
+        assert 2 == self.battle.trick_room_turns_remaining
+
+        fieldend(self.battle, ["", "-fieldend", "move: Trick Room"])
+
+        assert not self.battle.trick_room
+        assert 0 == self.battle.trick_room_turns_remaining
+        assert not self.battle.trick_room_duration_uncertain
+
+    def test_trickroom_turns_remaining_never_becomes_negative(self):
+        self.battle.pokemon_format = "gen9tugs"
+        self.battle.trick_room = True
+        self.battle.trick_room_turns_remaining = 0
+
+        upkeep(self.battle, "")
+        upkeep(self.battle, "")
+
+        assert 0 == self.battle.trick_room_turns_remaining
 
     def test_swaps_out_yawn_for_yawnSleepThisTurn_opponent(self):
         self.battle.opponent.active.volatile_statuses.append(constants.YAWN)

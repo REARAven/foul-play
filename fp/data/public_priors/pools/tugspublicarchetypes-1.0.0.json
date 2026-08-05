@@ -1,0 +1,483 @@
+{
+  "schema_version": 1,
+  "visibility": "public",
+  "dataset_id": "tugspublicarchetypes",
+  "dataset_version": "1.0.0",
+  "format_id": "gen9tugs",
+  "patch_version": "1.2",
+  "display_name": "Public TUGS archetypes 1.0.0",
+  "metadata": {
+    "authorization": "Generic public design prior authored without closed-submission data.",
+    "weight_policy": "Authored design weights only: 4 primary, 3 common alternative, 2 meaningful secondary, 1 niche legitimate; not empirical usage."
+  },
+  "sources": [
+    {
+      "source_id": "publicformatpatch12",
+      "kind": "public_format",
+      "public_version": "1.2",
+      "description": "Public TUGS format, legal roster, Patch 1 and Patch 1.2 mechanics, and current gen9tugs server data."
+    },
+    {
+      "source_id": "publicmanualv1",
+      "kind": "public_manual",
+      "public_version": "1.0.0",
+      "description": "Explicitly public generic archetype design judgment based only on public format facts and base-game mechanics."
+    }
+  ],
+  "species": [
+    {
+      "species_id": "bastiodon",
+      "variants": [
+        {
+          "variant_id": "defensivepivot",
+          "weight": 4,
+          "item_id": "leftovers",
+          "base_ability_id": "soundproof",
+          "move_ids": ["stealthrock", "partingshot", "bodypress", "toxic"],
+          "nature_id": "careful",
+          "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "special defensive pivot",
+            "rationale": "Soundproof and Leftovers support repeated entry; hazards, poison, Defense-based damage, and Parting Shot compress support roles.",
+            "distinguishing_evidence": "Soundproof immunity, Leftovers recovery, or any of Stealth Rock, Toxic, and Parting Shot separates it from the setup and Sturdy lines.",
+            "weight_reason": "Primary broadly useful Bastiodon support role."
+          }
+        },
+        {
+          "variant_id": "irondefense",
+          "weight": 2,
+          "item_id": "chestoberry",
+          "base_ability_id": "soundproof",
+          "move_ids": ["irondefense", "bodypress", "rest", "rockblast"],
+          "nature_id": "impish",
+          "evs": {"hp": 252, "atk": 0, "def": 252, "spa": 0, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "physical setup tank",
+            "rationale": "ChestoRest gives one reliable reset while Iron Defense powers Body Press; Rock Blast prevents total passivity into Ghost targets.",
+            "distinguishing_evidence": "Iron Defense or Chesto Berry is decisive evidence; Rest and Rock Blast further distinguish the set.",
+            "weight_reason": "Meaningful secondary win-condition role with narrower matchups."
+          }
+        },
+        {
+          "variant_id": "sturdymetalburst",
+          "weight": 1,
+          "item_id": "custapberry",
+          "base_ability_id": "sturdy",
+          "move_ids": ["metalburst", "stealthrock", "partingshot", "bodypress"],
+          "nature_id": "sassy",
+          "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 0},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "emergency Sturdy utility",
+            "rationale": "Minimum Speed supports Metal Burst; Sturdy guarantees a full-HP survival and Custap enables emergency hazards, damage, or pivoting afterward.",
+            "distinguishing_evidence": "Sturdy, Custap Berry, Metal Burst, or minimum-Speed ordering identifies this niche line.",
+            "weight_reason": "Niche but coherent emergency line, kept at the lowest prior."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "claydol",
+      "variants": [
+        {
+          "variant_id": "levitateutility",
+          "weight": 3,
+          "item_id": "leftovers",
+          "base_ability_id": "levitate",
+          "move_ids": ["earthpower", "psychic", "rapidspin", "toxic"],
+          "nature_id": "calm",
+          "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "special utility spinner",
+            "rationale": "Levitate supplies a Ground immunity while Leftovers, dual STAB, Toxic, and Rapid Spin support a special wall and remover role.",
+            "distinguishing_evidence": "Levitate activation, Psychic, Toxic, or passive Leftovers recovery distinguishes it from Regenerator pivoting and Trick Room.",
+            "weight_reason": "Common alternative that emphasizes immunity and special durability."
+          }
+        },
+        {
+          "variant_id": "regeneratorpivot",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "regenerator",
+          "move_ids": ["earthpower", "rapidspin", "stealthrock", "teleport"],
+          "nature_id": "bold",
+          "evs": {"hp": 252, "atk": 0, "def": 252, "spa": 0, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "physical utility pivot",
+            "rationale": "Regenerator, Boots, Rapid Spin, Stealth Rock, and Teleport support repeated physical-wall entries and slow momentum.",
+            "distinguishing_evidence": "Regenerator healing, Boots hazard behavior, Teleport, or Stealth Rock identifies the pivot package.",
+            "weight_reason": "Primary role because it uniquely combines public Regenerator with hazard control and pivoting."
+          }
+        },
+        {
+          "variant_id": "trickroomsetter",
+          "weight": 2,
+          "item_id": "mentalherb",
+          "base_ability_id": "levitate",
+          "move_ids": ["trickroom", "teleport", "earthpower", "icebeam"],
+          "nature_id": "sassy",
+          "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 0},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "slow Trick Room setter",
+            "rationale": "Mental Herb protects setup, minimum Speed exploits the public six-turn room, and Teleport passes turns safely to a slow attacker.",
+            "distinguishing_evidence": "Trick Room, Mental Herb, Ice Beam, or minimum-Speed ordering distinguishes it immediately.",
+            "weight_reason": "Meaningful secondary mode enabler, but less universally applicable than utility sets."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "druddigon",
+      "variants": [
+        {
+          "variant_id": "roughskinutility",
+          "weight": 4,
+          "item_id": "rockyhelmet",
+          "base_ability_id": "roughskin",
+          "move_ids": ["cragmend", "glare", "dragontail", "stealthrock"],
+          "nature_id": "impish",
+          "evs": {"hp": 252, "atk": 0, "def": 252, "spa": 0, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "durable contact punisher",
+            "rationale": "Rocky Helmet plus Rough Skin punishes contact; Crag Mend sustains the current 85-HP physical wall while Glare, phazing, and rocks create progress.",
+            "distinguishing_evidence": "Crag Mend, Glare, Dragon Tail, Rocky Helmet recoil, or Rough Skin reveals the durable utility package.",
+            "weight_reason": "Primary role because it most directly uses Druddigon's public durability upgrade and custom recovery."
+          }
+        },
+        {
+          "variant_id": "sheerforcebreaker",
+          "weight": 3,
+          "item_id": "lifeorb",
+          "base_ability_id": "sheerforce",
+          "move_ids": ["dragonclaw", "gunkshot", "firepunch", "rockslide"],
+          "nature_id": "adamant",
+          "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "fast physical coverage breaker",
+            "rationale": "Life Orb and Sheer Force amplify three secondary-effect coverage moves while Dragon Claw preserves reliable STAB; maximum Speed avoids a fabricated creep benchmark.",
+            "distinguishing_evidence": "Life Orb recoil behavior, Sheer Force suppression of secondary effects, or the coverage moves separates it from defensive and slow Band sets.",
+            "weight_reason": "Common offensive alternative with broad generic coverage."
+          }
+        },
+        {
+          "variant_id": "slowbandbreaker",
+          "weight": 2,
+          "item_id": "choiceband",
+          "base_ability_id": "moldbreaker",
+          "move_ids": ["outrage", "earthquake", "gunkshot", "suckerpunch"],
+          "nature_id": "brave",
+          "evs": {"hp": 252, "atk": 252, "def": 0, "spa": 0, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 0},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "slow physical breaker",
+            "rationale": "Choice Band, Mold Breaker, maximum bulk and Attack, and minimum Speed form a strong Trick Room beneficiary with priority outside the room.",
+            "distinguishing_evidence": "Choice locking, Mold Breaker messages, Outrage, Sucker Punch, or minimum-Speed ordering distinguishes it.",
+            "weight_reason": "Meaningful secondary slow-breaking mode, less flexible than Life Orb."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "dustox",
+      "variants": [
+        {
+          "variant_id": "levitateutility",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "levitate",
+          "move_ids": ["roost", "defog", "uturn", "corrosivegas"],
+          "nature_id": "calm",
+          "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "special utility pivot",
+            "rationale": "Levitate and Boots minimize hazard pressure while Roost, Defog, U-turn, and public Corrosive Gas provide repeatable removal and item disruption.",
+            "distinguishing_evidence": "Levitate, Boots hazard behavior, U-turn, Defog, or Corrosive Gas identifies this package.",
+            "weight_reason": "Primary role because it exercises Dustox's new ability and move while preserving removal and momentum."
+          }
+        },
+        {
+          "variant_id": "shielddustphazer",
+          "weight": 3,
+          "item_id": "blacksludge",
+          "base_ability_id": "shielddust",
+          "move_ids": ["roost", "toxic", "whirlwind", "bugbuzz"],
+          "nature_id": "bold",
+          "evs": {"hp": 252, "atk": 0, "def": 252, "spa": 0, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "physical status phazer",
+            "rationale": "Shield Dust blocks secondary effects; Black Sludge and Roost sustain Toxic and Whirlwind cycling, while Bug Buzz prevents complete passivity.",
+            "distinguishing_evidence": "Shield Dust effect blocking, Black Sludge, Toxic, Whirlwind, or Bug Buzz separates it from the Levitate remover.",
+            "weight_reason": "Common alternative with a materially different defensive axis and no invented third permutation."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "forretress",
+      "variants": [
+        {
+          "variant_id": "hazardpivot",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "overcoat",
+          "move_ids": ["spikes", "rapidspin", "voltswitch", "gyroball"],
+          "nature_id": "relaxed",
+          "evs": {"hp": 252, "atk": 0, "def": 252, "spa": 0, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 0},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "physical hazard pivot",
+            "rationale": "Overcoat protects utility from powder and weather chip; Boots, Spikes, Spin, Volt Switch, and minimum-Speed Gyro Ball support repeated slow pivoting.",
+            "distinguishing_evidence": "Overcoat, Spikes, Gyro Ball, Boots behavior, or very slow Volt Switch distinguishes this line.",
+            "weight_reason": "Primary deliberately approved hazard-removal and pivot role."
+          }
+        },
+        {
+          "variant_id": "sturdyrocks",
+          "weight": 3,
+          "item_id": "leftovers",
+          "base_ability_id": "sturdy",
+          "move_ids": ["stealthrock", "rapidspin", "bodypress", "voltswitch"],
+          "nature_id": "impish",
+          "evs": {"hp": 252, "atk": 0, "def": 252, "spa": 0, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "Sturdy rock setter",
+            "rationale": "Sturdy secures emergency action, Leftovers helps restore it, and Defense investment supports Body Press alongside rocks, Spin, and slow pivoting.",
+            "distinguishing_evidence": "Sturdy activation, Leftovers, Stealth Rock, or Body Press distinguishes it from Spikes and offensive Custap lines.",
+            "weight_reason": "Common alternative with different hazard, ability, and damage choices."
+          }
+        },
+        {
+          "variant_id": "toxicspikesboom",
+          "weight": 1,
+          "item_id": "custapberry",
+          "base_ability_id": "sturdy",
+          "move_ids": ["toxicspikes", "explosion", "rapidspin", "gyroball"],
+          "nature_id": "brave",
+          "evs": {"hp": 252, "atk": 252, "def": 4, "spa": 0, "spd": 0, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 0},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "sacrificial hazard lead",
+            "rationale": "Sturdy and Custap support a final action; Toxic Spikes, maximum-Attack Explosion, Spin, and minimum-Speed Gyro Ball create a coherent lead package.",
+            "distinguishing_evidence": "Toxic Spikes, Custap Berry, Explosion, or Attack investment reveals the line.",
+            "weight_reason": "Niche legitimate lead, intentionally downweighted to avoid excessive hazard permutations."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "lapras",
+      "variants": [
+        {
+          "variant_id": "ancientshellperishtrap",
+          "weight": 2,
+          "item_id": "leftovers",
+          "base_ability_id": "ancientshell",
+          "move_ids": ["whirlpool", "perishsong", "protect", "freezedry"],
+          "nature_id": "bold",
+          "evs": {"hp": 252, "atk": 0, "def": 252, "spa": 0, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "physical perish trapper",
+            "rationale": "Ancient Shell's public super-effective reduction and physical bulk improve trapping longevity; Whirlpool, Perish Song, Protect, and Freeze-Dry form one coherent plan.",
+            "distinguishing_evidence": "Whirlpool, Perish Song, Protect, physical bulk, or Leftovers distinguishes it from pivot and RestTalk lines.",
+            "weight_reason": "Meaningful secondary control role with narrower execution requirements."
+          }
+        },
+        {
+          "variant_id": "ancientshellpivot",
+          "weight": 4,
+          "item_id": "heavydutyboots",
+          "base_ability_id": "ancientshell",
+          "move_ids": ["freezedry", "surf", "chillyreception", "healbell"],
+          "nature_id": "calm",
+          "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "special defensive weather pivot",
+            "rationale": "Ancient Shell reduces super-effective damage, Boots preserve entry health, dual STAB pressures targets, Chilly Reception pivots, and Heal Bell supplies team utility.",
+            "distinguishing_evidence": "Ancient Shell damage, Boots behavior, Chilly Reception, or Heal Bell identifies the role.",
+            "weight_reason": "Primary role because it directly uses both public Lapras additions in a broadly useful package."
+          }
+        },
+        {
+          "variant_id": "waterabsorbtank",
+          "weight": 3,
+          "item_id": "leftovers",
+          "base_ability_id": "waterabsorb",
+          "move_ids": ["freezedry", "surf", "rest", "sleeptalk"],
+          "nature_id": "calm",
+          "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "special RestTalk tank",
+            "rationale": "Water Absorb trades Ancient Shell mitigation for a Water immunity; Leftovers plus RestTalk provides long-duration status absorption with dual STAB.",
+            "distinguishing_evidence": "Water Absorb healing, Rest, Sleep Talk, or lack of Ancient Shell distinguishes this tank.",
+            "weight_reason": "Common alternative representing a public base ability and different recovery model."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "mawile",
+      "variants": [
+        {
+          "variant_id": "choicebandinterceptor",
+          "weight": 4,
+          "item_id": "choiceband",
+          "base_ability_id": "closingjaws",
+          "move_ids": ["playrough", "ironhead", "knockoff", "suckerpunch"],
+          "nature_id": "adamant",
+          "evs": {"hp": 252, "atk": 252, "def": 0, "spa": 0, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "Choice Band switch interceptor",
+            "rationale": "Closing Jaws can intercept a manual switch with the selected damaging move; Band, dual STAB, Knock Off, and priority make each selection consequential.",
+            "distinguishing_evidence": "Choice locking and the first revealed attack distinguish it; Sucker Punch failure on a switch remains public mechanic evidence, not a successful intercept.",
+            "weight_reason": "Primary direct-attacking expression of Mawile's only legal ability."
+          }
+        },
+        {
+          "variant_id": "mixedcoverage",
+          "weight": 2,
+          "item_id": "expertbelt",
+          "base_ability_id": "closingjaws",
+          "move_ids": ["playrough", "knockoff", "flamethrower", "suckerpunch"],
+          "nature_id": "brave",
+          "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 252, "spd": 0, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 0},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "slow mixed coverage attacker",
+            "rationale": "Expert Belt avoids choice locking; Brave preserves both offenses, maximum mixed investment and minimum Speed create a Trick Room-oriented attacker, and Flamethrower broadens interception choices.",
+            "distinguishing_evidence": "Flamethrower damage, Expert Belt behavior, mixed damage, or minimum-Speed ordering separates it from physical lines.",
+            "weight_reason": "Meaningful secondary coverage line; downweighted because mixed investment is less generally durable."
+          }
+        },
+        {
+          "variant_id": "swordsdancebreaker",
+          "weight": 3,
+          "item_id": "lifeorb",
+          "base_ability_id": "closingjaws",
+          "move_ids": ["swordsdance", "playrough", "knockoff", "suckerpunch"],
+          "nature_id": "adamant",
+          "evs": {"hp": 252, "atk": 252, "def": 0, "spa": 0, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "setup physical breaker",
+            "rationale": "Life Orb supplies flexible power; Swords Dance creates a setup route while Play Rough, Knock Off, and Sucker Punch retain switch-interception choices when an attack is selected.",
+            "distinguishing_evidence": "Swords Dance, Life Orb recoil, and lack of choice lock distinguish it from Band and mixed coverage.",
+            "weight_reason": "Common alternative because setup changes play materially without inventing a new ability or marginal permutation."
+          }
+        }
+      ]
+    },
+    {
+      "species_id": "porygon2",
+      "variants": [
+        {
+          "variant_id": "downloadattacker",
+          "weight": 3,
+          "item_id": "eviolite",
+          "base_ability_id": "download",
+          "move_ids": ["triattack", "icebeam", "thunderbolt", "recover"],
+          "nature_id": "modest",
+          "evs": {"hp": 252, "atk": 0, "def": 0, "spa": 252, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "special tank attacker",
+            "rationale": "Eviolite and Recover preserve bulk while Download and maximum Special Attack power reliable STAB and broad BoltBeam coverage.",
+            "distinguishing_evidence": "Download boost, Modest damage, Thunderbolt, or the absence of Trick Room and status separates it.",
+            "weight_reason": "Common offensive alternative with a clear public role."
+          }
+        },
+        {
+          "variant_id": "traceutility",
+          "weight": 4,
+          "item_id": "eviolite",
+          "base_ability_id": "trace",
+          "move_ids": ["foulplay", "discharge", "toxic", "recover"],
+          "nature_id": "calm",
+          "evs": {"hp": 252, "atk": 0, "def": 4, "spa": 0, "spd": 252, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "special utility wall",
+            "rationale": "Trace creates matchup-dependent public information; Eviolite, Recover, Toxic, paralysis chance, and target-Attack-based Foul Play support a low-investment wall.",
+            "distinguishing_evidence": "The copied ability, Toxic, Discharge paralysis, or Foul Play identifies the utility package.",
+            "weight_reason": "Primary broadly useful defensive role and the clearest contrast to unsupported National Dex marginals."
+          }
+        },
+        {
+          "variant_id": "trickroomsetter",
+          "weight": 2,
+          "item_id": "eviolite",
+          "base_ability_id": "download",
+          "move_ids": ["trickroom", "recover", "triattack", "icebeam"],
+          "nature_id": "quiet",
+          "evs": {"hp": 252, "atk": 0, "def": 0, "spa": 252, "spd": 4, "spe": 0},
+          "ivs": {"hp": 31, "atk": 0, "def": 31, "spa": 31, "spd": 31, "spe": 0},
+          "level": 100,
+          "source_ids": ["publicformatpatch12", "publicmanualv1"],
+          "metadata": {
+            "role": "slow Trick Room setter",
+            "rationale": "Quiet maximum Special Attack and minimum Speed exploit the public six-turn room; Eviolite and Recover improve repeat setup while Download supplies pressure.",
+            "distinguishing_evidence": "Trick Room, minimum-Speed ordering, or Quiet damage distinguishes it from the faster Download attacker.",
+            "weight_reason": "Meaningful secondary mode setter, less universal than the wall and attacker."
+          }
+        }
+      ]
+    }
+  ]
+}

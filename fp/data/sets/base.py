@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 # cache directories live in fp/data/, one level above this package
 DATA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PKMN_SETS_CACHE_DIR = os.path.join(DATA_DIR, "pkmn_sets_cache")
-os.makedirs(PKMN_SETS_CACHE_DIR, exist_ok=True)
 
 
 def get_sets_file(cache_path: str, remote_url: str) -> dict:

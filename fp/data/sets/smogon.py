@@ -28,7 +28,6 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 SMOGON_CACHE_DIR = os.path.join(DATA_DIR, "smogon_stats_cache")
-os.makedirs(SMOGON_CACHE_DIR, exist_ok=True)
 
 OTHER_STRING = "other"
 MOVES_STRING = "moves"
@@ -71,6 +70,7 @@ class SmogonSets(PokemonSets):
                     )
                 )
             infos = r.json()["data"]
+            os.makedirs(SMOGON_CACHE_DIR, exist_ok=True)
             with open(cache_file, "w") as f:
                 json.dump(infos, f)
             logger.info(f"Downloaded and cached from remote: {smogon_stats_url}")

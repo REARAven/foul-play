@@ -102,6 +102,22 @@ def _observed_moves_are_compatible_with_candidate_moves(
     )
 
 
+def candidate_original_item_is_compatible(
+    candidate_item_id: str, evidence: PublicEvidence | None
+) -> bool:
+    """Compare a candidate's authored item with confident historical evidence.
+
+    Current held-item state is intentionally absent from this comparison.  A
+    consumed, removed, transferred, or replaced item remains the candidate's
+    original item, while ambiguous acquisition without an earlier reveal does
+    not fabricate one.
+    """
+
+    if evidence is None or evidence.initial_item_id is None:
+        return True
+    return candidate_item_id == evidence.initial_item_id
+
+
 def public_variant_is_compatible(
     variant: PublicSetVariant,
     species_id: str,
@@ -122,11 +138,7 @@ def public_variant_is_compatible(
         evidence.selected_move_ids, variant.move_ids
     ):
         return False
-    if (
-        evidence.initial_item_id is not None
-        and not evidence.item_ambiguous
-        and variant.item_id != evidence.initial_item_id
-    ):
+    if not candidate_original_item_is_compatible(variant.item_id, evidence):
         return False
     if (
         evidence.base_ability_id is not None

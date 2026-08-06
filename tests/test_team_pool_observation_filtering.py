@@ -191,7 +191,11 @@ class TestPolicyLedgerAndIsolation(unittest.TestCase):
         _process(battle, "|-item|p2a: Pikachu|Choice Scarf|[from] move: Trick")
         recomputed = _filtered(battle, registry)
         self.assertEqual(2, recomputed.baseline_candidate_count)
-        self.assertEqual(2, recomputed.candidate_count)
+        self.assertEqual(
+            "leftovers",
+            recomputed.observation_ledger.member("pikachu").initial_item_id,
+        )
+        self.assertEqual(1, recomputed.candidate_count)
 
 
 class TestMoveEvidence(unittest.TestCase):
@@ -424,7 +428,27 @@ class TestItemEvidence(unittest.TestCase):
         battle, registry, _ = _scenario(self.records)
         _process(battle, "|-item|p2a: Pikachu|Leftovers")
         _process(battle, "|-item|p2a: Pikachu|Choice Scarf|[from] move: Switcheroo")
-        self.assertEqual(2, _filtered(battle, registry).candidate_count)
+        evidence = _evidence(battle)
+        self.assertEqual("leftovers", evidence.initial_item_id)
+        self.assertFalse(evidence.item_ambiguous)
+        self.assertEqual(
+            {PublicObservationSource.TEAM_PREVIEW,
+             PublicObservationSource.DIRECT_ITEM_REVEAL,
+             PublicObservationSource.ITEM_ACQUIRED},
+            set(evidence.provenance),
+        )
+        self.assertEqual(1, _filtered(battle, registry).candidate_count)
+
+    def test_28a_repeated_acquisition_preserves_original_item_idempotently(self):
+        battle, registry, _ = _scenario(self.records)
+        _process(battle, "|-item|p2a: Pikachu|Leftovers")
+        message = "|-item|p2a: Pikachu|Choice Scarf|[from] move: Trick"
+        _process(battle, message)
+        first = battle.team_inference.observation_ledger
+        _process(battle, message)
+        self.assertIs(first, battle.team_inference.observation_ledger)
+        self.assertEqual("leftovers", _evidence(battle).initial_item_id)
+        self.assertEqual(1, _filtered(battle, registry).candidate_count)
 
     def test_29_item_none_alone_does_not_mean_submitted_itemless(self):
         battle, registry, _ = _scenario(self.records)

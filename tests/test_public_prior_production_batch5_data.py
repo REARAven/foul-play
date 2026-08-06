@@ -16,6 +16,7 @@ from fp.battle.inference import check_heavydutyboots
 from fp.battle.protocol import process_battle_updates
 from fp.battle.public_prior_context import PublicPriorFallback
 from fp.battle.state import Pokemon
+from fp.battle.team_inference import PublicObservationSource
 from fp.config import FoulPlayConfig
 from fp.data import all_move_json, pokedex
 from fp.data.mods.apply_mods import apply_mods
@@ -1010,6 +1011,205 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         )
         self.assertIs(PublicPriorSelectionStatus.SELECTED, result.status)
         self.assertEqual("waterabsorb", result.variant.base_ability_id)
+
+    def test_15e_low_key_throat_spray_consumption_keeps_original_item_candidate(self):
+        context = self.generic_configuration.create_battle_context("gen9tugs")
+        battle = _battle(context, "toxtricitylowkey")
+        initial = battle.team_inference.observation_ledger.member(
+            "toxtricitylowkey"
+        )
+        self.assertEqual(
+            {
+                "choicespecs",
+                "scarfpsychicnoise",
+                "scarfsludgebomb",
+                "throatspray",
+            },
+            _compatible_ids(self.dataset, "toxtricitylowkey", initial),
+        )
+
+        battle.msg_list = [
+            "|move|p2a: Toxtricity|Sludge Wave|p1a: Weedle",
+            "|move|p2a: Toxtricity|Boomburst|p1a: Weedle",
+            "|-enditem|p2a: Toxtricity|Throat Spray",
+            "|-boost|p2a: Toxtricity|spa|1|[from] item: Throat Spray",
+        ]
+        process_battle_updates(battle)
+        evidence = battle.team_inference.observation_ledger.member(
+            "toxtricitylowkey"
+        )
+        self.assertEqual("throatspray", evidence.initial_item_id)
+        self.assertIn(PublicObservationSource.ITEM_REMOVED, evidence.provenance)
+        self.assertEqual(("boomburst", "sludgewave"), evidence.selected_move_ids)
+        self.assertIsNone(battle.opponent.active.item)
+        self.assertEqual("throatspray", battle.opponent.active.removed_item)
+        self.assertEqual(
+            {"throatspray"},
+            _compatible_ids(self.dataset, "toxtricitylowkey", evidence),
+        )
+
+        result = select_public_prior_variant(
+            context,
+            battle_format="gen9tugs",
+            species_id="toxtricitylowkey",
+            level=100,
+            evidence=evidence,
+            rng=_FixedRng(0.0),
+        )
+        self.assertIs(PublicPriorSelectionStatus.SELECTED, result.status)
+        self.assertEqual("throatspray", result.variant.variant_id)
+        canonical_before = _pokemon_snapshot(battle.opponent.active)
+        ledger_before = battle.team_inference.observation_ledger
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            sampled = prepare_battles(battle, 1)[0][0]
+        generic.assert_not_called()
+        copied = sampled.opponent.active
+        self.assertIsNone(copied.item)
+        self.assertEqual(
+            {"shiftgear", "boomburst", "overdrive", "sludgewave"},
+            {move.name for move in copied.moves},
+        )
+        self.assertIsInstance(battle_to_poke_engine_state(sampled).to_string(), str)
+        self.assertEqual(canonical_before, _pokemon_snapshot(battle.opponent.active))
+        self.assertIs(ledger_before, battle.team_inference.observation_ledger)
+
+        battle.msg_list = [
+            "|move|p2a: Toxtricity|Shift Gear|p1a: Weedle",
+        ]
+        process_battle_updates(battle)
+        later = battle.team_inference.observation_ledger.member(
+            "toxtricitylowkey"
+        )
+        self.assertEqual("throatspray", later.initial_item_id)
+        self.assertEqual(
+            {"throatspray"},
+            _compatible_ids(self.dataset, "toxtricitylowkey", later),
+        )
+
+    def test_15f_benchmark_8b3_item_signature_replay_has_no_choicespecs_selection(self):
+        context = self.generic_configuration.create_battle_context("gen9tugs")
+        battle = _battle(context, "toxtricitylowkey")
+        battle.msg_list = [
+            "|move|p2a: Toxtricity|Sludge Wave|p1a: Weedle",
+        ]
+        process_battle_updates(battle)
+        before = battle.team_inference.observation_ledger.member(
+            "toxtricitylowkey"
+        )
+        self.assertEqual(
+            {"choicespecs", "throatspray"},
+            _compatible_ids(self.dataset, "toxtricitylowkey", before),
+        )
+
+        battle.msg_list = [
+            "|move|p2a: Toxtricity|Boomburst|p1a: Weedle",
+            "|-enditem|p2a: Toxtricity|Throat Spray",
+            "|-boost|p2a: Toxtricity|spa|1|[from] item: Throat Spray",
+        ]
+        process_battle_updates(battle)
+        after = battle.team_inference.observation_ledger.member(
+            "toxtricitylowkey"
+        )
+        selected_ids = []
+        for rng_value in (0.0, 0.25, 0.5, 0.75, 0.999):
+            result = select_public_prior_variant(
+                context,
+                battle_format="gen9tugs",
+                species_id="toxtricitylowkey",
+                level=100,
+                evidence=after,
+                rng=_FixedRng(rng_value),
+            )
+            self.assertIs(PublicPriorSelectionStatus.SELECTED, result.status)
+            selected_ids.append(result.variant.variant_id)
+        self.assertEqual(["throatspray"] * 5, selected_ids)
+        self.assertEqual(
+            {"throatspray"},
+            _compatible_ids(self.dataset, "toxtricitylowkey", after),
+        )
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            sampled = prepare_battles(battle, 1)[0][0]
+        generic.assert_not_called()
+        self.assertIsNone(sampled.opponent.active.item)
+
+    def test_15g_slurpuff_focus_sash_consumption_preserves_sashwebs(self):
+        context = self.generic_configuration.create_battle_context("gen9tugs")
+        battle = _battle(context, "slurpuff")
+        battle.msg_list = [
+            "|-enditem|p2a: Slurpuff|Focus Sash|[consumed]",
+        ]
+        process_battle_updates(battle)
+        evidence = battle.team_inference.observation_ledger.member("slurpuff")
+        self.assertEqual("focussash", evidence.initial_item_id)
+        self.assertEqual(
+            {"sashwebs"}, _compatible_ids(self.dataset, "slurpuff", evidence)
+        )
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            sampled = prepare_battles(battle, 1)[0][0]
+        generic.assert_not_called()
+        self.assertIsNone(sampled.opponent.active.item)
+        self.assertEqual(
+            {"stickyweb", "magiccoat", "mistyexplosion", "yawn"},
+            {move.name for move in sampled.opponent.active.moves},
+        )
+
+    def test_15h_porygon2_eviolite_removal_preserves_original_item(self):
+        context = self.generic_configuration.create_battle_context("gen9tugs")
+        battle = _battle(context, "porygon2")
+        battle.msg_list = [
+            "|move|p2a: Porygon2|Trick Room|p1a: Weedle",
+            "|-enditem|p2a: Porygon2|Eviolite|[from] move: Knock Off",
+        ]
+        process_battle_updates(battle)
+        evidence = battle.team_inference.observation_ledger.member("porygon2")
+        self.assertEqual("eviolite", evidence.initial_item_id)
+        self.assertEqual(
+            {"trickroom"}, _compatible_ids(self.dataset, "porygon2", evidence)
+        )
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            sampled = prepare_battles(battle, 1)[0][0]
+        generic.assert_not_called()
+        self.assertIsNone(sampled.opponent.active.item)
+        self.assertEqual("eviolite", sampled.opponent.active.removed_item)
+
+    def test_15i_swampert_leftovers_removal_preserves_original_item(self):
+        context = self.generic_configuration.create_battle_context("gen9tugs")
+        battle = _battle(context, "swampert")
+        battle.msg_list = [
+            "|move|p2a: Swampert|Yawn|p1a: Weedle",
+            "|-enditem|p2a: Swampert|Leftovers|[from] move: Knock Off",
+        ]
+        process_battle_updates(battle)
+        evidence = battle.team_inference.observation_ledger.member("swampert")
+        self.assertEqual("leftovers", evidence.initial_item_id)
+        self.assertEqual(
+            {"offensiveyawn"}, _compatible_ids(self.dataset, "swampert", evidence)
+        )
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            sampled = prepare_battles(battle, 1)[0][0]
+        generic.assert_not_called()
+        self.assertIsNone(sampled.opponent.active.item)
+        self.assertEqual("leftovers", sampled.opponent.active.removed_item)
+
+    def test_15j_held_leftovers_control_remains_current_and_compatible(self):
+        context = self.generic_configuration.create_battle_context("gen9tugs")
+        battle = _battle(context, "swampert")
+        battle.opponent.active.item = "leftovers"
+        battle.msg_list = [
+            "|move|p2a: Swampert|Stealth Rock|p1a: Weedle",
+            "|-heal|p2a: Swampert|100/100|[from] item: Leftovers",
+        ]
+        process_battle_updates(battle)
+        evidence = battle.team_inference.observation_ledger.member("swampert")
+        self.assertEqual("leftovers", evidence.initial_item_id)
+        self.assertNotIn(
+            "chestorest", _compatible_ids(self.dataset, "swampert", evidence)
+        )
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            sampled = prepare_battles(battle, 1)[0][0]
+        generic.assert_not_called()
+        self.assertEqual("leftovers", sampled.opponent.active.item)
+        self.assertIsNone(sampled.opponent.active.removed_item)
 
     def test_16_public_sampling_has_no_private_pool_or_candidate_dependency(self):
         paths = (

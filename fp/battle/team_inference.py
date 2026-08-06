@@ -72,6 +72,7 @@ class PublicObservationSource(Enum):
     ITEM_ACTIVATION = auto()
     ITEM_CONSUMED = auto()
     ITEM_REMOVED = auto()
+    ITEM_ACQUIRED = auto()
     DIRECT_ABILITY_REVEAL = auto()
     TRACE_BASE_ABILITY = auto()
 
@@ -475,11 +476,19 @@ class TeamInferenceContext:
         )
 
     def mark_item_ambiguous(self, species_id: str) -> None:
+        """Record an acquired item without discarding known original-item evidence."""
+
         member = self._observation_ledger.member(species_id)
         if member is None:
             return
         self._replace_member(
-            replace(member, initial_item_id=None, item_ambiguous=True)
+            replace(
+                member,
+                item_ambiguous=member.initial_item_id is None,
+                provenance=self._with_provenance(
+                    member, PublicObservationSource.ITEM_ACQUIRED
+                ),
+            )
         )
 
     def record_base_ability(

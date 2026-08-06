@@ -47,6 +47,7 @@ from fp.search.poke_engine_helpers import (
 )
 from fp.search.public_prior_sampling import (
     PublicPriorSelectionStatus,
+    candidate_original_item_is_compatible,
     choose_weighted_public_variant,
     observed_move_is_compatible_with_candidate_move,
     populate_pokemon_from_public_variant,
@@ -528,6 +529,251 @@ class TestCompatibilityAndFirewall(unittest.TestCase):
                 "pikachu"
             ).selected_move_ids,
         )
+
+
+class TestOriginalItemTransitions(unittest.TestCase):
+    def test_confident_original_item_compatibility_matrix(self):
+        cases = (
+            ("throatspray", "throatspray", True),
+            ("choicespecs", "throatspray", False),
+            ("throatspray", "choicespecs", False),
+            ("focussash", "focussash", True),
+            ("leftovers", "focussash", False),
+            ("eviolite", "eviolite", True),
+            ("leftovers", "eviolite", False),
+            ("heavydutyboots", "eviolite", False),
+            ("leftovers", "leftovers", True),
+            ("rockyhelmet", "leftovers", False),
+            ("heavydutyboots", "leftovers", False),
+            ("lightball", "lightball", True),
+        )
+        for candidate, observed, expected in cases:
+            with self.subTest(candidate=candidate, observed=observed):
+                self.assertIs(
+                    expected,
+                    candidate_original_item_is_compatible(
+                        candidate, _evidence(item=observed)
+                    ),
+                )
+
+    def test_item_id_normalization_stays_in_protocol_observation_path(self):
+        battle = _battle()
+        _process(battle, "|-item|p2a: Pikachu|Throat Spray")
+        evidence = battle.team_inference.observation_ledger.member("pikachu")
+        self.assertEqual("throatspray", evidence.initial_item_id)
+        self.assertTrue(
+            candidate_original_item_is_compatible("throatspray", evidence)
+        )
+
+    def test_confident_original_item_precedes_an_inconsistent_ambiguity_flag(self):
+        evidence = _evidence(item="throatspray", ambiguous=True)
+        self.assertTrue(
+            candidate_original_item_is_compatible("throatspray", evidence)
+        )
+        self.assertFalse(
+            candidate_original_item_is_compatible("choicespecs", evidence)
+        )
+
+    def test_bare_enditem_preserves_throat_spray_original_item(self):
+        battle = _battle()
+        battle.opponent.active.item = constants.UNKNOWN_ITEM
+        _process(
+            battle,
+            "|move|p2a: Pikachu|Boomburst|p1a: Weedle",
+            "|-enditem|p2a: Pikachu|Throat Spray",
+        )
+        evidence = battle.team_inference.observation_ledger.member("pikachu")
+        self.assertEqual("throatspray", evidence.initial_item_id)
+        self.assertIn(PublicObservationSource.ITEM_REMOVED, evidence.provenance)
+        self.assertIsNone(battle.opponent.active.item)
+        self.assertEqual("throatspray", battle.opponent.active.removed_item)
+        self.assertTrue(
+            candidate_original_item_is_compatible("throatspray", evidence)
+        )
+        self.assertFalse(
+            candidate_original_item_is_compatible("choicespecs", evidence)
+        )
+
+    def test_focus_sash_consumption_preserves_original_item(self):
+        battle = _battle()
+        battle.opponent.active.item = "focussash"
+        _process(battle, "|-enditem|p2a: Pikachu|Focus Sash|[consumed]")
+        evidence = battle.team_inference.observation_ledger.member("pikachu")
+        self.assertEqual("focussash", evidence.initial_item_id)
+        self.assertIn(PublicObservationSource.ITEM_CONSUMED, evidence.provenance)
+        self.assertIsNone(battle.opponent.active.item)
+        self.assertFalse(
+            candidate_original_item_is_compatible("leftovers", evidence)
+        )
+
+    def test_knock_off_and_corrosive_gas_preserve_original_item(self):
+        for move_name in ("Knock Off", "Corrosive Gas"):
+            with self.subTest(move=move_name):
+                battle = _battle()
+                battle.opponent.active.item = "eviolite"
+                _process(
+                    battle,
+                    "|-enditem|p2a: Pikachu|Eviolite|[from] move: "
+                    + move_name,
+                )
+                evidence = battle.team_inference.observation_ledger.member(
+                    "pikachu"
+                )
+                self.assertEqual("eviolite", evidence.initial_item_id)
+                self.assertIsNone(battle.opponent.active.item)
+                self.assertTrue(
+                    candidate_original_item_is_compatible("eviolite", evidence)
+                )
+                self.assertFalse(
+                    candidate_original_item_is_compatible("leftovers", evidence)
+                )
+
+    def test_transfer_preserves_confident_original_and_acquired_current_item(self):
+        battle = _battle()
+        battle.opponent.active.item = "leftovers"
+        _process(battle, "|-item|p2a: Pikachu|Leftovers")
+        _process(
+            battle,
+            "|-item|p2a: Pikachu|Choice Scarf|[from] move: Trick",
+        )
+        evidence = battle.team_inference.observation_ledger.member("pikachu")
+        self.assertEqual("leftovers", evidence.initial_item_id)
+        self.assertFalse(evidence.item_ambiguous)
+        self.assertIn(PublicObservationSource.ITEM_ACQUIRED, evidence.provenance)
+        self.assertEqual("choicescarf", battle.opponent.active.item)
+        self.assertEqual("leftovers", battle.opponent.active.removed_item)
+        self.assertTrue(
+            candidate_original_item_is_compatible("leftovers", evidence)
+        )
+        self.assertFalse(
+            candidate_original_item_is_compatible("choicescarf", evidence)
+        )
+
+    def test_acquisition_without_original_evidence_remains_ambiguous(self):
+        battle = _battle()
+        _process(
+            battle,
+            "|-item|p2a: Pikachu|Choice Scarf|[from] move: Switcheroo",
+        )
+        evidence = battle.team_inference.observation_ledger.member("pikachu")
+        self.assertIsNone(evidence.initial_item_id)
+        self.assertTrue(evidence.item_ambiguous)
+        self.assertTrue(
+            candidate_original_item_is_compatible("leftovers", evidence)
+        )
+
+    def test_item_suppression_changes_neither_original_nor_current_item(self):
+        pokemon = Pokemon("pikachu", 50)
+        pokemon.item = "leftovers"
+        evidence = _evidence(item="leftovers")
+        populate_pokemon_from_public_variant(
+            pokemon, _variant(item="leftovers"), evidence
+        )
+        self.assertEqual("leftovers", pokemon.item)
+        self.assertTrue(
+            candidate_original_item_is_compatible("leftovers", evidence)
+        )
+
+    def test_unknown_current_item_does_not_erase_confident_original_item(self):
+        pokemon = Pokemon("pikachu", 50)
+        evidence = _evidence(item="lightball")
+        populate_pokemon_from_public_variant(pokemon, _variant(), evidence)
+        self.assertEqual("lightball", evidence.initial_item_id)
+        self.assertEqual("lightball", pokemon.item)
+
+    def test_known_no_item_does_not_admit_other_original_items(self):
+        pokemon = Pokemon("pikachu", 50)
+        pokemon.item = None
+        pokemon.removed_item = "throatspray"
+        evidence = _evidence(item="throatspray")
+        self.assertFalse(
+            candidate_original_item_is_compatible("choicespecs", evidence)
+        )
+        populate_pokemon_from_public_variant(
+            pokemon, _variant(item="throatspray"), evidence
+        )
+        self.assertIsNone(pokemon.item)
+
+    def test_repeated_item_transition_evidence_is_idempotent(self):
+        battle = _battle()
+        battle.opponent.active.item = "leftovers"
+        message = "|-enditem|p2a: Pikachu|Leftovers|[from] move: Knock Off"
+        _process(battle, message)
+        first = battle.team_inference.observation_ledger
+        _process(battle, message)
+        self.assertIs(first, battle.team_inference.observation_ledger)
+
+    def test_consumed_and_removed_items_are_never_restored(self):
+        for item in ("throatspray", "focussash", "eviolite", "leftovers"):
+            with self.subTest(item=item):
+                pokemon = Pokemon("pikachu", 50)
+                pokemon.item = None
+                pokemon.removed_item = item
+                variant = _variant(item=item)
+                populate_pokemon_from_public_variant(
+                    pokemon, variant, _evidence(item=item)
+                )
+                self.assertIsNone(pokemon.item)
+                self.assertEqual(item, pokemon.removed_item)
+
+    def test_acquired_replacement_item_is_not_overwritten(self):
+        pokemon = Pokemon("pikachu", 50)
+        pokemon.item = "choicescarf"
+        pokemon.removed_item = "leftovers"
+        evidence = _evidence(item="leftovers")
+        populate_pokemon_from_public_variant(
+            pokemon, _variant(item="leftovers"), evidence
+        )
+        self.assertEqual("choicescarf", pokemon.item)
+        self.assertEqual("leftovers", evidence.initial_item_id)
+
+    def test_candidate_population_remains_coherent_and_serializable(self):
+        variant = _variant(item="focussash")
+        context = _context(_dataset(variants=(variant,)))
+        battle = _battle(context)
+        battle.opponent.active.item = None
+        battle.opponent.active.removed_item = "focussash"
+        battle.team_inference.record_initial_item(
+            "pikachu", "focussash", PublicObservationSource.ITEM_CONSUMED
+        )
+        before = copy.deepcopy(battle.opponent.active)
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            sampled = prepare_battles(battle, 1)[0][0]
+        generic.assert_not_called()
+        copied = sampled.opponent.active
+        self.assertIsNone(copied.item)
+        self.assertEqual(set(variant.move_ids), {move.name for move in copied.moves})
+        self.assertEqual(variant.base_ability_id, copied.ability)
+        self.assertIsInstance(battle_to_poke_engine_state(sampled).to_string(), str)
+        self.assertEqual(before, battle.opponent.active)
+
+    def test_public_success_and_fallback_policy_follow_real_contradictions(self):
+        variant = _variant(item="lightball")
+        for fallback, expected_generic_calls in (
+            (PublicPriorFallback.NONE, 0),
+            (PublicPriorFallback.GENERIC, 1),
+        ):
+            with self.subTest(fallback=fallback.value):
+                context = _context(
+                    _dataset(variants=(variant,)), fallback=fallback
+                )
+                battle = _battle(context)
+                battle.team_inference.record_initial_item(
+                    "pikachu",
+                    "sitrusberry",
+                    PublicObservationSource.DIRECT_ITEM_REVEAL,
+                )
+                battle.opponent.active.add_move("thunderbolt")
+                battle.opponent.active.ability = "static"
+                canonical = copy.deepcopy(battle.opponent.active)
+                with mock.patch(
+                    "fp.search.standard_battles.sample_pokemon"
+                ) as generic:
+                    sampled = prepare_battles(battle, 1)[0][0]
+                self.assertEqual(expected_generic_calls, generic.call_count)
+                self.assertEqual(canonical, battle.opponent.active)
+                self.assertEqual("thunderbolt", sampled.opponent.active.moves[0].name)
+                self.assertEqual("static", sampled.opponent.active.ability)
 
 
 class TestCopiedPopulationAndFallback(unittest.TestCase):

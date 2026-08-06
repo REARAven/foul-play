@@ -521,6 +521,108 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             PublicPriorIdentity("tugspublicarchetypes", "1.4.0", "gen9tugs")
         )
 
+    def test_07a_generic_hidden_power_preserves_all_four_production_variants(self):
+        context = self.none_configuration.create_battle_context("gen9tugs")
+        expected = {
+            ("houndoom", "nastyplotlifeorb"): "hiddenpowergrass60",
+            ("lapras", "choicespecs"): "hiddenpowerfire60",
+            ("lilligant", "sashquiverdance"): "hiddenpowerfire60",
+            ("raichu", "sashnastyplot"): "hiddenpowerice60",
+        }
+        for (species_id, variant_id), move_id in expected.items():
+            evidence = _evidence(
+                context, species_id, moves=("hiddenpower",)
+            )
+            compatible_ids = _compatible_ids(
+                self.dataset, species_id, evidence
+            )
+            with self.subTest(species=species_id, variant=variant_id):
+                self.assertIn(variant_id, compatible_ids)
+                self.assertIn(
+                    move_id,
+                    self.dataset.get_species(species_id).get_variant(
+                        variant_id
+                    ).move_ids,
+                )
+                self.assertTrue(
+                    all(
+                        any(
+                            candidate_move.startswith("hiddenpower")
+                            for candidate_move in self.dataset.get_species(
+                                species_id
+                            ).get_variant(candidate_id).move_ids
+                        )
+                        for candidate_id in compatible_ids
+                    )
+                )
+
+    def test_07b_exact_pilot_lilligant_event_remains_publicly_compatible(self):
+        context = self.generic_configuration.create_battle_context("gen9tugs")
+        battle = _battle(context, "lilligant")
+        initial = battle.team_inference.observation_ledger.member("lilligant")
+        self.assertEqual(
+            {"lifeorbquiverdance", "sashquiverdance"},
+            _compatible_ids(self.dataset, "lilligant", initial),
+        )
+
+        battle.msg_list = [
+            "|-ability|p2a: Lilligant|Chlorophyll",
+            "|move|p2a: Lilligant|Hidden Power|p1a: Porygon2",
+            "|-damage|p1a: Porygon2|90/100",
+        ]
+        process_battle_updates(battle)
+        evidence = battle.team_inference.observation_ledger.member("lilligant")
+        self.assertEqual("chlorophyll", evidence.base_ability_id)
+        self.assertEqual(("hiddenpower",), evidence.selected_move_ids)
+        self.assertEqual(
+            {"sashquiverdance"},
+            _compatible_ids(self.dataset, "lilligant", evidence),
+        )
+        selection = select_public_prior_variant(
+            context,
+            battle_format="gen9tugs",
+            species_id="lilligant",
+            level=100,
+            evidence=evidence,
+            rng=_FixedRng(0.5),
+        )
+        self.assertIs(PublicPriorSelectionStatus.SELECTED, selection.status)
+        self.assertEqual("sashquiverdance", selection.variant.variant_id)
+
+        canonical_before = _pokemon_snapshot(battle.opponent.active)
+        ledger_before = battle.team_inference.observation_ledger
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            sampled = prepare_battles(battle, 1)[0][0]
+        generic.assert_not_called()
+        sampled_pokemon = sampled.opponent.active
+        variant = self.dataset.get_species("lilligant").get_variant(
+            "sashquiverdance"
+        )
+        self.assertEqual("lilligant", sampled_pokemon.name)
+        self.assertEqual(variant.item_id, sampled_pokemon.item)
+        self.assertEqual(variant.base_ability_id, sampled_pokemon.ability)
+        self.assertEqual(variant.nature_id, sampled_pokemon.nature)
+        self.assertEqual(variant.evs.as_tuple(), tuple(sampled_pokemon.evs))
+        self.assertEqual(variant.ivs.as_tuple(), tuple(sampled_pokemon.ivs))
+        self.assertEqual(variant.level, sampled_pokemon.level)
+        self.assertEqual(
+            set(variant.move_ids), {move.name for move in sampled_pokemon.moves}
+        )
+        self.assertIn(
+            "hiddenpowerfire60", {move.name for move in sampled_pokemon.moves}
+        )
+        self.assertIsInstance(
+            battle_to_poke_engine_state(sampled).to_string(), str
+        )
+        self.assertEqual(canonical_before, _pokemon_snapshot(battle.opponent.active))
+        self.assertIs(ledger_before, battle.team_inference.observation_ledger)
+        self.assertEqual(
+            ("hiddenpower",),
+            battle.team_inference.observation_ledger.member(
+                "lilligant"
+            ).selected_move_ids,
+        )
+
     def test_08_every_new_species_and_all_38_touched_variants_are_selectable(self):
         context = self.none_configuration.create_battle_context("gen9tugs")
         for species_id in NEW_SPECIES_VARIANTS:

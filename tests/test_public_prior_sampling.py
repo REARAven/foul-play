@@ -48,6 +48,7 @@ from fp.search.poke_engine_helpers import (
 from fp.search.public_prior_sampling import (
     PublicPriorSelectionStatus,
     choose_weighted_public_variant,
+    observed_move_is_compatible_with_candidate_move,
     populate_pokemon_from_public_variant,
     public_variant_is_compatible,
     select_public_prior_variant,
@@ -427,6 +428,107 @@ class TestCompatibilityAndFirewall(unittest.TestCase):
         self.assertEqual("trace", member.base_ability_id)
         self.assertTrue(member.current_ability_changed)
 
+    def test_32a_hidden_power_move_compatibility_matrix(self):
+        compatible = (
+            ("hiddenpower", "hiddenpowerfire60"),
+            ("hiddenpower", "hiddenpowergrass60"),
+            ("hiddenpower", "hiddenpowerice60"),
+            ("hiddenpowerfire", "hiddenpowerfire60"),
+            ("hiddenpowerfire60", "hiddenpowerfire"),
+            ("Hidden Power Fire", "HIDDEN-POWER-FIRE-60"),
+            ("hiddenpowerwater70", "hiddenpowerwater60"),
+            ("Thunder Bolt", "thunderbolt"),
+        )
+        incompatible = (
+            ("hiddenpower", "flamethrower"),
+            ("flamethrower", "hiddenpowerfire60"),
+            ("hiddenpowerfire", "hiddenpowergrass60"),
+            ("hiddenpowerfire60", "hiddenpowerice60"),
+            ("hiddenpowergrass", "hiddenpowerice60"),
+            ("hiddenpowerfireblast", "hiddenpowerfire60"),
+            ("hiddenpowerfairy", "hiddenpowerfire60"),
+            ("hiddenpower60", "hiddenpowerfire60"),
+            ("thunderbolt", "voltswitch"),
+        )
+        for observed, candidate in compatible:
+            with self.subTest(observed=observed, candidate=candidate):
+                self.assertTrue(
+                    observed_move_is_compatible_with_candidate_move(
+                        observed, candidate
+                    )
+                )
+        for observed, candidate in incompatible:
+            with self.subTest(observed=observed, candidate=candidate):
+                self.assertFalse(
+                    observed_move_is_compatible_with_candidate_move(
+                        observed, candidate
+                    )
+                )
+
+    def test_32b_generic_hidden_power_keeps_all_typed_candidates_only(self):
+        variants = (
+            _variant("fire", moves=("hiddenpowerfire60", "surf", "protect", "rest")),
+            _variant("grass", moves=("hiddenpowergrass60", "surf", "protect", "rest")),
+            _variant("ice", moves=("hiddenpowerice60", "surf", "protect", "rest")),
+            _variant("ordinary", moves=("flamethrower", "surf", "protect", "rest")),
+        )
+        evidence = _evidence(moves=("hiddenpower",))
+        compatible_ids = {
+            variant.variant_id
+            for variant in variants
+            if public_variant_is_compatible(variant, "pikachu", 50, evidence)
+        }
+        self.assertEqual({"fire", "grass", "ice"}, compatible_ids)
+
+    def test_32c_typed_hidden_power_narrows_non_destructively(self):
+        variants = (
+            _variant("fire", moves=("hiddenpowerfire60", "surf", "protect", "rest")),
+            _variant("grass", moves=("hiddenpowergrass60", "surf", "protect", "rest")),
+            _variant("ice", moves=("hiddenpowerice60", "surf", "protect", "rest")),
+        )
+        context = _context(_dataset(variants=variants))
+        initial = _evidence(moves=("hiddenpower", "surf"), item="lightball", ability="static")
+        self.assertTrue(
+            all(
+                public_variant_is_compatible(variant, "pikachu", 50, initial)
+                for variant in variants
+            )
+        )
+        narrowed = replace(
+            initial,
+            selected_move_ids=("hiddenpower", "hiddenpowerfire", "surf"),
+        )
+        result = _selected(context, narrowed)
+        self.assertIs(PublicPriorSelectionStatus.SELECTED, result.status)
+        self.assertEqual("fire", result.variant.variant_id)
+        self.assertEqual(initial.initial_item_id, narrowed.initial_item_id)
+        self.assertEqual(initial.base_ability_id, narrowed.base_ability_id)
+        self.assertIn("hiddenpower", narrowed.selected_move_ids)
+        self.assertIn("surf", narrowed.selected_move_ids)
+
+    def test_32d_protocol_preserves_generic_and_typed_ledger_evidence(self):
+        generic = _battle()
+        _process(
+            generic,
+            "|move|p2a: Pikachu|Hidden Power|p1a: Weedle",
+            "|-damage|p1a: Weedle|90/100",
+        )
+        self.assertEqual(
+            ("hiddenpower",),
+            generic.team_inference.observation_ledger.member(
+                "pikachu"
+            ).selected_move_ids,
+        )
+
+        typed = _battle()
+        _process(typed, "|move|p2a: Pikachu|Hidden Power Fire|p1a: Weedle")
+        self.assertEqual(
+            ("hiddenpowerfire",),
+            typed.team_inference.observation_ledger.member(
+                "pikachu"
+            ).selected_move_ids,
+        )
+
 
 class TestCopiedPopulationAndFallback(unittest.TestCase):
     def setUp(self):
@@ -613,6 +715,76 @@ class TestCopiedPopulationAndFallback(unittest.TestCase):
         pokemon.volatile_statuses.append("substitute")
         populate_pokemon_from_public_variant(pokemon, self.variant, None)
         self.assertIn("substitute", pokemon.volatile_statuses)
+
+    def test_60a_generic_hidden_power_resolves_only_in_copied_state(self):
+        variant = _variant(
+            "typed",
+            moves=("hiddenpowerfire60", "surf", "protect", "rest"),
+            ivs=_stats(atk=0, spe=0),
+        )
+        context = _context(
+            _dataset(variants=(variant,)), fallback=PublicPriorFallback.GENERIC
+        )
+        battle = _battle(context)
+        _process(
+            battle,
+            "|move|p2a: Pikachu|Hidden Power|p1a: Weedle",
+            "|-damage|p1a: Weedle|90/100",
+        )
+        canonical_move = battle.opponent.active.get_move("hiddenpower")
+        canonical_move.current_pp = 7
+        canonical_before = copy.deepcopy(battle.opponent.active)
+        ledger_before = battle.team_inference.observation_ledger
+
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            sampled = prepare_battles(battle, 1)[0][0]
+
+        generic.assert_not_called()
+        sampled_pokemon = sampled.opponent.active
+        self.assertEqual("typed", _selected(context, ledger_before.member("pikachu")).variant.variant_id)
+        self.assertEqual(
+            set(variant.move_ids), {move.name for move in sampled_pokemon.moves}
+        )
+        self.assertEqual(7, sampled_pokemon.get_move("hiddenpowerfire60").current_pp)
+        self.assertEqual(
+            (variant.item_id, variant.base_ability_id, variant.nature_id),
+            (
+                sampled_pokemon.item,
+                sampled_pokemon.ability,
+                sampled_pokemon.nature,
+            ),
+        )
+        self.assertEqual(variant.evs.as_tuple(), tuple(sampled_pokemon.evs))
+        self.assertEqual(variant.ivs.as_tuple(), sampled_pokemon.ivs)
+        self.assertEqual(variant.level, sampled_pokemon.level)
+        self.assertIsInstance(battle_to_poke_engine_state(sampled).to_string(), str)
+        self.assertIs(ledger_before, battle.team_inference.observation_ledger)
+        self.assertEqual(
+            ("hiddenpower",),
+            battle.team_inference.observation_ledger.member(
+                "pikachu"
+            ).selected_move_ids,
+        )
+        self.assertEqual("hiddenpower", battle.opponent.active.moves[0].name)
+        self.assertEqual(7, battle.opponent.active.moves[0].current_pp)
+        self.assertEqual(
+            (
+                canonical_before.item,
+                canonical_before.ability,
+                canonical_before.nature,
+                canonical_before.evs,
+                canonical_before.ivs,
+                canonical_before.moves,
+            ),
+            (
+                battle.opponent.active.item,
+                battle.opponent.active.ability,
+                battle.opponent.active.nature,
+                battle.opponent.active.evs,
+                battle.opponent.active.ivs,
+                battle.opponent.active.moves,
+            ),
+        )
 
 
 class TestIVSerializationAndIsolation(unittest.TestCase):

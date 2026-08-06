@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import copy
 import random
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Protocol
 
 from fp import constants
+from fp.battle.helpers import normalize_name, possible_hidden_power_types
 from fp.battle.public_prior_context import PublicPriorSearchContext
 from fp.data.public_priors import (
     NO_ITEM_ID,
@@ -42,6 +44,64 @@ class PublicPriorSelectionResult:
     variant: PublicSetVariant | None = None
 
 
+_HIDDEN_POWER_TYPES = frozenset(possible_hidden_power_types())
+_HIDDEN_POWER_POWER_SUFFIXES = ("60", "70")
+
+
+def _hidden_power_type(move_id: str) -> str | None:
+    """Return ``""`` for generic Hidden Power, its type, or ``None``."""
+
+    normalized = normalize_name(move_id)
+    if normalized == constants.HIDDEN_POWER:
+        return ""
+    if not normalized.startswith(constants.HIDDEN_POWER):
+        return None
+
+    type_and_power = normalized[len(constants.HIDDEN_POWER) :]
+    for power_suffix in _HIDDEN_POWER_POWER_SUFFIXES:
+        if type_and_power.endswith(power_suffix):
+            type_and_power = type_and_power[: -len(power_suffix)]
+            break
+    return type_and_power if type_and_power in _HIDDEN_POWER_TYPES else None
+
+
+def observed_move_is_compatible_with_candidate_move(
+    observed_move_id: str, candidate_move_id: str
+) -> bool:
+    """Compare one observed move with one complete-candidate move.
+
+    Ordinary moves retain exact normalized-ID semantics. Generic Hidden Power
+    proves only family membership, while a typed observation must match the
+    candidate's type. The candidate ID is never rewritten.
+    """
+
+    observed = normalize_name(observed_move_id)
+    candidate = normalize_name(candidate_move_id)
+    if observed == candidate:
+        return True
+
+    observed_type = _hidden_power_type(observed)
+    candidate_type = _hidden_power_type(candidate)
+    if observed_type is None or candidate_type is None:
+        return False
+    if observed_type == "":
+        return True
+    return candidate_type != "" and observed_type == candidate_type
+
+
+def _observed_moves_are_compatible_with_candidate_moves(
+    observed_move_ids: Iterable[str], candidate_move_ids: Iterable[str]
+) -> bool:
+    candidates = tuple(candidate_move_ids)
+    return all(
+        any(
+            observed_move_is_compatible_with_candidate_move(observed, candidate)
+            for candidate in candidates
+        )
+        for observed in observed_move_ids
+    )
+
+
 def public_variant_is_compatible(
     variant: PublicSetVariant,
     species_id: str,
@@ -58,7 +118,9 @@ def public_variant_is_compatible(
         return False
     if evidence.conflicting_public_evidence:
         return False
-    if not set(evidence.selected_move_ids).issubset(variant.move_ids):
+    if not _observed_moves_are_compatible_with_candidate_moves(
+        evidence.selected_move_ids, variant.move_ids
+    ):
         return False
     if (
         evidence.initial_item_id is not None
@@ -193,15 +255,39 @@ def populate_pokemon_from_public_variant(
         return True
 
     existing_moves = tuple(pokemon.moves)
-    existing_move_ids = tuple(move.name for move in existing_moves)
-    if len(existing_moves) > 4 or not set(existing_move_ids).issubset(
-        variant.move_ids
-    ):
+    if len(existing_moves) > 4:
         return False
+
+    resolved_moves = []
+    resolved_candidate_ids = set()
+    for move in existing_moves:
+        compatible_candidate_ids = tuple(
+            candidate_move_id
+            for candidate_move_id in variant.move_ids
+            if observed_move_is_compatible_with_candidate_move(
+                move.name, candidate_move_id
+            )
+        )
+        if (
+            len(compatible_candidate_ids) != 1
+            or compatible_candidate_ids[0] in resolved_candidate_ids
+        ):
+            return False
+        candidate_move_id = compatible_candidate_ids[0]
+        resolved_candidate_ids.add(candidate_move_id)
+        if move.name == candidate_move_id:
+            resolved_moves.append(move)
+        else:
+            resolved_move = copy.copy(move)
+            resolved_move.name = candidate_move_id
+            resolved_moves.append(resolved_move)
+
     missing_move_ids = tuple(
-        move_id for move_id in variant.move_ids if move_id not in existing_move_ids
+        move_id
+        for move_id in variant.move_ids
+        if move_id not in resolved_candidate_ids
     )
-    if len(existing_moves) + len(missing_move_ids) > 4:
+    if len(resolved_moves) + len(missing_move_ids) > 4:
         return False
     _populate_item(pokemon, variant, evidence)
     _populate_ability(pokemon, variant, evidence)
@@ -213,7 +299,7 @@ def populate_pokemon_from_public_variant(
         ivs=variant.ivs.as_tuple(),
     )
 
-    pokemon.moves = list(existing_moves)
+    pokemon.moves = resolved_moves
     for move_id in missing_move_ids:
         pokemon.add_move(move_id)
     return len(pokemon.moves) == 4

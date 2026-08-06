@@ -753,7 +753,7 @@ class TestFirewallRegressionsAndMechanics(unittest.TestCase):
         self.assertEqual(80, self._focused_count("test_public_prior_loader.py"))
 
     def test_68_existing_phase_five_tests_remain_present(self):
-        self.assertEqual(92, self._focused_count("test_public_prior_sampling.py"))
+        self.assertEqual(97, self._focused_count("test_public_prior_sampling.py"))
 
     def test_69_existing_crag_mend_behavior_passes(self):
         self.assertEqual(5, all_move_json["cragmend"][constants.PP])

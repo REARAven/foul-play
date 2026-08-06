@@ -686,6 +686,15 @@ def _explicit_item_source(split_msg):
     return None
 
 
+def _explicit_ability_source(split_msg):
+    prefix = "[from] ability:"
+    for annotation in split_msg[4:]:
+        if annotation.lower().startswith(prefix):
+            ability_id = normalize_name(annotation[len(prefix) :])
+            return ability_id or None
+    return None
+
+
 def _record_public_team_observation(battle, action, split_msg):
     """Central closed-safe hook, called after canonical protocol state updates."""
 
@@ -729,6 +738,13 @@ def _record_public_team_observation(battle, action, split_msg):
                 item_id,
                 PublicObservationSource.DIRECT_ITEM_REVEAL,
             )
+
+    if action == "-heal":
+        ability_id = _explicit_ability_source(split_msg)
+        if ability_id is not None:
+            if species_id is not None:
+                context.record_base_ability(species_id, ability_id)
+            return
 
     if action == "-item" and species_id is not None:
         public_tags = {tag.strip().lower() for tag in split_msg[4:]}

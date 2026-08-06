@@ -16,6 +16,7 @@ from fp.battle.protocol import (
     remove_item,
     unlikely_to_have_choice_item,
 )
+from fp.battle.helpers import normalize_name
 from fp.battle.state import Battle, LastUsedMove
 from fp.battle.team_inference import (
     CandidateAccess,
@@ -347,7 +348,11 @@ class TestItemEvidence(unittest.TestCase):
         self.assertEqual(2, _filtered(battle, registry).candidate_count)
 
     def test_22f_ability_sourced_heal_does_not_record_item(self):
-        battle, registry, _ = _scenario(self.records)
+        records = (
+            _variant("left", item="leftovers", ability="voltabsorb"),
+            _variant("scarf", item="choicescarf", ability="voltabsorb"),
+        )
+        battle, registry, _ = _scenario(records)
         _process(
             battle,
             "|-heal|p2a: Pikachu|100/100|[from] ability: Volt Absorb|[of] p1a: Weedle",
@@ -438,6 +443,207 @@ class TestItemEvidence(unittest.TestCase):
 class TestAbilityEvidence(unittest.TestCase):
     def _ability_scenario(self, first, second="static"):
         return _scenario((_variant("first", ability=first), _variant("second", ability=second)))
+
+    def test_31a_heal_opponent_actor_owns_ability_despite_user_source(self):
+        battle, registry, _ = self._ability_scenario("waterabsorb", "static")
+        _process(
+            battle,
+            "|-heal|p2a: Pikachu|100/100|[from] ability: Water Absorb|[of] p1a: Weedle",
+        )
+        self.assertEqual("waterabsorb", _evidence(battle).base_ability_id)
+        self.assertEqual(
+            "first",
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
+
+    def test_31b_heal_user_actor_does_not_attribute_ability_to_opponent_source(self):
+        battle, registry, _ = self._ability_scenario("torrent", "static")
+        _process(
+            battle,
+            "|-heal|p1a: Weedle|100/100|[from] ability: Water Absorb|[of] p2a: Pikachu",
+        )
+        self.assertIsNone(_evidence(battle).base_ability_id)
+        self.assertEqual(2, _filtered(battle, registry).candidate_count)
+
+    def test_31c_heal_opponent_actor_without_source_records_ability(self):
+        battle, registry, _ = self._ability_scenario("waterabsorb", "static")
+        _process(
+            battle,
+            "|-heal|p2a: Pikachu|100/100|[from] ability: Water Absorb",
+        )
+        self.assertEqual("waterabsorb", _evidence(battle).base_ability_id)
+        self.assertEqual(
+            "first",
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
+
+    def test_31d_heal_user_actor_without_source_records_no_opponent_ability(self):
+        battle, registry, _ = self._ability_scenario("torrent", "static")
+        _process(
+            battle,
+            "|-heal|p1a: Weedle|100/100|[from] ability: Water Absorb",
+        )
+        self.assertIsNone(_evidence(battle).base_ability_id)
+        self.assertEqual(2, _filtered(battle, registry).candidate_count)
+
+    def test_31e_heal_normalizes_water_absorb(self):
+        battle, _, _ = self._ability_scenario("waterabsorb")
+        _process(
+            battle,
+            "|-heal|p2a: Pikachu|100/100|[from] ability: Water Absorb",
+        )
+        self.assertEqual("waterabsorb", _evidence(battle).base_ability_id)
+
+    def test_31f_heal_handles_arbitrary_explicit_ability_without_special_case(self):
+        battle, registry, _ = self._ability_scenario("voltabsorb", "static")
+        _process(
+            battle,
+            "|-heal|p2a: Pikachu|100/100|[from] ability: Volt Absorb|[of] p1a: Weedle",
+        )
+        self.assertEqual("voltabsorb", _evidence(battle).base_ability_id)
+        self.assertEqual(
+            "first",
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
+
+    def test_31g_repeated_identical_heal_ability_evidence_is_idempotent(self):
+        battle, _, _ = self._ability_scenario("waterabsorb")
+        message = "|-heal|p2a: Pikachu|100/100|[from] ability: Water Absorb"
+        _process(battle, message)
+        first_ledger = battle.team_inference.observation_ledger
+        _process(battle, message)
+        self.assertIs(first_ledger, battle.team_inference.observation_ledger)
+
+    def test_31h_heal_ability_uses_safe_direct_reveal_provenance(self):
+        battle, _, _ = self._ability_scenario("waterabsorb")
+        _process(
+            battle,
+            "|-heal|p2a: Pikachu|100/100|[from] ability: Water Absorb",
+        )
+        self.assertEqual(
+            {
+                PublicObservationSource.TEAM_PREVIEW,
+                PublicObservationSource.DIRECT_ABILITY_REVEAL,
+            },
+            set(_evidence(battle).provenance),
+        )
+
+    def test_31i_heal_without_explicit_ability_records_no_ability(self):
+        battle, _, _ = self._ability_scenario("waterabsorb")
+        _process(battle, "|-heal|p2a: Pikachu|100/100")
+        self.assertIsNone(_evidence(battle).base_ability_id)
+
+    def test_31j_item_heal_records_only_item_evidence(self):
+        battle, _, _ = self._ability_scenario("waterabsorb")
+        _process(
+            battle,
+            "|-heal|p2a: Pikachu|100/100|[from] item: Leftovers",
+        )
+        self.assertEqual("leftovers", _evidence(battle).initial_item_id)
+        self.assertIsNone(_evidence(battle).base_ability_id)
+
+    def test_31k_move_heal_does_not_fabricate_ability(self):
+        battle, _, _ = self._ability_scenario("waterabsorb")
+        _process(
+            battle,
+            "|-heal|p2a: Pikachu|100/100|[from] move: Recover",
+        )
+        self.assertIsNone(_evidence(battle).base_ability_id)
+
+    def test_31l_heal_does_not_take_ability_name_from_source_annotation(self):
+        battle, _, _ = self._ability_scenario("waterabsorb")
+        _process(
+            battle,
+            "|-heal|p2a: Pikachu|100/100|[from] move: Recover|[of] p1a: Water Absorb",
+        )
+        self.assertIsNone(_evidence(battle).base_ability_id)
+
+    def test_31m_exact_defect_direction_does_not_assign_water_absorb_to_source(self):
+        battle, _, _ = self._ability_scenario("torrent", "static")
+        _process(
+            battle,
+            "|-heal|p1a: Jellicent|100/100|[from] ability: Water Absorb|[of] p2a: Swampert",
+        )
+        self.assertIsNone(_evidence(battle).base_ability_id)
+
+    def test_31n_inverse_heal_direction_assigns_water_absorb_to_opponent_actor(self):
+        battle, _, _ = self._ability_scenario("waterabsorb", "static")
+        _process(
+            battle,
+            "|-heal|p2a: Pikachu|100/100|[from] ability: Water Absorb|[of] p1a: Weedle",
+        )
+        self.assertEqual("waterabsorb", _evidence(battle).base_ability_id)
+
+    def test_31o_iron_barbs_damage_remains_owned_by_opponent_source(self):
+        battle, registry, _ = self._ability_scenario("ironbarbs", "static")
+        _process(
+            battle,
+            "|-damage|p1a: Weedle|90/100|[from] ability: Iron Barbs|[of] p2a: Pikachu",
+        )
+        self.assertEqual("ironbarbs", _evidence(battle).base_ability_id)
+        self.assertEqual(
+            "first",
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
+
+    def test_31p_rough_skin_damage_remains_owned_by_opponent_source(self):
+        battle, registry, _ = self._ability_scenario("roughskin", "static")
+        _process(
+            battle,
+            "|-damage|p1a: Weedle|90/100|[from] ability: Rough Skin|[of] p2a: Pikachu",
+        )
+        self.assertEqual("roughskin", _evidence(battle).base_ability_id)
+        self.assertEqual(
+            "first",
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
+
+    def test_31q_damaged_opponent_target_does_not_receive_source_ability(self):
+        for ability in ("Iron Barbs", "Rough Skin"):
+            with self.subTest(ability=ability):
+                battle, _, _ = self._ability_scenario("torrent", "static")
+                _process(
+                    battle,
+                    f"|-damage|p2a: Pikachu|90/100|[from] ability: {ability}|[of] p1a: Weedle",
+                )
+                self.assertIsNone(_evidence(battle).base_ability_id)
+                self.assertNotEqual(normalize_name(ability), battle.opponent.active.ability)
+
+    def test_31r_trace_ownership_remains_on_tracing_opponent_base_ability(self):
+        battle, registry, _ = self._ability_scenario("trace", "closingjaws")
+        _process(
+            battle,
+            "|-ability|p2a: Pikachu|Closing Jaws|Trace|[from] ability: Trace|[of] p1a: Weedle",
+        )
+        self.assertEqual("trace", _evidence(battle).base_ability_id)
+        self.assertTrue(_evidence(battle).current_ability_changed)
+        self.assertEqual(
+            "first",
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
+
+    def test_31s_inverse_trace_attribution_to_opponent_source_remains_unchanged(self):
+        battle, registry, _ = self._ability_scenario("static", "lightningrod")
+        _process(
+            battle,
+            "|-ability|p1a: Weedle|Static|Trace|[from] ability: Trace|[of] p2a: Pikachu",
+        )
+        self.assertEqual("static", _evidence(battle).base_ability_id)
+        self.assertIn(
+            PublicObservationSource.TRACE_BASE_ABILITY,
+            _evidence(battle).provenance,
+        )
+        self.assertEqual(
+            "first",
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
+
+    def test_31t_neutralizing_gas_suppression_does_not_overwrite_base_ability(self):
+        battle, _, _ = self._ability_scenario("static", "neutralizinggas")
+        _process(battle, "|-ability|p2a: Pikachu|Static")
+        _process(battle, "|-ability|p1a: Weedle|Neutralizing Gas")
+        self.assertEqual("static", _evidence(battle).base_ability_id)
+        self.assertFalse(_evidence(battle).conflicting_public_evidence)
 
     def test_31_normal_base_ability_reveal_filters(self):
         battle, registry, _ = self._ability_scenario("static", "lightningrod")

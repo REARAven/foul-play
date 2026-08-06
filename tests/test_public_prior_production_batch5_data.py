@@ -15,6 +15,7 @@ from fp import constants
 from fp.battle.inference import check_heavydutyboots
 from fp.battle.protocol import process_battle_updates
 from fp.battle.public_prior_context import PublicPriorFallback
+from fp.battle.state import Pokemon
 from fp.config import FoulPlayConfig
 from fp.data import all_move_json, pokedex
 from fp.data.mods.apply_mods import apply_mods
@@ -813,6 +814,100 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
 
     def test_15b_dudunsparce_recomputes_after_rocks_disprove_boots_and_leftovers_heals(self):
         self._assert_dudunsparce_later_item_recomputes(disprove_boots=True)
+
+    def test_15c_swamp_offensive_yawn_survives_user_water_absorb_heal(self):
+        context = self.none_configuration.create_battle_context("gen9tugs")
+        battle = _battle(context, "swampert")
+        battle.msg_list = [
+            "|-ability|p2a: Swampert|Torrent",
+            "|-heal|p2a: Swampert|100/100|[from] item: Leftovers",
+            "|move|p2a: Swampert|Yawn|p1a: Weedle",
+            "|move|p2a: Swampert|Flip Turn|p1a: Weedle",
+            "|move|p2a: Swampert|Earthquake|p1a: Weedle",
+        ]
+        process_battle_updates(battle)
+        initial = battle.team_inference.observation_ledger.member("swampert")
+        self.assertEqual("torrent", initial.base_ability_id)
+        self.assertEqual("leftovers", initial.initial_item_id)
+        self.assertEqual(
+            ("earthquake", "flipturn", "yawn"), initial.selected_move_ids
+        )
+        self.assertEqual(
+            {"offensiveyawn"}, _compatible_ids(self.dataset, "swampert", initial)
+        )
+
+        canonical_before = _pokemon_snapshot(battle.opponent.active)
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            first = prepare_battles(battle, 1)[0][0]
+        generic.assert_not_called()
+        self.assertEqual("torrent", first.opponent.active.ability)
+        self.assertEqual("leftovers", first.opponent.active.item)
+        self.assertEqual(canonical_before, _pokemon_snapshot(battle.opponent.active))
+
+        battle.user.active = Pokemon("jellicent", 100)
+        battle.msg_list = [
+            "|-heal|p1a: Jellicent|100/100|[from] ability: Water Absorb|[of] p2a: Swampert"
+        ]
+        process_battle_updates(battle)
+        corrected = battle.team_inference.observation_ledger.member("swampert")
+        self.assertEqual("torrent", corrected.base_ability_id)
+        self.assertNotEqual("waterabsorb", corrected.base_ability_id)
+        self.assertEqual(
+            {"offensiveyawn"}, _compatible_ids(self.dataset, "swampert", corrected)
+        )
+
+        canonical_before_second = _pokemon_snapshot(battle.opponent.active)
+        ledger_before_second = battle.team_inference.observation_ledger
+        with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
+            second = prepare_battles(battle, 1)[0][0]
+        generic.assert_not_called()
+        sampled = second.opponent.active
+        self.assertEqual("torrent", sampled.ability)
+        self.assertEqual("torrent", sampled.original_ability)
+        self.assertEqual("leftovers", sampled.item)
+        self.assertEqual(
+            {"yawn", "flipturn", "stealthrock", "earthquake"},
+            {move.name for move in sampled.moves},
+        )
+        self.assertNotEqual("waterabsorb", sampled.ability)
+        self.assertIsInstance(battle_to_poke_engine_state(second).to_string(), str)
+        self.assertEqual(
+            canonical_before_second, _pokemon_snapshot(battle.opponent.active)
+        )
+        self.assertIs(ledger_before_second, battle.team_inference.observation_ledger)
+
+    def test_15d_inverse_jellicent_heal_records_actor_water_absorb_only(self):
+        context = self.none_configuration.create_battle_context("gen9tugs")
+        battle = _battle(context, "jellicent")
+        battle.user.active = Pokemon("swampert", 100)
+        battle.msg_list = [
+            "|-heal|p2a: Jellicent|100/100|[from] ability: Water Absorb|[of] p1a: Swampert"
+        ]
+        process_battle_updates(battle)
+
+        evidence = battle.team_inference.observation_ledger.member("jellicent")
+        self.assertEqual("jellicent", evidence.species_id)
+        self.assertEqual("waterabsorb", evidence.base_ability_id)
+        self.assertNotEqual("waterabsorb", battle.user.active.ability)
+        self.assertEqual(
+            {
+                "bootsphysical",
+                "choicespecs",
+                "colburphysical",
+                "waterabsorbspdef",
+            },
+            _compatible_ids(self.dataset, "jellicent", evidence),
+        )
+        result = select_public_prior_variant(
+            context,
+            battle_format="gen9tugs",
+            species_id="jellicent",
+            level=100,
+            evidence=evidence,
+            rng=_FixedRng(0.5),
+        )
+        self.assertIs(PublicPriorSelectionStatus.SELECTED, result.status)
+        self.assertEqual("waterabsorb", result.variant.base_ability_id)
 
     def test_16_public_sampling_has_no_private_pool_or_candidate_dependency(self):
         paths = (

@@ -24,6 +24,22 @@ def battle_is_finished(battle_tag, msg):
     )
 
 
+async def enable_battle_timer_once(ps_websocket_client, battle_tag):
+    """Enable the timer once per room when automatic timer control is enabled."""
+
+    if not FoulPlayConfig.battle_timer:
+        return
+
+    timer_rooms = vars(ps_websocket_client).setdefault(
+        "_foul_play_timer_rooms", set()
+    )
+    if battle_tag in timer_rooms:
+        return
+
+    await ps_websocket_client.send_message(battle_tag, ["/timer on"])
+    timer_rooms.add(battle_tag)
+
+
 async def start_battle(
     ps_websocket_client,
     pokemon_battle_type,
@@ -46,7 +62,7 @@ async def start_battle(
     )
 
     await ps_websocket_client.send_message(battle.battle_tag, ["hf"])
-    await ps_websocket_client.send_message(battle.battle_tag, ["/timer on"])
+    await enable_battle_timer_once(ps_websocket_client, battle.battle_tag)
 
     return battle
 

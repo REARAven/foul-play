@@ -75,6 +75,7 @@ class _FoulPlayConfig:
     username: str
     password: str | None
     local_no_security_login: bool = False
+    battle_timer: bool = True
     user_id: str
     avatar: str
     bot_mode: BotModes
@@ -111,6 +112,16 @@ class _FoulPlayConfig:
             help=(
                 "Claim a username without a public assertion on an explicitly "
                 "configured loopback --no-security server."
+            ),
+        )
+        parser.add_argument(
+            "--battle-timer",
+            choices=("on", "off"),
+            default="on",
+            help=(
+                "Automatically enable the battle-room timer when set to 'on'; "
+                "'off' leaves the timer untouched, although another player may "
+                "still enable it. (default: on)"
             ),
         )
         parser.add_argument("--ps-avatar", default=None)
@@ -234,6 +245,7 @@ class _FoulPlayConfig:
         self.username = args.ps_username
         self.password = args.ps_password
         self.local_no_security_login = args.local_no_security_login
+        self.battle_timer = args.battle_timer == "on"
         self.avatar = args.ps_avatar
         self.bot_mode = BotModes[args.bot_mode]
         self.pokemon_format = args.pokemon_format

@@ -3,13 +3,14 @@ import copy
 import socket
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from fp import constants
 from fp.battle.public_prior_context import PublicPriorFallback
 from fp.battle.protocol import process_battle_updates
 from fp.battle.state import Battle, Pokemon
-from fp.config import FoulPlayConfig
+from fp.config import FoulPlayConfig, SaveReplay
 from fp.data import all_move_json, pokedex
 from fp.data.mods.apply_mods import apply_mods
 from fp.data.public_priors import PublicPriorIdentity, load_public_prior
@@ -20,7 +21,7 @@ from fp.data.public_priors.runtime import (
 from fp.format_spec import FormatSpec
 from fp.modes import battle_mode
 from fp.modes.standard_battle import StandardBattleMode
-from fp.run_battle import start_battle
+from fp.run_battle import pokemon_battle, start_battle
 from fp.search.standard_battles import prepare_battles
 from fp.websocket_client import PSWebsocketClient
 
@@ -57,12 +58,16 @@ ORIGINAL_POKEDEX = copy.deepcopy(pokedex)
 ORIGINAL_FORMAT = FoulPlayConfig.pokemon_format
 ORIGINAL_USERNAME = getattr(FoulPlayConfig, "username", None)
 ORIGINAL_LOG_TO_FILE = getattr(FoulPlayConfig, "log_to_file", None)
+ORIGINAL_BATTLE_TIMER = FoulPlayConfig.battle_timer
+ORIGINAL_SAVE_REPLAY = getattr(FoulPlayConfig, "save_replay", None)
 
 
 def setUpModule():
     FoulPlayConfig.pokemon_format = "gen9tugs"
     FoulPlayConfig.username = "LifecycleBot"
     FoulPlayConfig.log_to_file = False
+    FoulPlayConfig.battle_timer = True
+    FoulPlayConfig.save_replay = SaveReplay.never
     apply_mods(FormatSpec.from_format_string("gen9tugs"))
 
 
@@ -74,6 +79,8 @@ def tearDownModule():
     FoulPlayConfig.pokemon_format = ORIGINAL_FORMAT
     FoulPlayConfig.username = ORIGINAL_USERNAME
     FoulPlayConfig.log_to_file = ORIGINAL_LOG_TO_FILE
+    FoulPlayConfig.battle_timer = ORIGINAL_BATTLE_TIMER
+    FoulPlayConfig.save_replay = ORIGINAL_SAVE_REPLAY
 
 
 def _runtime(fallback):
@@ -176,6 +183,135 @@ def _find_opponent(battle, species_id):
     if battle.opponent.active is not None and battle.opponent.active.name == species_id:
         return battle.opponent.active
     return battle.opponent.find_pokemon_in_reserves(species_id)
+
+
+def _automatic_timer_messages(websocket):
+    return [
+        (room, messages)
+        for room, messages in websocket.sent
+        if messages in (("/timer on",), ("/timer off",))
+    ]
+
+
+class TestBattleTimerRuntime(unittest.TestCase):
+    def tearDown(self):
+        FoulPlayConfig.battle_timer = True
+
+    def test_08_default_runtime_sends_exactly_one_timer_on(self):
+        FoulPlayConfig.battle_timer = True
+        _, _, websocket = asyncio.run(_accept_and_start(None))
+        self.assertEqual(
+            [("battle-gen9tugs-209", ("/timer on",))],
+            _automatic_timer_messages(websocket),
+        )
+
+    def test_09_explicit_on_runtime_sends_exactly_one_timer_on(self):
+        FoulPlayConfig.battle_timer = True
+        _, _, websocket = asyncio.run(
+            _accept_and_start(_runtime(PublicPriorFallback.NONE))
+        )
+        self.assertEqual(
+            [("battle-gen9tugs-209", ("/timer on",))],
+            _automatic_timer_messages(websocket),
+        )
+
+    def test_10_off_runtime_sends_no_timer_on(self):
+        FoulPlayConfig.battle_timer = False
+        _, _, websocket = asyncio.run(_accept_and_start(None))
+        self.assertNotIn(
+            ("battle-gen9tugs-209", ("/timer on",)), websocket.sent
+        )
+
+    def test_11_off_runtime_sends_no_timer_off(self):
+        FoulPlayConfig.battle_timer = False
+        _, _, websocket = asyncio.run(_accept_and_start(None))
+        self.assertNotIn(
+            ("battle-gen9tugs-209", ("/timer off",)), websocket.sent
+        )
+
+    def test_12_repeated_battle_updates_do_not_duplicate_timer_on(self):
+        FoulPlayConfig.battle_timer = True
+        battle, _, websocket = asyncio.run(_accept_and_start(None))
+        for seconds in (135, 60, 30):
+            battle.msg_list = [
+                "|inactive|Time left: {} sec this turn|{} sec total".format(
+                    seconds, seconds
+                )
+            ]
+            process_battle_updates(battle)
+        self.assertEqual(30, battle.time_remaining)
+        self.assertEqual(1, len(_automatic_timer_messages(websocket)))
+
+    def test_15_incoming_timer_protocol_still_processes_when_off(self):
+        FoulPlayConfig.battle_timer = False
+        battle, _, websocket = asyncio.run(_accept_and_start(None))
+        battle.msg_list = [
+            "|inactive|Time left: 60 sec this turn|60 sec total"
+        ]
+        process_battle_updates(battle)
+        self.assertEqual(60, battle.time_remaining)
+        battle.msg_list = ["|inactiveoff|Battle timer is now OFF."]
+        process_battle_updates(battle)
+        self.assertIsNone(battle.time_remaining)
+        self.assertEqual([], _automatic_timer_messages(websocket))
+
+    def test_16_opponent_started_timer_does_not_trigger_counter_command(self):
+        FoulPlayConfig.battle_timer = False
+        battle, _, websocket = asyncio.run(_accept_and_start(None))
+        before = tuple(websocket.sent)
+        battle.msg_list = [
+            "|inactive|Battle timer is ON: inactive players will automatically lose when time's up."
+        ]
+        process_battle_updates(battle)
+        self.assertEqual(before, tuple(websocket.sent))
+        self.assertEqual([], _automatic_timer_messages(websocket))
+
+    def test_23_battle_cleanup_emits_no_additional_timer_command(self):
+        class FinishedMode:
+            async def start_battle(self, websocket, battle_format, team_dict, **kwargs):
+                return SimpleNamespace(battle_tag="battle-finished")
+
+        class FinishedSocket:
+            def __init__(self):
+                self.sent = []
+                self.left = []
+
+            async def send_message(self, room, messages):
+                self.sent.append((room, tuple(messages)))
+
+            async def receive_message(self):
+                return ">battle-finished\n|win|LifecycleBot\n"
+
+            async def leave_battle(self, battle_tag):
+                self.left.append(battle_tag)
+
+        FoulPlayConfig.battle_timer = True
+        websocket = FinishedSocket()
+        with mock.patch("fp.run_battle.battle_mode", return_value=FinishedMode()):
+            winner = asyncio.run(
+                pokemon_battle(websocket, "gen9tugs", None)
+            )
+        self.assertEqual("LifecycleBot", winner)
+        self.assertEqual(["battle-finished"], websocket.left)
+        self.assertEqual(
+            [("battle-finished", ("/timer on",))],
+            _automatic_timer_messages(websocket),
+        )
+
+    def test_24_repeated_initialization_of_one_room_is_idempotent(self):
+        class SameRoomMode:
+            async def start_battle(self, websocket, battle_format, team_dict, **kwargs):
+                return SimpleNamespace(battle_tag="battle-repeated")
+
+        FoulPlayConfig.battle_timer = True
+        websocket = _FakeWebsocket()
+        with mock.patch("fp.run_battle.battle_mode", return_value=SameRoomMode()):
+            asyncio.run(start_battle(websocket, "gen9tugs", None))
+            asyncio.run(start_battle(websocket, "gen9tugs", None))
+        self.assertEqual(
+            [("battle-repeated", ("/timer on",))],
+            _automatic_timer_messages(websocket),
+        )
 
 
 class TestLivePublicPriorLifecycle(unittest.TestCase):

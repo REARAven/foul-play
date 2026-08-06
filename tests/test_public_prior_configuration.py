@@ -1,5 +1,6 @@
 import asyncio
 import copy
+import io
 import inspect
 import json
 import logging
@@ -180,12 +181,192 @@ class _FakeSocket:
 
 
 class _FakeMode:
-    def __init__(self):
+    def __init__(self, battle_tag="battle-synthetic"):
         self.start_kwargs = []
+        self.battle_tag = battle_tag
 
     async def start_battle(self, websocket, battle_format, team_dict, **kwargs):
         self.start_kwargs.append(kwargs)
-        return SimpleNamespace(battle_tag="battle-synthetic")
+        return SimpleNamespace(battle_tag=self.battle_tag)
+
+
+def _timer_messages(socket):
+    return [
+        (room, messages)
+        for room, messages in socket.messages
+        if messages in (["/timer on"], ["/timer off"])
+    ]
+
+
+class TestBattleTimerConfiguration(unittest.TestCase):
+    def tearDown(self):
+        FoulPlayConfig.battle_timer = True
+        FoulPlayConfig.local_no_security_login = False
+        FoulPlayConfig.password = None
+
+    def _start(self, enabled, battle_tag="battle-synthetic"):
+        FoulPlayConfig.battle_timer = enabled
+        mode = _FakeMode(battle_tag)
+        socket = _FakeSocket()
+        with mock.patch("fp.run_battle.battle_mode", return_value=mode):
+            asyncio.run(start_battle(socket, "gen9tugs", None))
+        return socket, mode
+
+    def test_01_option_omitted_defaults_to_on(self):
+        FoulPlayConfig.configure(_base_argv())
+        self.assertTrue(FoulPlayConfig.battle_timer)
+
+    def test_02_explicit_on_normalizes_to_true(self):
+        FoulPlayConfig.configure(_base_argv() + ["--battle-timer", "on"])
+        self.assertTrue(FoulPlayConfig.battle_timer)
+
+    def test_03_explicit_off_normalizes_to_false(self):
+        FoulPlayConfig.configure(_base_argv() + ["--battle-timer", "off"])
+        self.assertFalse(FoulPlayConfig.battle_timer)
+
+    def test_04_unsupported_timer_values_are_rejected(self):
+        for value in ("yes", "no", "true", "false", "automatic", "disabled", "0", "1"):
+            with self.subTest(value=value), self.assertRaises(SystemExit):
+                FoulPlayConfig.configure(
+                    _base_argv() + ["--battle-timer", value]
+                )
+
+    def test_05_help_identifies_choices_semantics_and_default(self):
+        output = io.StringIO()
+        with mock.patch("sys.stdout", output), self.assertRaises(SystemExit):
+            FoulPlayConfig.configure(["--help"])
+        help_text = output.getvalue()
+        self.assertIn("--battle-timer {on,off}", help_text)
+        self.assertIn("off' leaves the timer untouched", help_text)
+        self.assertIn("another player may still enable it", help_text)
+        self.assertIn("default: on", help_text)
+
+    def test_06_existing_arguments_without_timer_field_remain_compatible(self):
+        FoulPlayConfig.configure(
+            _base_argv()
+            + ["--team-name", "legacy-team", "--search-time-ms", "321"]
+        )
+        self.assertTrue(FoulPlayConfig.battle_timer)
+        self.assertEqual("legacy-team", FoulPlayConfig.team_name)
+        self.assertEqual(321, FoulPlayConfig.search_time_ms)
+
+    def test_07_copy_preserves_normalized_timer_value(self):
+        FoulPlayConfig.configure(_base_argv() + ["--battle-timer", "off"])
+        self.assertFalse(copy.copy(FoulPlayConfig).battle_timer)
+
+    def test_13_two_rooms_each_receive_one_timer_when_on(self):
+        FoulPlayConfig.battle_timer = True
+        socket = _FakeSocket()
+        mode = _FakeMode("battle-one")
+        with mock.patch("fp.run_battle.battle_mode", return_value=mode):
+            asyncio.run(start_battle(socket, "gen9tugs", None))
+            mode.battle_tag = "battle-two"
+            asyncio.run(start_battle(socket, "gen9tugs", None))
+        self.assertEqual(
+            [
+                ("battle-one", ["/timer on"]),
+                ("battle-two", ["/timer on"]),
+            ],
+            _timer_messages(socket),
+        )
+
+    def test_14_two_rooms_receive_no_timer_commands_when_off(self):
+        FoulPlayConfig.battle_timer = False
+        socket = _FakeSocket()
+        mode = _FakeMode("battle-one")
+        with mock.patch("fp.run_battle.battle_mode", return_value=mode):
+            asyncio.run(start_battle(socket, "gen9tugs", None))
+            mode.battle_tag = "battle-two"
+            asyncio.run(start_battle(socket, "gen9tugs", None))
+        self.assertEqual([], _timer_messages(socket))
+
+    def test_17_challenge_user_mode_respects_timer_off(self):
+        argv = _base_argv()
+        argv[argv.index("search_ladder")] = "challenge_user"
+        FoulPlayConfig.configure(
+            argv
+            + [
+                "--user-to-challenge",
+                "Opponent",
+                "--battle-timer",
+                "off",
+            ]
+        )
+        socket, _ = self._start(FoulPlayConfig.battle_timer)
+        self.assertIs(BotModes.challenge_user, FoulPlayConfig.bot_mode)
+        self.assertEqual([], _timer_messages(socket))
+
+    def test_18_accept_challenge_mode_respects_timer_on(self):
+        argv = _base_argv()
+        argv[argv.index("search_ladder")] = "accept_challenge"
+        FoulPlayConfig.configure(argv + ["--battle-timer", "on"])
+        socket, _ = self._start(FoulPlayConfig.battle_timer)
+        self.assertIs(BotModes.accept_challenge, FoulPlayConfig.bot_mode)
+        self.assertEqual(
+            [("battle-synthetic", ["/timer on"])],
+            _timer_messages(socket),
+        )
+
+    def test_19_team_loading_configuration_is_unchanged(self):
+        FoulPlayConfig.configure(
+            _base_argv()
+            + ["--team-name", "custom-team", "--battle-timer", "off"]
+        )
+        self.assertEqual("custom-team", FoulPlayConfig.team_name)
+        self.assertIsNone(FoulPlayConfig.team_list)
+
+    def test_20_search_configuration_is_unchanged(self):
+        FoulPlayConfig.configure(
+            _base_argv()
+            + [
+                "--battle-timer",
+                "off",
+                "--search-time-ms",
+                "234",
+                "--search-parallelism",
+                "3",
+                "--search-threads",
+                "2",
+            ]
+        )
+        self.assertEqual(
+            (234, 3, 2),
+            (
+                FoulPlayConfig.search_time_ms,
+                FoulPlayConfig.parallelism,
+                FoulPlayConfig.search_threads,
+            ),
+        )
+
+    def test_21_public_prior_configuration_is_unchanged(self):
+        options = FoulPlayConfig.configure(
+            _base_argv()
+            + [
+                "--battle-timer",
+                "off",
+                "--public-prior-file",
+                "public.json",
+                "--public-prior-fallback",
+                "none",
+            ]
+        )
+        self.assertEqual(("public.json",), options.file_paths)
+        self.assertIs(PublicPriorFallback.NONE, options.fallback_policy)
+
+    def test_22_local_no_security_login_is_unchanged(self):
+        argv = _base_argv()
+        argv[1] = "ws://127.0.0.1:8013/showdown/websocket"
+        FoulPlayConfig.configure(
+            argv
+            + [
+                "--local-no-security-login",
+                "--battle-timer",
+                "off",
+            ]
+        )
+        self.assertTrue(FoulPlayConfig.local_no_security_login)
+        self.assertFalse(FoulPlayConfig.battle_timer)
+        self.assertIsNone(FoulPlayConfig.password)
 
 
 class TestPublicPriorCliAndLoading(unittest.TestCase):

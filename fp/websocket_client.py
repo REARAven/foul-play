@@ -1,10 +1,14 @@
 import asyncio
-import websockets
-import requests
+import ipaddress
 import json
+import re
 import time
+from urllib.parse import urlsplit
 
 import logging
+import requests
+import websockets
+from websockets.exceptions import ConnectionClosed
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +17,65 @@ class LoginError(Exception):
     pass
 
 
+class LocalLoginConfigurationError(ValueError):
+    pass
+
+
 class SaveReplayError(Exception):
     pass
+
+
+def validate_loopback_websocket_uri(address):
+    try:
+        parsed = urlsplit(address)
+        port = parsed.port
+    except (TypeError, ValueError) as error:
+        raise LocalLoginConfigurationError(
+            "--local-no-security-login requires a valid websocket URI"
+        ) from error
+
+    if parsed.scheme not in ("ws", "wss") or parsed.hostname is None:
+        raise LocalLoginConfigurationError(
+            "--local-no-security-login requires a valid ws:// or wss:// URI"
+        )
+    if parsed.username is not None or parsed.password is not None:
+        raise LocalLoginConfigurationError(
+            "--local-no-security-login does not allow URI credentials"
+        )
+    if port is None and not parsed.netloc:
+        raise LocalLoginConfigurationError(
+            "--local-no-security-login requires an explicit loopback destination"
+        )
+
+    hostname = parsed.hostname.casefold()
+    if hostname == "localhost":
+        return hostname
+    try:
+        address_ip = ipaddress.ip_address(hostname)
+    except ValueError as error:
+        raise LocalLoginConfigurationError(
+            "--local-no-security-login requires localhost or a loopback IP address"
+        ) from error
+    if not address_ip.is_loopback:
+        raise LocalLoginConfigurationError(
+            "--local-no-security-login requires a loopback IP address"
+        )
+    return hostname
+
+
+def _redact_received_message(message):
+    redacted_lines = []
+    for line in message.splitlines():
+        if line.startswith("|challstr|"):
+            line = "|challstr|<redacted>"
+        elif line.startswith("|nametaken|"):
+            line = "|nametaken|<redacted>"
+        redacted_lines.append(line)
+    return "\n".join(redacted_lines)
+
+
+def _to_id(value):
+    return re.sub(r"[^a-z0-9]+", "", value.casefold())
 
 
 class PSWebsocketClient:
@@ -23,15 +84,30 @@ class PSWebsocketClient:
     login_uri = None
     username = None
     password = None
+    local_no_security_login = False
     last_message = None
     last_challenge_time = 0
 
     @classmethod
-    async def create(cls, username, password, address):
+    async def create(
+        cls, username, password, address, local_no_security_login=False
+    ):
+        if local_no_security_login:
+            if password is not None:
+                raise LocalLoginConfigurationError(
+                    "Local no-security login cannot be combined with a password"
+                )
+            hostname = validate_loopback_websocket_uri(address)
+            logger.info(
+                "Login mode: local no-security (host={})".format(hostname)
+            )
+        else:
+            logger.info("Login mode: public assertion")
         self = PSWebsocketClient()
         self.username = username
         self.password = password
         self.address = address
+        self.local_no_security_login = local_no_security_login
         self.websocket = await websockets.connect(self.address)
         self.login_uri = (
             "https://play.pokemonshowdown.com/api/login"
@@ -47,14 +123,24 @@ class PSWebsocketClient:
 
     async def receive_message(self):
         message = await self.websocket.recv()
-        logger.debug("Received message from websocket: {}".format(message))
+        logger.debug(
+            "Received message from websocket: {}".format(
+                _redact_received_message(message)
+            )
+        )
         return message
 
     async def send_message(self, room, message_list):
         message = room + "|" + "|".join(message_list)
-        logger.debug("Sending message to websocket: {}".format(message))
+        is_authentication = any(
+            item.startswith("/trn ") for item in message_list
+        )
+        if is_authentication:
+            logger.debug("Sending authentication message to websocket")
+        else:
+            logger.debug("Sending message to websocket: {}".format(message))
         await self.websocket.send(message)
-        self.last_message = message
+        self.last_message = None if is_authentication else message
 
     async def avatar(self, avatar):
         await self.send_message("", ["/avatar {}".format(avatar)])
@@ -86,8 +172,49 @@ class PSWebsocketClient:
             if split_message[1] == "challstr":
                 return split_message[2], split_message[3]
 
+    async def wait_for_challstr(self):
+        while True:
+            message = await self.receive_message()
+            if any(line.startswith("|challstr|") for line in message.splitlines()):
+                return
+
+    async def local_no_security_login_and_confirm(self):
+        await self.wait_for_challstr()
+        await self.send_message("", ["/trn " + self.username + ",0,"])
+        try:
+            while True:
+                message = await asyncio.wait_for(self.receive_message(), timeout=10)
+                for line in message.splitlines():
+                    if line.startswith("|nametaken|"):
+                        logger.error("Local username claim was rejected")
+                        raise LoginError("Local username claim was rejected")
+                    if not line.startswith("|updateuser|"):
+                        continue
+                    fields = line.split("|", 4)
+                    if (
+                        len(fields) >= 4
+                        and fields[3] == "1"
+                        and _to_id(fields[2]) == _to_id(self.username)
+                    ):
+                        logger.info("Local username claim succeeded")
+                        return self.username
+        except TimeoutError as error:
+            logger.error("Local username claim confirmation timed out")
+            raise LoginError(
+                "Local username claim confirmation timed out"
+            ) from error
+        except ConnectionClosed as error:
+            logger.error("Connection closed before local username confirmation")
+            raise LoginError(
+                "Connection closed before local username confirmation"
+            ) from error
+
     async def login(self):
-        logger.info("Logging in...")
+        if self.local_no_security_login:
+            logger.info("Logging in using local no-security mode...")
+            return await self.local_no_security_login_and_confirm()
+
+        logger.info("Logging in using public assertion mode...")
         client_id, challstr = await self.get_id_and_challstr()
 
         guest_login = self.password is None
@@ -113,7 +240,9 @@ class PSWebsocketClient:
 
         if response.status_code != 200:
             logger.error(
-                "Could not get assertion\nDetails:\n{}".format(response.content)
+                "Could not get assertion (HTTP status {})".format(
+                    response.status_code
+                )
             )
             raise LoginError("Could not get assertion")
 
@@ -122,8 +251,8 @@ class PSWebsocketClient:
         else:
             response_json = json.loads(response.text[1:])
             if "actionsuccess" not in response_json:
-                logger.error("Login Unsuccessful: {}".format(response_json))
-                raise LoginError("Could not log-in: {}".format(response_json))
+                logger.error("Login unsuccessful: assertion was not issued")
+                raise LoginError("Could not log in")
             assertion = response_json.get("assertion")
 
         message = ["/trn " + self.username + ",0," + assertion]

@@ -2,6 +2,7 @@ import asyncio
 import copy
 import inspect
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -11,6 +12,8 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from unittest import mock
+
+from websockets.exceptions import ConnectionClosedOK
 
 from fp import constants
 from fp.battle.protocol import activate, fieldstart, remove_item
@@ -30,6 +33,12 @@ from fp.modes.standard_battle import StandardBattleMode
 from fp.run_battle import start_battle
 from fp.search.poke_engine_helpers import pokemon_to_poke_engine_pkmn
 from fp.search.standard_battles import prepare_battles
+from fp.websocket_client import (
+    LocalLoginConfigurationError,
+    LoginError,
+    PSWebsocketClient,
+    validate_loopback_websocket_uri,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -889,6 +898,326 @@ class TestFirewallRegressionsAndMechanics(unittest.TestCase):
                 configuration,
                 call.kwargs["public_prior_configuration"],
             )
+
+
+LOCAL_LOGIN_BASE_ARGV = [
+    "--websocket-uri",
+    "ws://synthetic.invalid/showdown/websocket",
+    "--ps-username",
+    "LocalBot",
+    "--bot-mode",
+    "search_ladder",
+    "--pokemon-format",
+    "gen9tugs",
+]
+
+
+class _LocalLoginFakeWebsocket:
+    def __init__(self, messages):
+        self.messages = list(messages)
+        self.sent = []
+
+    async def recv(self):
+        next_message = self.messages.pop(0)
+        if isinstance(next_message, BaseException):
+            raise next_message
+        return next_message
+
+    async def send(self, message):
+        self.sent.append(message)
+
+
+def _local_login_client(messages, *, local=False, password=None):
+    client = PSWebsocketClient()
+    client.username = "LocalBot"
+    client.password = password
+    client.address = "ws://127.0.0.1:8013/showdown/websocket"
+    client.local_no_security_login = local
+    client.login_uri = (
+        "https://play.pokemonshowdown.com/api/login"
+        if password
+        else "https://play.pokemonshowdown.com/action.php?"
+    )
+    client.websocket = _LocalLoginFakeWebsocket(messages)
+    return client
+
+
+class TestZLocalNoSecurityConfiguration(unittest.TestCase):
+    def tearDown(self):
+        FoulPlayConfig.local_no_security_login = False
+        FoulPlayConfig.password = None
+
+    def test_76_default_mode_is_not_inferred_for_a_loopback_uri(self):
+        argv = list(LOCAL_LOGIN_BASE_ARGV)
+        argv[1] = "ws://127.0.0.1:8013/showdown/websocket"
+        FoulPlayConfig.configure(argv)
+        self.assertFalse(FoulPlayConfig.local_no_security_login)
+
+    def test_77_explicit_cli_option_enables_local_mode(self):
+        argv = list(LOCAL_LOGIN_BASE_ARGV)
+        argv[1] = "ws://localhost:8013/showdown/websocket"
+        FoulPlayConfig.configure(argv + ["--local-no-security-login"])
+        self.assertTrue(FoulPlayConfig.local_no_security_login)
+
+    def test_78_loopback_forms_are_accepted(self):
+        for uri, expected in (
+            ("ws://127.0.0.1:8013/showdown/websocket", "127.0.0.1"),
+            ("ws://localhost:8013/showdown/websocket", "localhost"),
+            ("ws://[::1]:8013/showdown/websocket", "::1"),
+        ):
+            with self.subTest(uri=uri):
+                self.assertEqual(expected, validate_loopback_websocket_uri(uri))
+
+    def test_79_non_loopback_destinations_are_rejected(self):
+        for uri in (
+            "wss://play.pokemonshowdown.com/showdown/websocket",
+            "ws://192.168.1.2:8013/showdown/websocket",
+            "ws://10.0.0.2:8013/showdown/websocket",
+            "ws://0.0.0.0:8013/showdown/websocket",
+            "ws://localhost.example:8013/showdown/websocket",
+        ):
+            with self.subTest(uri=uri), self.assertRaises(
+                LocalLoginConfigurationError
+            ):
+                validate_loopback_websocket_uri(uri)
+
+    def test_80_malformed_or_ambiguous_uris_are_rejected(self):
+        for uri in (
+            "127.0.0.1:8013",
+            "http://127.0.0.1:8013",
+            "ws://[::1",
+            "ws://user@127.0.0.1:8013/showdown/websocket",
+            "ws://127.0.0.1:notaport/showdown/websocket",
+        ):
+            with self.subTest(uri=uri), self.assertRaises(
+                LocalLoginConfigurationError
+            ):
+                validate_loopback_websocket_uri(uri)
+
+    def test_81_password_conflict_is_rejected_by_cli(self):
+        argv = list(LOCAL_LOGIN_BASE_ARGV)
+        argv[1] = "ws://127.0.0.1:8013/showdown/websocket"
+        with self.assertRaises(SystemExit):
+            FoulPlayConfig.configure(
+                argv
+                + [
+                    "--local-no-security-login",
+                    "--ps-password",
+                    "unused-test-password",
+                ]
+            )
+
+    def test_82_direct_client_creation_rejects_non_loopback_before_connect(self):
+        with mock.patch(
+            "fp.websocket_client.websockets.connect", new=mock.AsyncMock()
+        ) as connect:
+            with self.assertRaises(LocalLoginConfigurationError):
+                asyncio.run(
+                    PSWebsocketClient.create(
+                        "LocalBot",
+                        None,
+                        "ws://192.168.1.2:8013/showdown/websocket",
+                        local_no_security_login=True,
+                    )
+                )
+        connect.assert_not_awaited()
+
+    def test_83_direct_password_conflict_fails_before_connecting(self):
+        with mock.patch(
+            "fp.websocket_client.websockets.connect", new=mock.AsyncMock()
+        ) as connect:
+            with self.assertRaises(LocalLoginConfigurationError):
+                asyncio.run(
+                    PSWebsocketClient.create(
+                        "LocalBot",
+                        "unused-test-password",
+                        "ws://127.0.0.1:8013/showdown/websocket",
+                        local_no_security_login=True,
+                    )
+                )
+        connect.assert_not_awaited()
+
+
+class TestZLocalNoSecurityProtocols(unittest.IsolatedAsyncioTestCase):
+    async def test_84_default_mode_preserves_public_assertion_flow(self):
+        client = _local_login_client(["|challstr|4|challenge-value"])
+        response = SimpleNamespace(
+            status_code=200, text="assertion-value", content=b""
+        )
+        with mock.patch(
+            "fp.websocket_client.requests.post", return_value=response
+        ) as post, mock.patch(
+            "fp.websocket_client.asyncio.sleep", new=mock.AsyncMock()
+        ) as sleep:
+            user_id = await client.login()
+
+        post.assert_called_once_with(
+            "https://play.pokemonshowdown.com/action.php?",
+            data={
+                "act": "getassertion",
+                "userid": "LocalBot",
+                "challstr": "4|challenge-value",
+            },
+        )
+        self.assertEqual(["|/trn LocalBot,0,assertion-value"], client.websocket.sent)
+        sleep.assert_awaited_once_with(3)
+        self.assertEqual("LocalBot", user_id)
+        self.assertIsNone(client.last_message)
+
+    async def test_85_registered_password_flow_is_unchanged(self):
+        client = _local_login_client(
+            ["|challstr|4|challenge-value"], password="password-value"
+        )
+        response = SimpleNamespace(
+            status_code=200,
+            text=(
+                ']{"actionsuccess":true,"assertion":"assertion-value",'
+                '"curuser":{"userid":"localbot"}}'
+            ),
+            content=b"",
+        )
+        with mock.patch(
+            "fp.websocket_client.requests.post", return_value=response
+        ) as post, mock.patch(
+            "fp.websocket_client.asyncio.sleep", new=mock.AsyncMock()
+        ) as sleep:
+            user_id = await client.login()
+
+        post.assert_called_once_with(
+            "https://play.pokemonshowdown.com/api/login",
+            data={
+                "name": "LocalBot",
+                "pass": "password-value",
+                "challstr": "4|challenge-value",
+            },
+        )
+        self.assertEqual(["|/trn LocalBot,0,assertion-value"], client.websocket.sent)
+        sleep.assert_awaited_once_with(3)
+        self.assertEqual("localbot", user_id)
+        self.assertIsNone(client.last_message)
+
+    async def test_86_local_mode_uses_empty_token_and_no_http(self):
+        client = _local_login_client(
+            [
+                "|challstr|4|challenge-value",
+                '|updateuser| LocalBot|1|1|{"blockChallenges":false}',
+            ],
+            local=True,
+        )
+        with mock.patch(
+            "fp.websocket_client.requests.get",
+            side_effect=AssertionError("HTTP GET must not be called"),
+        ) as get, mock.patch(
+            "fp.websocket_client.requests.post",
+            side_effect=AssertionError("HTTP POST must not be called"),
+        ) as post:
+            user_id = await client.login()
+
+        get.assert_not_called()
+        post.assert_not_called()
+        self.assertEqual(["|/trn LocalBot,0,"], client.websocket.sent)
+        self.assertEqual("LocalBot", user_id)
+        self.assertIsNone(client.last_message)
+
+    async def test_87_local_authentication_values_are_absent_from_logs(self):
+        client = _local_login_client(
+            [
+                "|challstr|4|challenge-value",
+                '|updateuser| LocalBot|1|1|{"blockChallenges":false}',
+            ],
+            local=True,
+        )
+        with self.assertLogs("fp.websocket_client", logging.DEBUG) as captured:
+            await client.login()
+        output = "\n".join(captured.output)
+        self.assertNotIn("challenge-value", output)
+        self.assertNotIn("|/trn LocalBot,0,", output)
+        self.assertNotIn("assertion-value", output)
+        self.assertIn("Local username claim succeeded", output)
+
+    async def test_88_public_assertion_is_absent_from_logs(self):
+        client = _local_login_client(["|challstr|4|challenge-value"])
+        response = SimpleNamespace(
+            status_code=200, text="assertion-value", content=b""
+        )
+        with mock.patch(
+            "fp.websocket_client.requests.post", return_value=response
+        ), mock.patch(
+            "fp.websocket_client.asyncio.sleep", new=mock.AsyncMock()
+        ), self.assertLogs("fp.websocket_client", logging.DEBUG) as captured:
+            await client.login()
+        output = "\n".join(captured.output)
+        self.assertNotIn("challenge-value", output)
+        self.assertNotIn("assertion-value", output)
+        self.assertNotIn("|/trn LocalBot,0,", output)
+
+    async def test_89_local_rejection_is_sanitized(self):
+        client = _local_login_client(
+            [
+                "|challstr|4|challenge-value",
+                "|nametaken|LocalBot|rejected-detail",
+            ],
+            local=True,
+        )
+        with self.assertLogs("fp.websocket_client", logging.DEBUG) as captured:
+            with self.assertRaisesRegex(
+                LoginError, "Local username claim was rejected"
+            ):
+                await client.login()
+        output = "\n".join(captured.output)
+        self.assertNotIn("challenge-value", output)
+        self.assertNotIn("rejected-detail", output)
+
+    async def test_90_connection_close_before_confirmation_is_sanitized(self):
+        client = _local_login_client(
+            [
+                "|challstr|4|challenge-value",
+                ConnectionClosedOK(None, None),
+            ],
+            local=True,
+        )
+        with self.assertLogs("fp.websocket_client", logging.DEBUG) as captured:
+            with self.assertRaisesRegex(LoginError, "Connection closed before"):
+                await client.login()
+        self.assertNotIn("challenge-value", "\n".join(captured.output))
+
+
+class TestZLocalNoSecurityWiring(unittest.TestCase):
+    def test_91_main_passes_explicit_local_mode_to_client(self):
+        import fp.main as main_module
+
+        previous = FoulPlayConfig.local_no_security_login
+        FoulPlayConfig.log_level = "INFO"
+        FoulPlayConfig.log_to_file = False
+        FoulPlayConfig.username = "LocalBot"
+        FoulPlayConfig.password = None
+        FoulPlayConfig.websocket_uri = "ws://127.0.0.1:8013/showdown/websocket"
+        FoulPlayConfig.local_no_security_login = True
+        FoulPlayConfig.pokemon_format = "gen9tugs"
+        try:
+            with mock.patch.object(
+                FoulPlayConfig, "configure", return_value=None
+            ), mock.patch.object(main_module, "init_logging"), mock.patch.object(
+                main_module, "apply_mods"
+            ), mock.patch.object(
+                main_module,
+                "load_public_prior_runtime_configuration",
+                return_value=None,
+            ), mock.patch.object(
+                main_module.PSWebsocketClient,
+                "create",
+                new=mock.AsyncMock(side_effect=RuntimeError("stop after create")),
+            ) as create:
+                with self.assertRaisesRegex(RuntimeError, "stop after create"):
+                    asyncio.run(main_module.run_foul_play())
+            create.assert_awaited_once_with(
+                "LocalBot",
+                None,
+                "ws://127.0.0.1:8013/showdown/websocket",
+                True,
+            )
+        finally:
+            FoulPlayConfig.local_no_security_login = previous
 
 
 if __name__ == "__main__":

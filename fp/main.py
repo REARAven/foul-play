@@ -56,7 +56,10 @@ async def run_foul_play():
     original_move_json = deepcopy(all_move_json)
 
     ps_websocket_client = await PSWebsocketClient.create(
-        FoulPlayConfig.username, FoulPlayConfig.password, FoulPlayConfig.websocket_uri
+        FoulPlayConfig.username,
+        FoulPlayConfig.password,
+        FoulPlayConfig.websocket_uri,
+        FoulPlayConfig.local_no_security_login,
     )
 
     FoulPlayConfig.user_id = await ps_websocket_client.login()

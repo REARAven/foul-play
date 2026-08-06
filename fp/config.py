@@ -74,6 +74,7 @@ class _FoulPlayConfig:
     websocket_uri: str
     username: str
     password: str | None
+    local_no_security_login: bool = False
     user_id: str
     avatar: str
     bot_mode: BotModes
@@ -104,6 +105,14 @@ class _FoulPlayConfig:
         )
         parser.add_argument("--ps-username", required=True)
         parser.add_argument("--ps-password", default=None)
+        parser.add_argument(
+            "--local-no-security-login",
+            action="store_true",
+            help=(
+                "Claim a username without a public assertion on an explicitly "
+                "configured loopback --no-security server."
+            ),
+        )
         parser.add_argument("--ps-avatar", default=None)
         parser.add_argument(
             "--bot-mode", required=True, choices=[e.name for e in BotModes]
@@ -209,9 +218,22 @@ class _FoulPlayConfig:
             parser.error(
                 "--public-prior-fallback requires at least one --public-prior-file"
             )
+        if args.local_no_security_login:
+            if args.ps_password is not None:
+                parser.error(
+                    "--local-no-security-login cannot be combined with --ps-password"
+                )
+            from fp.websocket_client import LocalLoginConfigurationError
+            from fp.websocket_client import validate_loopback_websocket_uri
+
+            try:
+                validate_loopback_websocket_uri(args.websocket_uri)
+            except LocalLoginConfigurationError as error:
+                parser.error(str(error))
         self.websocket_uri = args.websocket_uri
         self.username = args.ps_username
         self.password = args.ps_password
+        self.local_no_security_login = args.local_no_security_login
         self.avatar = args.ps_avatar
         self.bot_mode = BotModes[args.bot_mode]
         self.pokemon_format = args.pokemon_format

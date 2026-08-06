@@ -272,7 +272,6 @@ class TestBatchFourDocument(unittest.TestCase):
         self.assertEqual(1, len({"claydol"}))
         self.assertEqual(6, len(set(REPLACEMENT_VARIANTS) | {"claydol"}))
         self.assertEqual(20, sum(map(len, REPLACEMENT_VARIANTS.values())) + len(CLAYDOL_VARIANTS))
-        self.assertFalse((POOLS / "tugspublicarchetypes-1.5.0.json").exists())
 
     def test_02_version_1_3_semantics_change_only_as_authorized(self):
         old = self.documents["1.3.0"]

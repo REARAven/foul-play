@@ -677,6 +677,15 @@ def _message_actor_is_opponent(battle, split_msg):
     )
 
 
+def _explicit_item_source(split_msg):
+    prefix = "[from] item:"
+    for annotation in split_msg[4:]:
+        if annotation.startswith(prefix):
+            item_id = normalize_name(annotation[len(prefix) :])
+            return item_id or None
+    return None
+
+
 def _record_public_team_observation(battle, action, split_msg):
     """Central closed-safe hook, called after canonical protocol state updates."""
 
@@ -710,6 +719,15 @@ def _record_public_team_observation(battle, action, split_msg):
             )
             context.record_selected_move(
                 species_id, normalize_name(split_msg[3]), source
+            )
+
+    if action == "-heal" and species_id is not None:
+        item_id = _explicit_item_source(split_msg)
+        if item_id is not None:
+            context.record_initial_item(
+                species_id,
+                item_id,
+                PublicObservationSource.DIRECT_ITEM_REVEAL,
             )
 
     if action == "-item" and species_id is not None:

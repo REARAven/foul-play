@@ -747,7 +747,7 @@ class TestFirewallRegressionsAndMechanics(unittest.TestCase):
         self.assertEqual(49, self._focused_count("test_team_pool_inference.py"))
 
     def test_66_existing_phase_three_tests_remain_present(self):
-        self.assertEqual(82, self._focused_count("test_team_pool_observation_filtering.py"))
+        self.assertEqual(93, self._focused_count("test_team_pool_observation_filtering.py"))
 
     def test_67_existing_phase_four_tests_remain_present(self):
         self.assertEqual(80, self._focused_count("test_public_prior_loader.py"))

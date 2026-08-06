@@ -300,6 +300,99 @@ class TestItemEvidence(unittest.TestCase):
     def test_22_direct_initial_item_reveal_filters(self):
         self._assert_item("|-item|p2a: Pikachu|Leftovers", "leftovers", "left")
 
+    def test_22a_leftovers_heal_records_item_for_healed_pokemon(self):
+        self._assert_item(
+            "|-heal|p2a: Pikachu|100/100|[from] item: Leftovers",
+            "leftovers",
+            "left",
+        )
+
+    def test_22b_black_sludge_heal_records_item_for_healed_pokemon(self):
+        records = (
+            _variant("sludge", item="blacksludge"),
+            _variant("scarf", item="choicescarf"),
+        )
+        battle, registry, _ = _scenario(records)
+        _process(battle, "|-heal|p2a: Pikachu|100/100|[from] item: Black Sludge")
+        self.assertEqual("blacksludge", _evidence(battle).initial_item_id)
+        self.assertEqual(
+            "sludge",
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
+
+    def test_22c_repeated_identical_item_healing_is_idempotent(self):
+        battle, _, _ = _scenario(self.records)
+        message = "|-heal|p2a: Pikachu|100/100|[from] item: Leftovers"
+        _process(battle, message)
+        first_ledger = battle.team_inference.observation_ledger
+        _process(battle, message)
+        self.assertIs(first_ledger, battle.team_inference.observation_ledger)
+        self.assertEqual("leftovers", _evidence(battle).initial_item_id)
+
+    def test_22d_item_heal_uses_only_safe_public_provenance(self):
+        battle, _, _ = _scenario(self.records)
+        _process(battle, "|-heal|p2a: Pikachu|100/100|[from] item: Leftovers")
+        self.assertEqual(
+            {
+                PublicObservationSource.TEAM_PREVIEW,
+                PublicObservationSource.DIRECT_ITEM_REVEAL,
+            },
+            set(_evidence(battle).provenance),
+        )
+
+    def test_22e_move_sourced_heal_does_not_record_item(self):
+        battle, registry, _ = _scenario(self.records)
+        _process(battle, "|-heal|p2a: Pikachu|100/100|[from] move: Recover")
+        self.assertIsNone(_evidence(battle).initial_item_id)
+        self.assertEqual(2, _filtered(battle, registry).candidate_count)
+
+    def test_22f_ability_sourced_heal_does_not_record_item(self):
+        battle, registry, _ = _scenario(self.records)
+        _process(
+            battle,
+            "|-heal|p2a: Pikachu|100/100|[from] ability: Volt Absorb|[of] p1a: Weedle",
+        )
+        self.assertIsNone(_evidence(battle).initial_item_id)
+        self.assertEqual(2, _filtered(battle, registry).candidate_count)
+
+    def test_22g_wish_heal_does_not_record_item(self):
+        battle, registry, _ = _scenario(self.records)
+        _process(battle, "|-heal|p2a: Pikachu|100/100|[from] move: Wish")
+        self.assertIsNone(_evidence(battle).initial_item_id)
+        self.assertEqual(2, _filtered(battle, registry).candidate_count)
+
+    def test_22h_leech_seed_heal_does_not_record_item(self):
+        battle, registry, _ = _scenario(self.records)
+        _process(battle, "|-heal|p2a: Pikachu|100/100|[from] Leech Seed|[of] p1a: Weedle")
+        self.assertIsNone(_evidence(battle).initial_item_id)
+        self.assertEqual(2, _filtered(battle, registry).candidate_count)
+
+    def test_22i_bare_heal_does_not_record_item(self):
+        battle, registry, _ = _scenario(self.records)
+        _process(battle, "|-heal|p2a: Pikachu|100/100")
+        self.assertIsNone(_evidence(battle).initial_item_id)
+        self.assertEqual(2, _filtered(battle, registry).candidate_count)
+
+    def test_22j_rocky_helmet_damage_is_not_attributed_to_damaged_pokemon(self):
+        battle, _, _ = _scenario(self.records)
+        _process(
+            battle,
+            "|-damage|p2a: Pikachu|90/100|[from] item: Rocky Helmet|[of] p1a: Weedle",
+        )
+        self.assertIsNone(_evidence(battle).initial_item_id)
+        self.assertNotEqual("rockyhelmet", battle.opponent.active.item)
+        self.assertEqual("rockyhelmet", battle.user.active.item)
+
+    def test_22k_item_damage_with_of_does_not_use_damaged_target_as_owner(self):
+        battle, _, _ = _scenario(self.records)
+        _process(
+            battle,
+            "|-damage|p2a: Pikachu|90/100|[from] item: Sticky Barb|[of] p1a: Weedle",
+        )
+        self.assertIsNone(_evidence(battle).initial_item_id)
+        self.assertNotEqual("stickybarb", battle.opponent.active.item)
+        self.assertEqual("stickybarb", battle.user.active.item)
+
     def test_23_item_activation_filters(self):
         self._assert_item("|-activate|p2a: Pikachu|item: Leftovers", "leftovers", "left")
 

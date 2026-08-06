@@ -12,8 +12,9 @@ from pathlib import Path
 from unittest import mock
 
 from fp import constants
+from fp.battle.inference import check_heavydutyboots
+from fp.battle.protocol import process_battle_updates
 from fp.battle.public_prior_context import PublicPriorFallback
-from fp.battle.team_inference import PublicObservationSource
 from fp.config import FoulPlayConfig
 from fp.data import all_move_json, pokedex
 from fp.data.mods.apply_mods import apply_mods
@@ -32,6 +33,7 @@ from fp.search.public_prior_sampling import (
     PublicPriorSelectionStatus,
     select_public_prior_variant,
 )
+from fp.search.poke_engine_helpers import battle_to_poke_engine_state
 from fp.search.standard_battles import prepare_battles
 from test_public_prior_production_batch3_data import (
     AUTHORIZATION_VALUE,
@@ -751,26 +753,49 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         self.assertEqual(constants.UNKNOWN_ITEM, sampled_pokemon.item)
         self.assertEqual(canonical_before, _pokemon_snapshot(battle.opponent.active))
 
-    def test_15_dudunsparce_later_item_recomputes_and_none_fallback_queries_nothing(self):
+    def _assert_dudunsparce_later_item_recomputes(self, *, disprove_boots=False):
         context = self.none_configuration.create_battle_context("gen9tugs")
         calm_mind = _evidence(context, "dudunsparce", moves=("calmmind",))
         self.assertEqual({"calmmind"}, _compatible_ids(self.dataset, "dudunsparce", calm_mind))
         battle = _battle(context, "dudunsparce")
-        battle.opponent.active.add_move("calmmind")
-        battle.team_inference.record_selected_move("dudunsparce", "calmmind")
+        battle.msg_list = ["|move|p2a: Dudunsparce|Calm Mind|p1a: Weedle"]
+        process_battle_updates(battle)
         canonical_before = _pokemon_snapshot(battle.opponent.active)
         with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
             first = prepare_battles(battle, 1)[0][0]
         generic.assert_not_called()
         self.assertEqual("heavydutyboots", first.opponent.active.item)
         self.assertEqual(canonical_before, _pokemon_snapshot(battle.opponent.active))
-        battle.opponent.active.item = "leftovers"
-        battle.team_inference.record_initial_item(
-            "dudunsparce", "leftovers",
-            source=PublicObservationSource.DIRECT_ITEM_REVEAL,
-        )
+
+        if disprove_boots:
+            battle.opponent.side_conditions[constants.STEALTH_ROCK] = 1
+            check_heavydutyboots(
+                battle,
+                ["|-damage|p2a: Dudunsparce|88/100|[from] Stealth Rock"],
+            )
+            self.assertIn(
+                constants.HEAVY_DUTY_BOOTS,
+                battle.opponent.active.impossible_items,
+            )
+
+        battle.msg_list = [
+            "|-heal|p2a: Dudunsparce|100/100|[from] item: Leftovers"
+        ]
+        process_battle_updates(battle)
         later = battle.team_inference.observation_ledger.member("dudunsparce")
+        self.assertEqual("leftovers", later.initial_item_id)
+        self.assertEqual(("calmmind",), later.selected_move_ids)
         self.assertEqual(set(), _compatible_ids(self.dataset, "dudunsparce", later))
+        result = select_public_prior_variant(
+            context,
+            battle_format="gen9tugs",
+            species_id="dudunsparce",
+            level=100,
+            evidence=later,
+        )
+        self.assertIs(PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT, result.status)
+        canonical_before_second = _pokemon_snapshot(battle.opponent.active)
+        ledger_before_second = battle.team_inference.observation_ledger
         with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
             second = prepare_battles(battle, 1)[0][0]
         generic.assert_not_called()
@@ -778,7 +803,16 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         self.assertNotEqual("heavydutyboots", second.opponent.active.item)
         self.assertIn("calmmind", tuple(move.name for move in second.opponent.active.moves))
         self.assertNotIn("coil", tuple(move.name for move in second.opponent.active.moves))
+        self.assertEqual(canonical_before_second, _pokemon_snapshot(battle.opponent.active))
+        self.assertIs(ledger_before_second, battle.team_inference.observation_ledger)
+        self.assertIsInstance(battle_to_poke_engine_state(second).to_string(), str)
         json.dumps(second.request_json or {})
+
+    def test_15_dudunsparce_later_item_recomputes_and_none_fallback_queries_nothing(self):
+        self._assert_dudunsparce_later_item_recomputes()
+
+    def test_15b_dudunsparce_recomputes_after_rocks_disprove_boots_and_leftovers_heals(self):
+        self._assert_dudunsparce_later_item_recomputes(disprove_boots=True)
 
     def test_16_public_sampling_has_no_private_pool_or_candidate_dependency(self):
         paths = (

@@ -1,4 +1,4 @@
 requests==2.33.0
 websockets==14.1
 python-dateutil==2.8.0
-poke-engine==0.0.48 --config-settings="build-args=--features poke-engine/gen9 --no-default-features"
+poke-engine @ git+https://github.com/REARAven/poke-engine.git@fe15ed64e2c6ce703b823545b91f51d61b7f53ef#subdirectory=poke-engine-py --config-settings="build-args=--features tugs --no-default-features"

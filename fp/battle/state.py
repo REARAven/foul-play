@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections import namedtuple
+from functools import wraps
 
 from fp import constants
 import logging
@@ -25,6 +26,20 @@ from fp.generations import (
 
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_showdown_request_errors(message: str):
+    def decorator(function):
+        @wraps(function)
+        def wrapped(*args, **kwargs):
+            try:
+                return function(*args, **kwargs)
+            except Exception:
+                raise ValueError(message) from None
+
+        return wrapped
+
+    return decorator
 
 
 LastUsedMove = namedtuple("LastUsedMove", ["pokemon_name", "move", "turn"])
@@ -418,6 +433,9 @@ class Battler:
             except KeyError:
                 pass
 
+    @_sanitize_showdown_request_errors(
+        "Could not update user state from Showdown request"
+    )
     def update_from_request_json(self, request_json):
         """
         Updates the battler's information based on the request JSON
@@ -444,9 +462,7 @@ class Battler:
             if pkmn_dict[constants.ACTIVE]:
                 if self.active.name != pkmn_name and self.active.base_name != pkmn_name:
                     raise ValueError(
-                        "Active pokemon mismatch: expected {} or {}, got {}".format(
-                            self.active.name, self.active.base_name, pkmn_name
-                        )
+                        "Active Pokemon mismatch while applying Showdown request"
                     )
 
                 if constants.ACTIVE in request_json:
@@ -476,6 +492,9 @@ class Battler:
             for stat, number in pkmn_dict[constants.STATS].items():
                 pkmn.stats[constants.STAT_ABBREVIATION_LOOKUPS[stat]] = number
 
+    @_sanitize_showdown_request_errors(
+        "Could not reinitialize active Pokemon from Showdown request"
+    )
     def re_initialize_active_pokemon_from_request_json(self, request_json):
         """
         Re-initializes the active pokemon based on the last request JSON that was received
@@ -498,9 +517,10 @@ class Battler:
                 or normalize_name(p[constants.DETAILS]).split(",")[0]
                 == self.active.base_name
             ]
-        assert (
-            len(request_json_active_pkmn) == 1
-        ), f"Didn't find exactly 1 {pokedex_name}, pokemon: {request_json}"
+        if len(request_json_active_pkmn) != 1:
+            raise ValueError(
+                "Could not reinitialize active Pokemon from Showdown request"
+            )
         pkmn_info = request_json_active_pkmn[0]
         for stat, number in pkmn_info[constants.STATS].items():
             self.active.stats[constants.STAT_ABBREVIATION_LOOKUPS[stat]] = number
@@ -508,6 +528,9 @@ class Battler:
             pkmn_info[constants.CONDITION]
         )
 
+    @_sanitize_showdown_request_errors(
+        "Could not initialize user state from Showdown request"
+    )
     def initialize_first_turn_user_from_json(self, request_json):
         """
         Similar to `update_from_request_json`, but meant to be used on the first `request_json` that is seen
@@ -564,18 +587,14 @@ class Battler:
                     and pkmn_item == "rustedsword"
                     and move_name == "ironhead"
                 ):
-                    logger.info(
-                        "Zacian with rusted sword: changing ironhead to behemothblade"
-                    )
+                    logger.info("Adjusted a selected-team move for its battle form")
                     move_name = "behemothblade"
                 elif (
                     pkmn.name.startswith("zamazenta")
                     and pkmn_item == "rustedshield"
                     and move_name == "ironhead"
                 ):
-                    logger.info(
-                        "Zamazenta with rusted shield: changing ironhead to behemothbash"
-                    )
+                    logger.info("Adjusted a selected-team move for its battle form")
                     move_name = "behemothbash"
                 pkmn.add_move(move_name)
 
@@ -607,7 +626,9 @@ class Battler:
                         p for p in self.team_dict if p["species"] == other_forme_in_team
                     )
                 else:
-                    raise ValueError("Could not find {} in team_dict".format(pkmn.name))
+                    raise ValueError(
+                        "Could not match initialized Pokemon to selected team data"
+                    )
                 pkmn.nature = team_dict_pkmn["nature"] or "serious"
                 pkmn.evs = (
                     int(team_dict_pkmn["evs"]["hp"] or 0),
@@ -650,9 +671,8 @@ class Pokemon:
         try:
             self.base_stats = pokedex[self.name][constants.BASESTATS]
         except KeyError:
-            logger.info("Could not pokedex entry for {}".format(self.name))
+            logger.info("Normalizing an unrecognized Pokemon form")
             self.name = [k for k in pokedex if self.name.startswith(k)][0]
-            logger.info("Using {} instead".format(self.name))
             self.base_stats = pokedex[self.name][constants.BASESTATS]
 
         self.stats = calculate_stats(
@@ -822,7 +842,7 @@ class Pokemon:
             self.moves.append(new_move)
             return new_move
         except KeyError:
-            logger.warning("{} is not a known move".format(move_name))
+            logger.warning("Encountered an unknown move")
             return None
 
     def remove_move(self, move_name: str):

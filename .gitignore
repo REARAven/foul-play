@@ -14,3 +14,11 @@ fp/data/smogon_stats_cache
 fp/data/pkmn_sets_cache
 fp/data/local_data
 run_forever.sh
+
+# Blind Ladder private artifacts must remain outside Git; block accidental copies.
+**/blind_pool_private/
+**/blind-ladder-private/
+**/blind_pool_private_*.json
+**/blind_pool_private_*.lock
+**/blind-ladder-private-*.json
+**/blind-ladder-private-*.lock

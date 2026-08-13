@@ -6,16 +6,27 @@ from copy import deepcopy
 
 from fp.battle.state import Battle, Battler
 from fp.config import FoulPlayConfig
-from fp.search.main import get_result_from_mcts, select_move_from_mcts_results
+from fp.search.main import (
+    get_result_from_mcts,
+    select_move_from_mcts_results,
+    serialize_battle_for_search,
+)
 from fp.search.standard_battles import (
     prepare_battles,
     sample_pokemon,
 )
 
 from poke_engine import MctsSideResult
-from fp.search.poke_engine_helpers import battle_to_poke_engine_state
-
 logger = logging.getLogger(__name__)
+
+
+def _log_team_preview_diagnostics(affinities: dict[str, float]) -> None:
+    logger.info(
+        "Team preview affinity entries={} weights={}".format(
+            len(affinities),
+            [round(value, 2) for value in affinities.values()],
+        )
+    )
 
 
 def calculate_opponent_team_preview_preferences(
@@ -93,7 +104,7 @@ def bss_team_preview(battle: Battle) -> (str, dict[str, float]):
         for index, (b, chance) in enumerate(battles):
             fut = executor.submit(
                 get_result_from_mcts,
-                battle_to_poke_engine_state(b).to_string(),
+                serialize_battle_for_search(b, index),
                 search_time_per_battle,
                 index,
                 FoulPlayConfig.search_threads,
@@ -105,8 +116,6 @@ def bss_team_preview(battle: Battle) -> (str, dict[str, float]):
         [(i[0].total_visits, i[0].side_two) for i in mcts_results]
     )
     choice = select_move_from_mcts_results(mcts_results)
-    logger.info("Team Preview Affinities")
-    for k, v in opponent_team_preview_affinities.items():
-        logger.info(f"\t{k.rjust(15)}: {round(v, 2)}")
-    logger.info(f"Choice: {choice}")
+    _log_team_preview_diagnostics(opponent_team_preview_affinities)
+    logger.info("Team preview choice selected")
     return choice, opponent_team_preview_affinities

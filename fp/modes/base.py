@@ -181,7 +181,7 @@ def format_decision(battle, decision):
                 message = "/switch {}".format(pkmn.index)
                 break
         else:
-            raise ValueError("Tried to switch to: {}".format(switch_pokemon))
+            raise ValueError("Could not resolve selected switch target")
     else:
         tera = False
         mega = False
@@ -279,7 +279,10 @@ async def get_first_request_json(
         msg = await ps_websocket_client.receive_message()
         msg_split = msg.split("|")
         if msg_split[1].strip() == "request" and msg_split[2].strip():
-            user_json = json.loads(msg_split[2].strip("'"))
+            try:
+                user_json = json.loads(msg_split[2].strip("'"))
+            except (json.JSONDecodeError, TypeError):
+                raise ValueError("Could not parse Showdown request payload") from None
             battle.request_json = user_json
             battle.user.initialize_first_turn_user_from_json(user_json)
             battle.rqid = user_json[constants.RQID]

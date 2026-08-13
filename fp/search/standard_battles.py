@@ -51,10 +51,13 @@ def get_filtered_smogon_sets(
     # If no sets make logical sense warn because something is probably wrong, and return everything
     if not filtered_sets:
         logger.info(
-            f"Would filter out all sets for {pkmn.name}, returning all sets instead"
+            "Set filtering produced no matches; retaining unfiltered candidates"
         )
-        for s in remaining_sets:
-            logger.debug(f"{s=}")
+        logger.debug(
+            "Retaining {} candidate sets after filtering produced no matches".format(
+                len(remaining_sets)
+            )
+        )
         filtered_sets = copy(remaining_sets)
 
     return filtered_sets
@@ -150,9 +153,7 @@ def pokemon_guaranteed_move(pkmn: Pokemon):
     if pkmn.name in pokedex and pokedex[pkmn.name].get("requiredMove"):
         required_move = normalize_name(pokedex[pkmn.name]["requiredMove"])
         if len(pkmn.moves) < 4 and pkmn.get_move(required_move) is None:
-            logger.info(
-                f"Adding guaranteed move {required_move} to {pkmn.name}'s moveset"
-            )
+            logger.info("Adding a guaranteed move to a sampled Pokemon set")
             pkmn.add_move(required_move)
 
 
@@ -226,7 +227,7 @@ def _sample_pokemon(pkmn: Pokemon, mode):
         populate_pkmn_from_set(pkmn, sampled_set, source="smogonsets")
         return
 
-    logger.warning(f"Could not sample {pkmn.name}")
+    logger.warning("Could not sample a compatible Pokemon set")
 
 
 def predict_team_likelihood(revealed_pokemon, all_pkmn_counts):

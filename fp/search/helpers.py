@@ -7,33 +7,9 @@ from fp.battle.state import Pokemon
 logger = logging.getLogger(__name__)
 
 
-def log_pkmn_set(pkmn: Pokemon, source=None):
-    nature_evs = f"{pkmn.nature},{','.join(str(x) for x in pkmn.evs)}"
-    if nature_evs in [
-        "serious,85,85,85,85,85,85",
-        "serious,252,252,252,252,252,252",
-        "serious,11,11,11,11,11,11",
-    ]:
-        s = "\t{} {} {} {}".format(
-            pkmn.name.rjust(15),
-            str(pkmn.ability).rjust(12),
-            str(pkmn.item).rjust(12),
-            pkmn.moves,
-        )
-    else:
-        s = "\t{} {} {} {} {}".format(
-            pkmn.name.rjust(15),
-            nature_evs.rjust(25),
-            str(pkmn.ability).rjust(12),
-            str(pkmn.item).rjust(12),
-            pkmn.moves,
-        )
-    if pkmn.tera_type is not None and pkmn.tera_type not in ["nothing", "typeless"]:
-        s += " ttype={}".format(pkmn.tera_type)
-    if source is not None:
-        s += " source={}".format(source)
-
-    logger.info(s)
+def log_pkmn_set(_pkmn: Pokemon, source=None):
+    source_status = "configured" if source is not None else "default"
+    logger.info("Applied sampled Pokemon set source={}".format(source_status))
 
 
 def populate_pkmn_from_set(

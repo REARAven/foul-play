@@ -75,7 +75,6 @@ async def run_foul_play():
     battles_run = 0
     wins = 0
     losses = 0
-    team_file_name = "None"
     team_dict = None
     mode = battle_mode(FoulPlayConfig.format_spec.battle_type)
     while True:
@@ -85,7 +84,7 @@ async def run_foul_play():
                 if team_iterator is not None
                 else FoulPlayConfig.team_name
             )
-            team_packed, team_dict, team_file_name = load_team(team_name)
+            team_packed, team_dict, _ = load_team(team_name)
             await ps_websocket_client.update_team(team_packed)
         else:
             await ps_websocket_client.update_team("None")
@@ -112,10 +111,10 @@ async def run_foul_play():
         )
         if winner == FoulPlayConfig.username:
             wins += 1
-            logger.info("Won with team: {}".format(team_file_name))
+            logger.info("Battle won with selected team")
         else:
             losses += 1
-            logger.info("Lost with team: {}".format(team_file_name))
+            logger.info("Battle lost with selected team")
 
         logger.info("W: {}\tL: {}".format(wins, losses))
         check_dictionaries_are_unmodified(original_pokedex, original_move_json)

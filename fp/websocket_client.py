@@ -63,15 +63,28 @@ def validate_loopback_websocket_uri(address):
     return hostname
 
 
-def _redact_received_message(message):
+_REQUEST_LOG_MARKER = "<redacted>"
+
+
+def _redact_received_message(message: str) -> str:
     redacted_lines = []
     for line in message.splitlines():
         if line.startswith("|challstr|"):
             line = "|challstr|<redacted>"
         elif line.startswith("|nametaken|"):
             line = "|nametaken|<redacted>"
+        else:
+            request_match = re.match(r"^(?P<room>>[^|\r\n]+)?\|request\|", line)
+            if request_match is not None:
+                line = "{}|request|{}".format(
+                    request_match.group("room") or "", _REQUEST_LOG_MARKER
+                )
         redacted_lines.append(line)
     return "\n".join(redacted_lines)
+
+
+def _contains_team_upload(message_list: list[str]) -> bool:
+    return any(item == "/utm" or item.startswith("/utm ") for item in message_list)
 
 
 def _to_id(value):
@@ -135,12 +148,15 @@ class PSWebsocketClient:
         is_authentication = any(
             item.startswith("/trn ") for item in message_list
         )
+        is_team_upload = _contains_team_upload(message_list)
         if is_authentication:
             logger.debug("Sending authentication message to websocket")
+        elif is_team_upload:
+            logger.debug("Showdown team submitted")
         else:
             logger.debug("Sending message to websocket: {}".format(message))
         await self.websocket.send(message)
-        self.last_message = None if is_authentication else message
+        self.last_message = None if is_authentication or is_team_upload else message
 
     async def avatar(self, avatar):
         await self.send_message("", ["/avatar {}".format(avatar)])

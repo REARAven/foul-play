@@ -76,8 +76,31 @@ def unlikely_to_have_choice_item(move_name):
 
 def request(battle, split_msg):
     if len(split_msg) >= 2:
-        battle_json = json.loads(split_msg[2].strip("'"))
-        logger.debug("Received battle JSON from server: {}".format(battle_json))
+        try:
+            battle_json = json.loads(split_msg[2].strip("'"))
+        except (json.JSONDecodeError, TypeError):
+            raise ValueError("Could not parse Showdown request payload") from None
+
+        request_id = battle_json.get(constants.RQID)
+        safe_request_id = request_id if isinstance(request_id, int) else "unknown"
+        side = battle_json.get(constants.SIDE)
+        pokemon = side.get(constants.POKEMON) if isinstance(side, dict) else None
+        active = battle_json.get(constants.ACTIVE)
+        pokemon_count = len(pokemon) if isinstance(pokemon, list) else 0
+        active_count = len(active) if isinstance(active, list) else 0
+        turn = getattr(battle, "turn", None)
+        safe_turn = turn if isinstance(turn, int) else "unknown"
+        logger.debug(
+            "Received Showdown request metadata: rqid={} wait={} "
+            "force_switch={} pokemon_count={} active_slots={} turn={}".format(
+                safe_request_id,
+                bool(battle_json.get(constants.WAIT)),
+                bool(battle_json.get(constants.FORCE_SWITCH)),
+                pokemon_count,
+                active_count,
+                safe_turn,
+            )
+        )
         battle.rqid = battle_json[constants.RQID]
 
         if battle_json.get(constants.FORCE_SWITCH):
@@ -104,9 +127,7 @@ def inactive(battle, split_msg):
         except ValueError:
             logger.warning("{} is not a valid int".format(capture.group(1)))
         except AttributeError:
-            logger.warning(
-                "'{}' does not match the regex '{}'".format(split_msg[2], regex_string)
-            )
+            logger.warning("Inactive timer message did not match expected format")
 
 
 def inactiveoff(battle, _):
@@ -313,10 +334,7 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
             side.active.name = "cramorant"
 
     if side_name == "user" and user_just_switched_into_zoroark(battle, switch_or_drag):
-        logger.info(
-            "User switched/dragged into Zoroark - replacing the split_msg pokemon"
-        )
-        logger.info("Starting split_msg: {}".format(split_msg))
+        logger.info("Resolved a user illusion switch from private request metadata")
         request_json_zoroark = [
             p
             for p in battle.request_json[constants.SIDE][constants.POKEMON]
@@ -326,7 +344,6 @@ def switch_or_drag(battle, split_msg, switch_or_drag="switch"):
         request_json_zoroark = request_json_zoroark[0]
         split_msg[2] = f"{request_json_zoroark[constants.IDENT]}"
         split_msg[3] = f"{request_json_zoroark[constants.DETAILS]}"
-        logger.info("New split_msg: {}".format(split_msg))
 
     # check if the pokemon exists in the reserves
     # if it does not, then the newly-created pokemon is used (for formats without team preview)

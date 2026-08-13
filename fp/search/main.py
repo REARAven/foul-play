@@ -13,14 +13,23 @@ from fp.search.poke_engine_helpers import battle_to_poke_engine_state
 logger = logging.getLogger(__name__)
 
 
+def serialize_battle_for_search(battle: Battle, index: int) -> str:
+    try:
+        return battle_to_poke_engine_state(battle).to_string()
+    except Exception:
+        raise RuntimeError(
+            "Could not serialize battle state for search sample {}".format(index)
+        ) from None
+
+
 def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) -> str:
     final_policy = {}
     for mcts_result, sample_chance, index in mcts_results:
         this_policy = max(mcts_result.side_one, key=lambda x: x.visits)
         logger.info(
-            "Policy {}: {} visited {}% avg_score={} sample_chance_multiplier={}".format(
+            "Policy {}: selected_action visited {}% avg_score={} "
+            "sample_chance_multiplier={}".format(
                 index,
-                this_policy.move_choice,
                 round(100 * this_policy.visits / mcts_result.total_visits, 2),
                 round(this_policy.total_score / this_policy.visits, 3),
                 round(sample_chance, 3),
@@ -36,9 +45,12 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
     # Consider all moves that are close to the best move
     highest_percentage = final_policy[0][1]
     final_policy = [i for i in final_policy if i[1] >= highest_percentage * 0.75]
-    logger.info("Considered Choices:")
-    for i, policy in enumerate(final_policy):
-        logger.info(f"\t{round(policy[1] * 100, 3)}%: {policy[0]}")
+    logger.info(
+        "Considered {} choices with policy weights {}".format(
+            len(final_policy),
+            [round(policy[1] * 100, 3) for policy in final_policy],
+        )
+    )
 
     choice = random.choices(final_policy, weights=[p[1] for p in final_policy])[0]
     return choice[0]
@@ -47,10 +59,20 @@ def select_move_from_mcts_results(mcts_results: list[(MctsResult, float, int)]) 
 def get_result_from_mcts(
     state: str, search_time_ms: int, index: int, threads: int
 ) -> MctsResult:
-    logger.debug("Calling with {} state: {}".format(index, state))
-    poke_engine_state = PokeEngineState.from_string(state)
-
-    res = monte_carlo_tree_search(poke_engine_state, search_time_ms, threads=threads)
+    logger.debug(
+        "Starting MCTS sample {} with budget_ms={} threads={}".format(
+            index, search_time_ms, threads
+        )
+    )
+    try:
+        poke_engine_state = PokeEngineState.from_string(state)
+        res = monte_carlo_tree_search(
+            poke_engine_state, search_time_ms, threads=threads
+        )
+    except Exception:
+        raise RuntimeError(
+            "Poke-engine search failed for sample {}".format(index)
+        ) from None
     logger.info("Iterations {}: {}".format(index, res.total_visits))
     return res
 
@@ -73,7 +95,7 @@ def find_best_move(battle: Battle) -> str:
         for index, (b, chance) in enumerate(battles):
             fut = executor.submit(
                 get_result_from_mcts,
-                battle_to_poke_engine_state(b).to_string(),
+                serialize_battle_for_search(b, index),
                 search_time_per_battle,
                 index,
                 FoulPlayConfig.search_threads,
@@ -82,5 +104,5 @@ def find_best_move(battle: Battle) -> str:
 
     mcts_results = [(fut.result(), chance, index) for (fut, chance, index) in futures]
     choice = select_move_from_mcts_results(mcts_results)
-    logger.info("Choice: {}".format(choice))
+    logger.info("Search choice selected")
     return choice

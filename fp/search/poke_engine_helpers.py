@@ -32,7 +32,7 @@ def status_to_string(status):
         return "Toxic"
     elif status is None:
         return "None"
-    raise ValueError(f"Unknown status: {status}")
+    raise ValueError("Unknown status in battle state")
 
 
 def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
@@ -58,11 +58,8 @@ def pokemon_to_poke_engine_pkmn(pkmn: Pokemon):
     num_moves = len(pkmn.moves)
     if num_moves > 4:
         logger.warning(
-            "More than 4 moves on pokemon: {} moves: {}".format(
-                pkmn.name, [m.name for m in pkmn.moves]
-            )
+            "Battle-state Pokemon has {} moves; truncating to four".format(num_moves)
         )
-        logger.warning("Truncating moves to first 4")
         pkmn.moves = pkmn.moves[:4]
 
     pkmn_moves = [
@@ -153,11 +150,7 @@ def battler_to_poke_engine_side(
                 index += 1
             else:
                 raise ValueError(
-                    "Couldnt find future sight source: {} not in {} + {}".format(
-                        battler.future_sight[1],
-                        battler.active.name,
-                        [p.name for p in battler.reserve],
-                    )
+                    "Could not resolve future sight source in battle state"
                 )
 
     side = PokeEngineSide(
@@ -240,7 +233,7 @@ def get_weather_string(weather):
     elif weather == "none":
         return "none"
     else:
-        raise ValueError(f"Unknown weather {weather}")
+        raise ValueError("Unknown weather in battle state")
 
 
 def get_terrain_string(terrain):
@@ -257,7 +250,7 @@ def get_terrain_string(terrain):
     elif terrain == "none":
         return "none"
     else:
-        raise ValueError(f"Unknown terrain {terrain}")
+        raise ValueError("Unknown terrain in battle state")
 
 
 def replace_hidden_power_last_used_move(battler: Battler):
@@ -349,23 +342,24 @@ def poke_engine_get_damage_rolls(
     if side_two_move.startswith("switch"):
         side_two_move = "switch"
 
-    state = battle_to_poke_engine_state(battle)
-
     logger.debug(
-        "Calling calculate damage with state: {}, m1: {}, m2: {}, s1_went_first: {}".format(
-            state.to_string(),
+        "Calculating damage for battle={} turn={} side_one_went_first={}".format(
+            getattr(battle, "battle_tag", "unknown"),
+            getattr(battle, "turn", "unknown"),
+            bool(side_one_went_first),
+        )
+    )
+
+    try:
+        state = battle_to_poke_engine_state(battle)
+        s1_rolls, s2_rolls = calculate_damage(
+            state,
             side_one_move,
             side_two_move,
             side_one_went_first,
         )
-    )
-
-    s1_rolls, s2_rolls = calculate_damage(
-        state,
-        side_one_move,
-        side_two_move,
-        side_one_went_first,
-    )
+    except Exception:
+        raise RuntimeError("Poke-engine damage calculation failed") from None
 
     logger.debug(
         "Got Rolls s1_rolls: {}, s2_rolls: {}".format(

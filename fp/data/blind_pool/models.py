@@ -1,4 +1,4 @@
-"""Immutable, privacy-safe records for an external Blind Ladder registry."""
+"""Immutable, privacy-safe records for external Blind Ladder state."""
 
 from __future__ import annotations
 
@@ -34,6 +34,41 @@ class BlindPoolConfig:
 
     def __repr__(self) -> str:
         return "BlindPoolConfig(configured=True)"
+
+
+@dataclass(frozen=True, repr=False)
+class BlindPoolStateConfig:
+    """External location of persistent shuffled-bag bookkeeping."""
+
+    pool_config: BlindPoolConfig
+    state_path: Path
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.pool_config, BlindPoolConfig):
+            raise BlindPoolValidationError(
+                "state_config_invalid",
+                "Blind Ladder state configuration has an invalid type",
+            )
+        try:
+            state_path = Path(self.state_path)
+        except TypeError:
+            raise BlindPoolValidationError(
+                "state_config_path_invalid",
+                "Blind Ladder state path must be absolute",
+            ) from None
+        if not state_path.is_absolute():
+            raise BlindPoolValidationError(
+                "state_config_path_invalid",
+                "Blind Ladder state path must be absolute",
+            )
+        object.__setattr__(self, "state_path", state_path)
+
+    @property
+    def lock_path(self) -> Path:
+        return self.state_path.with_name(self.state_path.name + ".lock")
+
+    def __repr__(self) -> str:
+        return "BlindPoolStateConfig(configured=True)"
 
 
 @dataclass(frozen=True, repr=False)
@@ -89,3 +124,46 @@ class BlindPoolRegistry:
 
     def get_entry(self, team_id: str) -> BlindPoolEntry | None:
         return self._entry_by_id.get(team_id)
+
+
+@dataclass(frozen=True, repr=False)
+class BlindPoolReservation:
+    """One unresolved bag reservation without private team material."""
+
+    reservation_id: str
+    team_id: str
+    cycle_number: int
+    position: int
+    phase: str
+
+    def __repr__(self) -> str:
+        return (
+            "BlindPoolReservation(cycle_number={!r}, position={!r}, phase={!r})"
+        ).format(self.cycle_number, self.position, self.phase)
+
+
+@dataclass(frozen=True, repr=False)
+class BlindPoolBagState:
+    """Validated persistent shuffled-bag state."""
+
+    schema_version: int
+    registry_fingerprint: str
+    cycle_number: int
+    cycle_order: tuple[str, ...]
+    next_index: int
+    last_consumed_id: str | None
+    reservation: BlindPoolReservation | None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "cycle_order", tuple(self.cycle_order))
+
+    def __repr__(self) -> str:
+        return (
+            "BlindPoolBagState(cycle_number={!r}, entry_count={!r}, "
+            "next_index={!r}, reservation_pending={!r})"
+        ).format(
+            self.cycle_number,
+            len(self.cycle_order),
+            self.next_index,
+            self.reservation is not None,
+        )

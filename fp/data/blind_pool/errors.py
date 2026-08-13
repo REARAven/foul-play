@@ -1,10 +1,10 @@
-"""Sanitized errors for external Blind Ladder registry configuration."""
+"""Sanitized errors for external Blind Ladder configuration and state."""
 
 from __future__ import annotations
 
 
 class BlindPoolValidationError(ValueError):
-    """A fail-fast configuration, registry, or integrity validation error."""
+    """A fail-fast configuration, registry, integrity, or state error."""
 
     def __init__(
         self,

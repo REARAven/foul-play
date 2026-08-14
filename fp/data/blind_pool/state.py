@@ -20,8 +20,14 @@ from .models import (
 )
 
 
+# The JSON shape is unchanged from Phase 3 and old ``reserved`` documents remain
+# valid, so extending the closed phase enum does not require a schema bump.
+# A pre-Phase-4 reader may correctly reject a durable ``accept_sent`` state;
+# this is forward compatibility for existing data, not rollback compatibility.
 STATE_SCHEMA_VERSION = 1
 RESERVATION_PHASE = "reserved"
+ACCEPT_SENT_PHASE = "accept_sent"
+RESERVATION_PHASES = frozenset({RESERVATION_PHASE, ACCEPT_SENT_PHASE})
 
 _UNSUPPORTED_DIRECTORY_FSYNC_ERRNOS = frozenset(
     value
@@ -121,7 +127,7 @@ def _validate_reservation(
             "state_reservation_invalid",
             "Blind Ladder reservation team ID is invalid",
         )
-    if value["phase"] != RESERVATION_PHASE:
+    if value["phase"] not in RESERVATION_PHASES:
         _fail(
             "reservation_phase_invalid",
             "Blind Ladder reservation phase is unsupported",
@@ -156,7 +162,7 @@ def _validate_reservation(
         team_id=team_id,
         cycle_number=cycle_number,
         position=next_index,
-        phase=RESERVATION_PHASE,
+        phase=value["phase"],
     )
 
 

@@ -167,3 +167,43 @@ class BlindPoolBagState:
             self.next_index,
             self.reservation is not None,
         )
+
+
+@dataclass(frozen=True, repr=False)
+class BlindPoolChallenge:
+    """Minimal process-local identity for one supported incoming challenge."""
+
+    challenger_id: str
+    challenger_name: str
+    format_id: str
+    source: str
+
+    @property
+    def deduplication_identity(self) -> tuple[str, str]:
+        """No durable server challenge ID exists in the supported PM grammar."""
+
+        return self.challenger_id, self.format_id
+
+    def __repr__(self) -> str:
+        return "BlindPoolChallenge(format_id={!r}, source={!r})".format(
+            self.format_id,
+            self.source,
+        )
+
+
+@dataclass(frozen=True, repr=False)
+class BlindPoolBattleRoom:
+    """Exactly correlated battle-room metadata without retained raw traffic."""
+
+    room_id: str
+    format_id: str
+    opponent_id: str
+    opponent_name: str
+    bot_slot: str
+    opponent_slot: str
+
+    def __repr__(self) -> str:
+        return "BlindPoolBattleRoom(room_id={!r}, format_id={!r})".format(
+            self.room_id,
+            self.format_id,
+        )

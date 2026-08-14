@@ -21,6 +21,7 @@ from .models import (
     BlindPoolStateConfig,
 )
 from .state import (
+    ACCEPT_SENT_PHASE,
     RESERVATION_PHASE,
     STATE_SCHEMA_VERSION,
     load_blind_pool_bag_state,
@@ -251,6 +252,8 @@ class BlindPoolBagStore:
         self,
         state: BlindPoolBagState,
         reservation_id: str,
+        *,
+        required_phase: str | None = None,
     ) -> BlindPoolReservation:
         if (
             not isinstance(reservation_id, str)
@@ -270,14 +273,54 @@ class BlindPoolBagStore:
                 "reservation_identity_mismatch",
                 "Blind Ladder reservation identity does not match",
             ) from None
+        if required_phase is not None and state.reservation.phase != required_phase:
+            raise BlindPoolValidationError(
+                "reservation_phase_transition_invalid",
+                "Blind Ladder reservation phase does not permit this transition",
+            ) from None
         return state.reservation
 
-    def commit_reservation(self, reservation_id: str) -> BlindPoolBagState:
-        """Consume exactly the reservation identified by the caller."""
+    def mark_accept_sent(self, reservation_id: str) -> BlindPoolBagState:
+        """Persist that acceptance may now have been transmitted.
+
+        This write-ahead marker is deliberately durable before a caller attempts
+        the websocket send. It does not claim that transmission succeeded.
+        """
 
         with self._lock():
             state = load_blind_pool_bag_state(self._config, self._registry)
-            reservation = self._active_reservation(state, reservation_id)
+            reservation = self._active_reservation(
+                state,
+                reservation_id,
+                required_phase=RESERVATION_PHASE,
+            )
+            updated = replace(
+                state,
+                reservation=replace(reservation, phase=ACCEPT_SENT_PHASE),
+            )
+            write_blind_pool_bag_state_atomic(self._config, updated, self._registry)
+            logger.info(
+                "Marked Blind Ladder acceptance pending team_id={} cycle={} "
+                "position={}".format(
+                    reservation.team_id,
+                    reservation.cycle_number,
+                    reservation.position,
+                )
+            )
+            return updated
+
+    def _commit_reservation_in_phase(
+        self,
+        reservation_id: str,
+        required_phase: str,
+    ) -> BlindPoolBagState:
+        with self._lock():
+            state = load_blind_pool_bag_state(self._config, self._registry)
+            reservation = self._active_reservation(
+                state,
+                reservation_id,
+                required_phase=required_phase,
+            )
             updated = replace(
                 state,
                 next_index=state.next_index + 1,
@@ -294,16 +337,72 @@ class BlindPoolBagStore:
             )
             return updated
 
+    def commit_reservation(self, reservation_id: str) -> BlindPoolBagState:
+        """Consume exactly the reservation identified by the caller."""
+
+        return self._commit_reservation_in_phase(
+            reservation_id,
+            RESERVATION_PHASE,
+        )
+
+    def commit_room_created(self, reservation_id: str) -> BlindPoolBagState:
+        """Consume one write-ahead reservation after exact room correlation."""
+
+        return self._commit_reservation_in_phase(
+            reservation_id,
+            ACCEPT_SENT_PHASE,
+        )
+
+    def reconcile_accept_sent_as_room_created(
+        self,
+        reservation_id: str,
+    ) -> BlindPoolBagState:
+        """Explicitly consume an ambiguously accepted reservation."""
+
+        return self._commit_reservation_in_phase(
+            reservation_id,
+            ACCEPT_SENT_PHASE,
+        )
+
     def release_reservation(self, reservation_id: str) -> BlindPoolBagState:
         """Clear exactly one reservation without consuming its position."""
 
         with self._lock():
             state = load_blind_pool_bag_state(self._config, self._registry)
-            reservation = self._active_reservation(state, reservation_id)
+            reservation = self._active_reservation(
+                state,
+                reservation_id,
+                required_phase=RESERVATION_PHASE,
+            )
             updated = replace(state, reservation=None)
             write_blind_pool_bag_state_atomic(self._config, updated, self._registry)
             logger.info(
                 "Released Blind Ladder team_id={} cycle={} position={}".format(
+                    reservation.team_id,
+                    reservation.cycle_number,
+                    reservation.position,
+                )
+            )
+            return updated
+
+    def reconcile_accept_sent_as_no_room(
+        self,
+        reservation_id: str,
+    ) -> BlindPoolBagState:
+        """Explicitly release an ambiguously accepted reservation without use."""
+
+        with self._lock():
+            state = load_blind_pool_bag_state(self._config, self._registry)
+            reservation = self._active_reservation(
+                state,
+                reservation_id,
+                required_phase=ACCEPT_SENT_PHASE,
+            )
+            updated = replace(state, reservation=None)
+            write_blind_pool_bag_state_atomic(self._config, updated, self._registry)
+            logger.info(
+                "Reconciled Blind Ladder no-room outcome team_id={} cycle={} "
+                "position={}".format(
                     reservation.team_id,
                     reservation.cycle_number,
                     reservation.position,

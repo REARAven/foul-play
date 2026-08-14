@@ -832,7 +832,7 @@ class TestBlindPoolBagStateValidation(BlindPoolBagFixture):
         valid = self.state_document()
         for field, value, code in (
             ("reservation_id", PRIVATE_SENTINEL, "reservation_id_invalid"),
-            ("phase", "accept_sent", "reservation_phase_invalid"),
+            ("phase", "arbitrary", "reservation_phase_invalid"),
         ):
             with self.subTest(field=field):
                 document = copy.deepcopy(valid)

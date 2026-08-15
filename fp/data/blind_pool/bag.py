@@ -10,15 +10,20 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Callable, Protocol
 
+from .canonical_models import CanonicalRuntimeRegistry
 from .config import validate_blind_pool_state_config
 from .errors import BlindPoolValidationError
-from .fingerprint import compute_registry_fingerprint
 from .locking import BlindPoolStateLock
 from .models import (
     BlindPoolBagState,
     BlindPoolRegistry,
     BlindPoolReservation,
     BlindPoolStateConfig,
+)
+from .selection import (
+    BlindPoolSelectionSnapshot,
+    create_canonical_selection_snapshot,
+    create_raw_selection_snapshot,
 )
 from .state import (
     ACCEPT_SENT_PHASE,
@@ -41,9 +46,10 @@ class ShuffleSource(Protocol):
 
 
 class BlindPoolBagStore:
-    """A persistent bag bound to one immutable validated registry snapshot.
+    """A persistent bag bound to one immutable validated selection snapshot.
 
-    Callers that deliberately reload registry data must construct a new store;
+    Raw-registry construction remains backward compatible. Callers that
+    deliberately reload pool data must construct a new store;
     existing state is never reset automatically when registry semantics change.
     """
 
@@ -56,26 +62,95 @@ class BlindPoolBagStore:
         reservation_id_factory: Callable[[], str] | None = None,
         lock_timeout_seconds: float = 5.0,
     ) -> None:
-        self._config = validate_blind_pool_state_config(config)
+        validated_config = validate_blind_pool_state_config(config)
         if not isinstance(registry, BlindPoolRegistry):
             raise BlindPoolValidationError(
                 "registry_type_invalid",
                 "Blind Ladder registry has an invalid type",
             ) from None
+        selection = create_raw_selection_snapshot(
+            registry,
+            registry_path=validated_config.pool_config.registry_path,
+        )
+        self._initialize(
+            validated_config,
+            selection,
+            random_source=random_source,
+            reservation_id_factory=reservation_id_factory,
+            lock_timeout_seconds=lock_timeout_seconds,
+        )
+
+    @classmethod
+    def from_selection_snapshot(
+        cls,
+        config: BlindPoolStateConfig,
+        selection: BlindPoolSelectionSnapshot,
+        *,
+        random_source: ShuffleSource | None = None,
+        reservation_id_factory: Callable[[], str] | None = None,
+        lock_timeout_seconds: float = 5.0,
+    ) -> BlindPoolBagStore:
+        """Construct explicitly from an already validated selection snapshot."""
+
+        if not isinstance(selection, BlindPoolSelectionSnapshot):
+            raise BlindPoolValidationError(
+                "selection_type_invalid",
+                "Blind Ladder selection snapshot has an invalid type",
+            ) from None
+        store = cls.__new__(cls)
+        store._initialize(
+            config,
+            selection,
+            random_source=random_source,
+            reservation_id_factory=reservation_id_factory,
+            lock_timeout_seconds=lock_timeout_seconds,
+        )
+        return store
+
+    @classmethod
+    def from_canonical_registry(
+        cls,
+        config: BlindPoolStateConfig,
+        registry: CanonicalRuntimeRegistry,
+        *,
+        random_source: ShuffleSource | None = None,
+        reservation_id_factory: Callable[[], str] | None = None,
+        lock_timeout_seconds: float = 5.0,
+    ) -> BlindPoolBagStore:
+        """Construct explicitly from a committed canonical runtime registry."""
+
+        return cls.from_selection_snapshot(
+            config,
+            create_canonical_selection_snapshot(registry),
+            random_source=random_source,
+            reservation_id_factory=reservation_id_factory,
+            lock_timeout_seconds=lock_timeout_seconds,
+        )
+
+    def _initialize(
+        self,
+        config: BlindPoolStateConfig,
+        selection: BlindPoolSelectionSnapshot,
+        *,
+        random_source: ShuffleSource | None,
+        reservation_id_factory: Callable[[], str] | None,
+        lock_timeout_seconds: float,
+    ) -> None:
+        self._config = validate_blind_pool_state_config(config)
         self._lock_path = self._resolve_lock_path(self._config)
         self._validate_artifact_collisions(
             self._config,
             self._lock_path,
-            registry,
+            selection,
         )
-        if len(registry.active_entries) < 2:
+        if len(selection.active_ids) < 2:
             raise BlindPoolValidationError(
                 "insufficient_active_entries",
                 "Blind Ladder shuffled bag requires at least two active entries",
             ) from None
-        self._registry = registry
-        self._fingerprint = compute_registry_fingerprint(registry)
-        self._active_ids = tuple(entry.team_id for entry in registry.active_entries)
+        self._selection = selection
+        self._fingerprint = selection.registry_fingerprint
+        self._active_ids = selection.active_ids
         self._random = random.SystemRandom() if random_source is None else random_source
         self._reservation_id_factory = reservation_id_factory or (
             lambda: uuid.uuid4().hex
@@ -99,24 +174,13 @@ class BlindPoolBagStore:
     def _validate_artifact_collisions(
         config: BlindPoolStateConfig,
         lock_path: Path,
-        registry: BlindPoolRegistry,
+        selection: BlindPoolSelectionSnapshot,
     ) -> None:
-        team_paths = {entry.resolved_team_path for entry in registry.entries}
-        if config.pool_config.registry_path in team_paths:
-            raise BlindPoolValidationError(
-                "registry_team_file_collision",
-                "Blind Ladder registry must not replace a registered team file",
-            ) from None
-        if config.state_path in team_paths:
-            raise BlindPoolValidationError(
-                "state_team_file_collision",
-                "Blind Ladder state must not replace a registered team file",
-            ) from None
-        if lock_path in team_paths:
-            raise BlindPoolValidationError(
-                "state_lock_team_file_collision",
-                "Blind Ladder state lock must not use a registered team file",
-            ) from None
+        selection._validate_collision_paths(
+            configured_registry_path=config.pool_config.registry_path,
+            state_path=config.state_path,
+            lock_path=lock_path,
+        )
 
     def _lock(self) -> BlindPoolStateLock:
         config = validate_blind_pool_state_config(self._config)
@@ -131,7 +195,7 @@ class BlindPoolBagStore:
                 "state_lock_path_changed",
                 "Blind Ladder state lock path changed after configuration",
             ) from None
-        self._validate_artifact_collisions(config, lock_path, self._registry)
+        self._validate_artifact_collisions(config, lock_path, self._selection)
         return BlindPoolStateLock(
             lock_path,
             timeout_seconds=self._lock_timeout_seconds,
@@ -168,7 +232,7 @@ class BlindPoolBagStore:
                 "last_consumed_id": state.last_consumed_id,
                 "reservation": None,
             },
-            self._registry,
+            self._selection,
         )
 
     def initialize_or_load(self) -> BlindPoolBagState:
@@ -176,9 +240,9 @@ class BlindPoolBagStore:
 
         with self._lock():
             if self._config.state_path.exists():
-                return load_blind_pool_bag_state(self._config, self._registry)
+                return load_blind_pool_bag_state(self._config, self._selection)
             state = self._initial_state()
-            write_blind_pool_bag_state_atomic(self._config, state, self._registry)
+            write_blind_pool_bag_state_atomic(self._config, state, self._selection)
             logger.info(
                 "Initialized Blind Ladder bag active={} cycle={} "
                 "next_position={}".format(
@@ -191,13 +255,13 @@ class BlindPoolBagStore:
         """Return the latest state, including any unresolved reservation."""
 
         with self._lock():
-            return load_blind_pool_bag_state(self._config, self._registry)
+            return load_blind_pool_bag_state(self._config, self._selection)
 
     def reserve_next(self) -> BlindPoolReservation:
         """Persist a reservation for the next unconsumed cycle position."""
 
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._registry)
+            state = load_blind_pool_bag_state(self._config, self._selection)
             if state.reservation is not None:
                 raise BlindPoolValidationError(
                     "unresolved_reservation_exists",
@@ -236,7 +300,7 @@ class BlindPoolBagStore:
                 phase=RESERVATION_PHASE,
             )
             updated = replace(state, reservation=reservation)
-            write_blind_pool_bag_state_atomic(self._config, updated, self._registry)
+            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
                 "Reserved Blind Ladder team_id={} cycle={} position={}".format(
                     reservation.team_id,
@@ -286,7 +350,7 @@ class BlindPoolBagStore:
         """
 
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._registry)
+            state = load_blind_pool_bag_state(self._config, self._selection)
             reservation = self._active_reservation(
                 state,
                 reservation_id,
@@ -296,7 +360,7 @@ class BlindPoolBagStore:
                 state,
                 reservation=replace(reservation, phase=ACCEPT_SENT_PHASE),
             )
-            write_blind_pool_bag_state_atomic(self._config, updated, self._registry)
+            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
                 "Marked Blind Ladder acceptance pending team_id={} cycle={} "
                 "position={}".format(
@@ -313,7 +377,7 @@ class BlindPoolBagStore:
         required_phase: str,
     ) -> BlindPoolBagState:
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._registry)
+            state = load_blind_pool_bag_state(self._config, self._selection)
             reservation = self._active_reservation(
                 state,
                 reservation_id,
@@ -325,7 +389,7 @@ class BlindPoolBagStore:
                 last_consumed_id=reservation.team_id,
                 reservation=None,
             )
-            write_blind_pool_bag_state_atomic(self._config, updated, self._registry)
+            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
                 "Committed Blind Ladder team_id={} cycle={} position={}".format(
                     reservation.team_id,
@@ -366,14 +430,14 @@ class BlindPoolBagStore:
         """Clear exactly one reservation without consuming its position."""
 
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._registry)
+            state = load_blind_pool_bag_state(self._config, self._selection)
             reservation = self._active_reservation(
                 state,
                 reservation_id,
                 required_phase=RESERVATION_PHASE,
             )
             updated = replace(state, reservation=None)
-            write_blind_pool_bag_state_atomic(self._config, updated, self._registry)
+            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
                 "Released Blind Ladder team_id={} cycle={} position={}".format(
                     reservation.team_id,
@@ -390,14 +454,14 @@ class BlindPoolBagStore:
         """Explicitly release an ambiguously accepted reservation without use."""
 
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._registry)
+            state = load_blind_pool_bag_state(self._config, self._selection)
             reservation = self._active_reservation(
                 state,
                 reservation_id,
                 required_phase=ACCEPT_SENT_PHASE,
             )
             updated = replace(state, reservation=None)
-            write_blind_pool_bag_state_atomic(self._config, updated, self._registry)
+            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
                 "Reconciled Blind Ladder no-room outcome team_id={} cycle={} "
                 "position={}".format(

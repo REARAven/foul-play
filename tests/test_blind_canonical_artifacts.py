@@ -480,6 +480,8 @@ import fp.data.blind_pool.canonical_models as canonical_models
 import fp.data.blind_pool.canonical_registry as canonical_registry
 import fp.data.blind_pool.canonical_sidecar as canonical_sidecar
 import fp.data.blind_pool.canonical_artifacts as canonical_artifacts
+import fp.data.blind_pool.selection as selection
+import fp.data.blind_pool.canonical_runtime as canonical_runtime
 def blocked(*args, **kwargs):
     raise AssertionError('side effect')
 os.scandir = blocked
@@ -492,6 +494,8 @@ importlib.reload(canonical_models)
 importlib.reload(canonical_registry)
 importlib.reload(canonical_sidecar)
 importlib.reload(canonical_artifacts)
+importlib.reload(selection)
+importlib.reload(canonical_runtime)
 """
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(repository)

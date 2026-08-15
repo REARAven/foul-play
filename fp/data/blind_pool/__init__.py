@@ -27,6 +27,10 @@ from .canonical_registry import (
     compute_canonical_registry_fingerprint,
     load_canonical_runtime_registry,
 )
+from .canonical_runtime import (
+    CanonicalBlindRuntime,
+    CanonicalBlindRuntimeSession,
+)
 from .config import (
     PRIVATE_ROOT_ENV,
     REGISTRY_PATH_ENV,
@@ -68,6 +72,11 @@ from .models import (
     BlindPoolReservation,
     BlindPoolStateConfig,
 )
+from .selection import (
+    BlindPoolSelectionSnapshot,
+    create_canonical_selection_snapshot,
+    create_raw_selection_snapshot,
+)
 from .state import STATE_SCHEMA_VERSION, validate_blind_pool_bag_state
 
 __all__ = (
@@ -101,10 +110,15 @@ __all__ = (
     "BlindPoolValidationError",
     "BlindRoomCorrelator",
     "CanonicalArtifactError",
+    "CanonicalBlindRuntime",
+    "CanonicalBlindRuntimeSession",
     "CanonicalRuntimeRegistry",
     "CanonicalTeamArtifact",
+    "BlindPoolSelectionSnapshot",
     "compute_canonical_registry_fingerprint",
     "compute_registry_fingerprint",
+    "create_canonical_selection_snapshot",
+    "create_raw_selection_snapshot",
     "get_active_blind_pool_entries",
     "get_blind_pool_entry_by_id",
     "load_blind_pool_config",

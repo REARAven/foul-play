@@ -239,6 +239,7 @@ class CanonicalRuntimeRegistry:
     metadata_schema_version: int
     entries: tuple[CanonicalRegistryEntry, ...]
     _private_root: Path = field(repr=False)
+    _registry_path: Path = field(repr=False)
     _metadata: tuple[CanonicalArtifactMetadata, ...] = field(repr=False)
     _fingerprint: str = field(repr=False)
     _construction_token: object = field(repr=False)

@@ -825,6 +825,7 @@ def load_canonical_runtime_registry(
         metadata_schema_version=metadata_schema_version,
         entries=entries,
         _private_root=resolved_root,
+        _registry_path=resolved_registry,
         _metadata=tuple(metadata_items),
         _fingerprint=fingerprint,
         _construction_token=_CANONICAL_CONSTRUCTION_TOKEN,

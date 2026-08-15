@@ -11,13 +11,13 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 from .errors import BlindPoolValidationError
-from .fingerprint import compute_registry_fingerprint
 from .models import (
     BlindPoolBagState,
     BlindPoolRegistry,
     BlindPoolReservation,
     BlindPoolStateConfig,
 )
+from .selection import BlindPoolSelectionSnapshot, coerce_selection_snapshot
 
 
 # The JSON shape is unchanged from Phase 3 and old ``reserved`` documents remain
@@ -168,12 +168,11 @@ def _validate_reservation(
 
 def validate_blind_pool_bag_state(
     document: Any,
-    registry: BlindPoolRegistry,
+    registry: BlindPoolSelectionSnapshot | BlindPoolRegistry,
 ) -> BlindPoolBagState:
     """Validate decoded state against current validated registry semantics."""
 
-    if not isinstance(registry, BlindPoolRegistry):
-        _fail("registry_type_invalid", "Blind Ladder registry has an invalid type")
+    selection = coerce_selection_snapshot(registry)
     if not isinstance(document, dict):
         _fail("state_document_invalid", "Blind Ladder state must be an object")
     _validate_exact_fields(document, _TOP_LEVEL_FIELDS, context="Blind Ladder state")
@@ -193,7 +192,7 @@ def validate_blind_pool_bag_state(
             "state_fingerprint_invalid",
             "Blind Ladder registry fingerprint is malformed",
         )
-    if fingerprint != compute_registry_fingerprint(registry):
+    if fingerprint != selection.registry_fingerprint:
         _fail(
             "registry_fingerprint_mismatch",
             "Blind Ladder state does not match the registry",
@@ -216,7 +215,7 @@ def validate_blind_pool_bag_state(
             "state_cycle_order_duplicate",
             "Blind Ladder cycle order contains duplicate IDs",
         )
-    active_ids = {entry.team_id for entry in registry.active_entries}
+    active_ids = set(selection.active_ids)
     if set(cycle_order) != active_ids or len(cycle_order) != len(active_ids):
         _fail(
             "state_cycle_order_mismatch",
@@ -275,7 +274,7 @@ def validate_blind_pool_bag_state(
 
 def load_blind_pool_bag_state(
     config: BlindPoolStateConfig,
-    registry: BlindPoolRegistry,
+    registry: BlindPoolSelectionSnapshot | BlindPoolRegistry,
 ) -> BlindPoolBagState:
     """Read one state file; callers must hold its transaction lock."""
 
@@ -359,7 +358,7 @@ def _fsync_directory(path: Path) -> None:
 def write_blind_pool_bag_state_atomic(
     config: BlindPoolStateConfig,
     state: BlindPoolBagState,
-    registry: BlindPoolRegistry,
+    registry: BlindPoolSelectionSnapshot | BlindPoolRegistry,
 ) -> None:
     """Replace state from a flushed unique sibling file without in-place writes."""
 

@@ -87,9 +87,7 @@ class TestBattleToPokeEngineState:
         assert battle_to_poke_engine_state(battle).team_preview
 
     @pytest.mark.parametrize("turns_remaining", [2, 6, 8])
-    def test_observed_trick_room_turns_are_serialized_unchanged(
-        self, turns_remaining
-    ):
+    def test_observed_trick_room_turns_are_serialized_unchanged(self, turns_remaining):
         battle = small_battle()
         battle.trick_room_turns_remaining = turns_remaining
         battle.trick_room_duration_uncertain = True

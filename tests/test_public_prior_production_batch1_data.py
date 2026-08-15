@@ -326,13 +326,22 @@ class TestBatchOneDocument(unittest.TestCase):
         )
 
     def test_04_new_records_are_complete_coherent_public_schema_values(self):
-        setup_moves = {"bulkup", "calmmind", "curse", "dragondance", "nastyplot", "swordsdance"}
+        setup_moves = {
+            "bulkup",
+            "calmmind",
+            "curse",
+            "dragondance",
+            "nastyplot",
+            "swordsdance",
+        }
         choice_items = {"choiceband", "choicescarf", "choicespecs"}
         for species_id, expected_ids in NEW_VARIANT_IDS.items():
             record = self.dataset_1_1.get_species(species_id)
             with self.subTest(species=species_id):
                 self.assertIsNotNone(record)
-                self.assertEqual(expected_ids, tuple(v.variant_id for v in record.variants))
+                self.assertEqual(
+                    expected_ids, tuple(v.variant_id for v in record.variants)
+                )
                 self.assertIn(len(record.variants), (2, 3))
             for variant in record.variants:
                 with self.subTest(species=species_id, variant=variant.variant_id):
@@ -342,11 +351,18 @@ class TestBatchOneDocument(unittest.TestCase):
                     self.assertEqual(4, len(set(variant.move_ids)))
                     self.assertLessEqual(sum(variant.evs.as_tuple()), 510)
                     self.assertEqual(6, len(variant.ivs.as_tuple()))
-                    self.assertTrue(all(0 <= value <= 31 for value in variant.ivs.as_tuple()))
+                    self.assertTrue(
+                        all(0 <= value <= 31 for value in variant.ivs.as_tuple())
+                    )
                     self.assertEqual(100, variant.level)
                     self.assertEqual(SOURCE_IDS, variant.source_ids)
                     self.assertEqual(
-                        {"role", "rationale", "distinguishing_evidence", "weight_reason"},
+                        {
+                            "role",
+                            "rationale",
+                            "distinguishing_evidence",
+                            "weight_reason",
+                        },
                         set(variant.metadata),
                     )
                     self.assertTrue(all(variant.metadata.values()))
@@ -387,7 +403,9 @@ class TestBatchOneDocument(unittest.TestCase):
             os.environ.get("TUGS_SHOWDOWN_ROOT", ROOT.parent / "TUGS-showdown")
         ).resolve()
         node = shutil.which("node")
-        self.assertIsNotNone(node, "Node.js is required for the TUGS TeamValidator test")
+        self.assertIsNotNone(
+            node, "Node.js is required for the TUGS TeamValidator test"
+        )
         self.assertTrue((server_root / "dist" / "sim" / "team-validator.js").is_file())
         validator_script = r"""
 const fs = require('fs');

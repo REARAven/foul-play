@@ -163,9 +163,8 @@ class Battle:
             if pokemon.name != source_species_id:
                 pokemon.unknown_forme = True
 
-            if (
-                not pokemon.unknown_forme
-                and pokemon.name in smart_team_preview.get(battle_type, {})
+            if not pokemon.unknown_forme and pokemon.name in smart_team_preview.get(
+                battle_type, {}
             ):
                 new_pokemon_name = smart_team_preview[battle_type][pokemon.name]
                 logger.info(
@@ -640,17 +639,13 @@ class Battler:
                 )
                 team_ivs = team_dict_pkmn.get("ivs", {})
                 pkmn.ivs = tuple(
-                    31
-                    if team_ivs.get(stat) in (None, "")
-                    else int(team_ivs[stat])
+                    31 if team_ivs.get(stat) in (None, "") else int(team_ivs[stat])
                     for stat in ("hp", "atk", "def", "spa", "spd", "spe")
                 )
 
 
 class Pokemon:
-    def __init__(
-        self, name: str, level: int, nature="serious", evs=None, ivs=None
-    ):
+    def __init__(self, name: str, level: int, nature="serious", evs=None, ivs=None):
         if evs is None:
             evs = random_battles_evs()
         if ivs is None:

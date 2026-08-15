@@ -86,9 +86,7 @@ class TestWebsocketPrivacy(unittest.TestCase):
         client = _client()
 
         with self.assertLogs("fp.websocket_client", logging.DEBUG) as captured:
-            asyncio.run(
-                client.send_message("battle-gen9tugs-safe", ["/move 1|7"])
-            )
+            asyncio.run(client.send_message("battle-gen9tugs-safe", ["/move 1|7"]))
 
         expected = "battle-gen9tugs-safe|/move 1|7"
         self.assertEqual([expected], client.websocket.sent)
@@ -120,18 +118,14 @@ class TestWebsocketPrivacy(unittest.TestCase):
         for message, expected_log_fragment, redaction_count in cases:
             with self.subTest(message_kind=expected_log_fragment):
                 client = _client((message,))
-                with self.assertLogs(
-                    "fp.websocket_client", logging.DEBUG
-                ) as captured:
+                with self.assertLogs("fp.websocket_client", logging.DEBUG) as captured:
                     received = asyncio.run(client.receive_message())
 
                 output = "\n".join(captured.output)
                 self.assertEqual(message, received)
                 self.assertNotIn(PRIVATE_SENTINEL, output)
                 self.assertIn(expected_log_fragment, output)
-                self.assertEqual(
-                    redaction_count, output.count("|request|<redacted>")
-                )
+                self.assertEqual(redaction_count, output.count("|request|<redacted>"))
                 if "|turn|4" in message:
                     self.assertIn("|turn|4", output)
 
@@ -212,9 +206,7 @@ class TestRequestPrivacy(unittest.TestCase):
             "private": PRIVATE_SENTINEL,
         }
         request_document = {
-            constants.SIDE: {
-                constants.POKEMON: [private_entry, private_entry.copy()]
-            }
+            constants.SIDE: {constants.POKEMON: [private_entry, private_entry.copy()]}
         }
 
         with self.assertRaises(ValueError) as captured:
@@ -446,9 +438,7 @@ class TestSearchPrivacy(unittest.TestCase):
             poke_engine_helpers,
             "calculate_damage",
             return_value=([10, 11], [20, 21]),
-        ), self.assertLogs(
-            "fp.search.poke_engine_helpers", logging.DEBUG
-        ) as captured:
+        ), self.assertLogs("fp.search.poke_engine_helpers", logging.DEBUG) as captured:
             rolls = poke_engine_helpers.poke_engine_get_damage_rolls(
                 SimpleNamespace(battle_tag="battle-gen9tugs-safe", turn=8),
                 "move-one",
@@ -470,9 +460,7 @@ class TestSearchPrivacy(unittest.TestCase):
             poke_engine_helpers,
             "battle_to_poke_engine_state",
             return_value=object(),
-        ), mock.patch.object(
-            poke_engine_helpers, "calculate_damage", fail_damage
-        ):
+        ), mock.patch.object(poke_engine_helpers, "calculate_damage", fail_damage):
             with self.assertRaises(RuntimeError) as captured:
                 poke_engine_helpers.poke_engine_get_damage_rolls(
                     SimpleNamespace(battle_tag="battle-safe", turn=1),
@@ -497,9 +485,7 @@ class TestLegacyTeamPrivacy(unittest.TestCase):
             load_team_module.os.path, "isdir", return_value=False
         ), mock.patch.object(
             load_team_module.os.path, "isfile", return_value=True
-        ), mock.patch(
-            "builtins.open", mock.mock_open(read_data=export)
-        ):
+        ), mock.patch("builtins.open", mock.mock_open(read_data=export)):
             packed, structured, filename = load_team_module.load_team("legacy-team")
 
         self.assertTrue(packed)
@@ -512,9 +498,7 @@ class TestLegacyTeamPrivacy(unittest.TestCase):
         load_team_module = importlib.import_module("fp.teams.load_team")
         with mock.patch.object(
             load_team_module.os.path, "isdir", return_value=False
-        ), mock.patch.object(
-            load_team_module.os.path, "isfile", return_value=False
-        ):
+        ), mock.patch.object(load_team_module.os.path, "isfile", return_value=False):
             with self.assertRaises(ValueError) as captured:
                 load_team_module.load_team(PRIVATE_SENTINEL)
 
@@ -529,9 +513,7 @@ class TestLegacyTeamPrivacy(unittest.TestCase):
             load_team_module.os.path, "isdir", return_value=False
         ), mock.patch.object(
             load_team_module.os.path, "isfile", return_value=True
-        ), mock.patch(
-            "builtins.open", side_effect=OSError(PRIVATE_SENTINEL)
-        ):
+        ), mock.patch("builtins.open", side_effect=OSError(PRIVATE_SENTINEL)):
             with self.assertRaises(ValueError) as captured:
                 load_team_module.load_team(PRIVATE_SENTINEL)
 

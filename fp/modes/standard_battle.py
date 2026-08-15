@@ -123,9 +123,7 @@ class StandardBattleMode(BattleMode):
         return battle
 
     @staticmethod
-    def match_team_preview(
-        battle, team_pool_registry: TeamPoolRegistry | None = None
-    ):
+    def match_team_preview(battle, team_pool_registry: TeamPoolRegistry | None = None):
         """Match the fully initialized opponent preview into battle-local state."""
 
         battle.team_inference.match_preview(
@@ -150,10 +148,7 @@ class StandardBattleMode(BattleMode):
     @staticmethod
     def generic_datasets_enabled(battle) -> bool:
         context = battle.public_prior_context
-        return (
-            context is None
-            or context.fallback_policy is PublicPriorFallback.GENERIC
-        )
+        return context is None or context.fallback_policy is PublicPriorFallback.GENERIC
 
     def initialize_datasets_if_enabled(
         self,
@@ -190,10 +185,7 @@ class StandardBattleMode(BattleMode):
         # for standard battles gen4 and lower
         # we want to add the new pokemon to the datasets as they are revealed
         # because there is no teampreview
-        if (
-            self.generic_datasets_enabled(battle)
-            and not battle.gen.has_team_preview
-        ):
+        if self.generic_datasets_enabled(battle) and not battle.gen.has_team_preview:
             self.smogon_sets.add_new_pokemon(pkmn.name)
             self.team_datasets.add_new_pokemon(pkmn.name)
             logger.info("Adding new pokemon '{}' to the datasets".format(pkmn.name))

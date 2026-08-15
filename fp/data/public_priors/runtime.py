@@ -45,7 +45,9 @@ class PublicPriorStartupOptions:
         if not paths or not all(isinstance(path, str) and path for path in paths):
             raise ValueError("file_paths must contain explicit nonempty local paths")
         if not isinstance(self.fallback_policy, PublicPriorFallback):
-            raise TypeError("fallback_policy must be PublicPriorFallback.GENERIC or NONE")
+            raise TypeError(
+                "fallback_policy must be PublicPriorFallback.GENERIC or NONE"
+            )
         object.__setattr__(self, "file_paths", paths)
 
 
@@ -69,7 +71,9 @@ class PublicPriorRuntimeConfiguration:
         if len(set(identities)) != len(identities):
             raise ValueError("duplicate selected public-prior identity")
         if not isinstance(self.fallback_policy, PublicPriorFallback):
-            raise TypeError("fallback_policy must be PublicPriorFallback.GENERIC or NONE")
+            raise TypeError(
+                "fallback_policy must be PublicPriorFallback.GENERIC or NONE"
+            )
         if (
             not isinstance(self.format_id, str)
             or not self.format_id
@@ -77,7 +81,9 @@ class PublicPriorRuntimeConfiguration:
         ):
             raise ValueError("format_id must be a canonical normalized ID")
         if any(identity.format_id != self.format_id for identity in identities):
-            raise ValueError("all selected public-prior identities must match format_id")
+            raise ValueError(
+                "all selected public-prior identities must match format_id"
+            )
         object.__setattr__(self, "selected_identities", identities)
 
     def create_battle_context(self, battle_format: str) -> PublicPriorSearchContext:

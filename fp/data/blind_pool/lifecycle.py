@@ -93,10 +93,7 @@ def parse_incoming_challenge(
             and fields[5] == required_format
             and fields[6:] == ["", "", ""]
         )
-        if (
-            fields[:2] != ["", "pm"]
-            or not (legacy_grammar or current_server_grammar)
-        ):
+        if fields[:2] != ["", "pm"] or not (legacy_grammar or current_server_grammar):
             continue
         challenger_name = fields[2].strip()
         challenger_id = normalize_showdown_identity(challenger_name)
@@ -417,12 +414,8 @@ class BlindPoolLifecycleCoordinator:
         """Recover only unambiguous pre-accept state; quarantine accept_sent."""
 
         current_task = asyncio.current_task()
-        if (
-            self._execution_guard.locked()
-            and (
-                not self._owns_execution_guard
-                or current_task is not self._execution_task
-            )
+        if self._execution_guard.locked() and (
+            not self._owns_execution_guard or current_task is not self._execution_task
         ):
             raise BlindPoolLifecycleError(
                 "lifecycle_already_active",
@@ -440,7 +433,9 @@ class BlindPoolLifecycleCoordinator:
             except (BlindPoolValidationError, asyncio.CancelledError) as error:
                 after = self._authoritative_snapshot()
                 if not self._state_proves_release(before, after, reservation):
-                    if self._reservation_is(after.reservation, reservation, ACCEPT_SENT_PHASE):
+                    if self._reservation_is(
+                        after.reservation, reservation, ACCEPT_SENT_PHASE
+                    ):
                         self._quarantine()
                         raise BlindPoolReconciliationRequired(
                             "reconciliation_required",
@@ -490,7 +485,9 @@ class BlindPoolLifecycleCoordinator:
             state = self._store.reconcile_accept_sent_as_room_created(reservation_id)
         except (BlindPoolValidationError, asyncio.CancelledError) as error:
             after = self._authoritative_snapshot()
-            if reservation is not None and self._state_proves_commit(after, reservation):
+            if reservation is not None and self._state_proves_commit(
+                after, reservation
+            ):
                 state = after
                 if isinstance(error, asyncio.CancelledError):
                     cancellation = error
@@ -540,9 +537,8 @@ class BlindPoolLifecycleCoordinator:
             state = self._store.reconcile_accept_sent_as_no_room(reservation_id)
         except (BlindPoolValidationError, asyncio.CancelledError) as error:
             after = self._authoritative_snapshot()
-            if (
-                reservation is not None
-                and self._state_proves_release(before, after, reservation)
+            if reservation is not None and self._state_proves_release(
+                before, after, reservation
             ):
                 state = after
                 if isinstance(error, asyncio.CancelledError):

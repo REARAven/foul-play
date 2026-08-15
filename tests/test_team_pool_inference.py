@@ -5,7 +5,12 @@ from unittest.mock import patch
 
 from fp import constants
 from fp.battle.helpers import normalize_name
-from fp.battle.protocol import activate, fieldstart, remove_item, unlikely_to_have_choice_item
+from fp.battle.protocol import (
+    activate,
+    fieldstart,
+    remove_item,
+    unlikely_to_have_choice_item,
+)
 from fp.battle.state import Battle, Pokemon
 from fp.battle.team_inference import (
     ObservationFilterState,
@@ -211,21 +216,30 @@ class TestTeamPoolInference(unittest.TestCase):
         first = Battle("first")
         second = Battle("second")
         self.assertIsNot(first.team_inference, second.team_inference)
-        self.assertIs(TeamPoolMatchState.UNINITIALIZED, first.team_inference.match_state)
+        self.assertIs(
+            TeamPoolMatchState.UNINITIALIZED, first.team_inference.match_state
+        )
 
     def test_04_two_battles_do_not_share_context_state(self):
         first = _battle()
         second = _battle()
         _match(first, self.registry)
         self.assertIs(TeamPoolMatchState.MATCHED, first.team_inference.match_state)
-        self.assertIs(TeamPoolMatchState.UNINITIALIZED, second.team_inference.match_state)
+        self.assertIs(
+            TeamPoolMatchState.UNINITIALIZED, second.team_inference.match_state
+        )
 
     def test_05_deepcopy_produces_independent_candidate_state(self):
         battle = _battle()
         _match(battle, self.registry)
         copied = deepcopy(battle)
         self.assertIsNot(copied.team_inference, battle.team_inference)
-        _match(copied, TeamPoolRegistry((_pool(records=(_team_record(species=ALTERNATE_SPECIES),)),)))
+        _match(
+            copied,
+            TeamPoolRegistry(
+                (_pool(records=(_team_record(species=ALTERNATE_SPECIES),)),)
+            ),
+        )
         self.assertIs(TeamPoolMatchState.NO_MATCH, copied.team_inference.match_state)
         self.assertIs(TeamPoolMatchState.MATCHED, battle.team_inference.match_state)
         self.assertEqual(1, battle.team_inference.candidate_count)
@@ -235,8 +249,12 @@ class TestTeamPoolInference(unittest.TestCase):
         second = _battle()
         _match(first, self.registry)
         _match(second, self.registry)
-        self.assertEqual(first.team_inference.candidate_ids, second.team_inference.candidate_ids)
-        self.assertIs(first.team_inference.candidate_ids[0].pool_identity, self.pool.identity)
+        self.assertEqual(
+            first.team_inference.candidate_ids, second.team_inference.candidate_ids
+        )
+        self.assertIs(
+            first.team_inference.candidate_ids[0].pool_identity, self.pool.identity
+        )
 
     def test_07_no_registry_produces_no_pool_and_fallback(self):
         context = _match(_battle(), None)
@@ -313,7 +331,9 @@ class TestTeamPoolInference(unittest.TestCase):
         a_pool = _pool("apool", records=(_team_record("mteam"),))
         registry = TeamPoolRegistry((z_pool, a_pool))
         first = _match(_battle(), registry).candidate_ids
-        second = _match(_battle(species=tuple(reversed(DEFAULT_SPECIES))), registry).candidate_ids
+        second = _match(
+            _battle(species=tuple(reversed(DEFAULT_SPECIES))), registry
+        ).candidate_ids
         self.assertEqual(first, second)
         self.assertEqual(tuple(sorted(first)), first)
 
@@ -361,7 +381,9 @@ class TestTeamPoolInference(unittest.TestCase):
 
     def test_21_preview_order_does_not_affect_matching(self):
         first = _match(_battle(), self.registry)
-        second = _match(_battle(species=tuple(reversed(DEFAULT_SPECIES))), self.registry)
+        second = _match(
+            _battle(species=tuple(reversed(DEFAULT_SPECIES))), self.registry
+        )
         self.assertEqual(first.roster_key, second.roster_key)
         self.assertEqual(first.candidate_ids, second.candidate_ids)
 
@@ -399,7 +421,9 @@ class TestTeamPoolInference(unittest.TestCase):
         before = tuple(pokemon.name for pokemon in battle.opponent.reserve)
         context = _match(battle, self.registry)
         self.assertIs(TeamPoolMatchState.NO_POOL, context.match_state)
-        self.assertEqual(before, tuple(pokemon.name for pokemon in battle.opponent.reserve))
+        self.assertEqual(
+            before, tuple(pokemon.name for pokemon in battle.opponent.reserve)
+        )
 
     def test_27_sequential_battles_do_not_reuse_stale_candidates(self):
         mode = StandardBattleMode()
@@ -480,13 +504,18 @@ class TestTeamPoolInference(unittest.TestCase):
         battle = _battle()
         _match(battle, self.registry)
         self.assertTrue(
-            all(pokemon.item == constants.UNKNOWN_ITEM for pokemon in battle.opponent.reserve)
+            all(
+                pokemon.item == constants.UNKNOWN_ITEM
+                for pokemon in battle.opponent.reserve
+            )
         )
 
     def test_35_opponent_state_gains_no_unrevealed_ability(self):
         battle = _battle()
         _match(battle, self.registry)
-        self.assertTrue(all(pokemon.ability is None for pokemon in battle.opponent.reserve))
+        self.assertTrue(
+            all(pokemon.ability is None for pokemon in battle.opponent.reserve)
+        )
 
     def test_36_opponent_state_gains_no_unrevealed_moves(self):
         battle = _battle()
@@ -497,8 +526,18 @@ class TestTeamPoolInference(unittest.TestCase):
         battle = _battle()
         pool_record = self.pool.teams[0].pokemon[0]
         _match(battle, self.registry)
-        self.assertTrue(all(pokemon.nature != pool_record.nature_id for pokemon in battle.opponent.reserve))
-        self.assertTrue(all(tuple(pokemon.evs) != pool_record.evs.as_tuple() for pokemon in battle.opponent.reserve))
+        self.assertTrue(
+            all(
+                pokemon.nature != pool_record.nature_id
+                for pokemon in battle.opponent.reserve
+            )
+        )
+        self.assertTrue(
+            all(
+                tuple(pokemon.evs) != pool_record.evs.as_tuple()
+                for pokemon in battle.opponent.reserve
+            )
+        )
 
     def test_38_no_poke_engine_serialization_schema_change_exists(self):
         battle = _battle()
@@ -510,9 +549,15 @@ class TestTeamPoolInference(unittest.TestCase):
 
     def test_39_open_policy_is_placeholder_without_exact_population(self):
         battle = _battle(policy=TeamSheetPolicy.OPEN)
-        before = [(pokemon.item, pokemon.ability, tuple(pokemon.moves)) for pokemon in battle.opponent.reserve]
+        before = [
+            (pokemon.item, pokemon.ability, tuple(pokemon.moves))
+            for pokemon in battle.opponent.reserve
+        ]
         context = _match(battle, self.registry)
-        after = [(pokemon.item, pokemon.ability, tuple(pokemon.moves)) for pokemon in battle.opponent.reserve]
+        after = [
+            (pokemon.item, pokemon.ability, tuple(pokemon.moves))
+            for pokemon in battle.opponent.reserve
+        ]
         self.assertIs(TeamSheetPolicy.OPEN, context.policy)
         self.assertFalse(context.exact_fields_available)
         self.assertEqual(before, after)
@@ -523,7 +568,10 @@ class TestTeamPoolInference(unittest.TestCase):
         battle.generation = "gen9"
         battle.user.active = _pokemon("weedle")
         battle.initialize_team_preview(
-            [f"{species_id}, L100, {'M' if index % 2 else 'F'}" for index, species_id in enumerate(DEFAULT_SPECIES)],
+            [
+                f"{species_id}, L100, {'M' if index % 2 else 'F'}"
+                for index, species_id in enumerate(DEFAULT_SPECIES)
+            ],
             "gen9tugs",
         )
         context = _match(battle, None)

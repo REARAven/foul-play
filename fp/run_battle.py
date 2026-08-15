@@ -30,9 +30,7 @@ async def enable_battle_timer_once(ps_websocket_client, battle_tag):
     if not FoulPlayConfig.battle_timer:
         return
 
-    timer_rooms = vars(ps_websocket_client).setdefault(
-        "_foul_play_timer_rooms", set()
-    )
+    timer_rooms = vars(ps_websocket_client).setdefault("_foul_play_timer_rooms", set())
     if battle_tag in timer_rooms:
         return
 

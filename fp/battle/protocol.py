@@ -668,8 +668,7 @@ def _move_is_publicly_selected_set_evidence(split_msg):
     if _move_is_from_closing_jaws(split_msg):
         return True
     return not any(
-        msg.startswith("[from]")
-        and msg.replace(" ", "").lower() != "[from]lockedmove"
+        msg.startswith("[from]") and msg.replace(" ", "").lower() != "[from]lockedmove"
         for msg in split_msg[4:]
     )
 
@@ -781,8 +780,7 @@ def _record_public_team_observation(battle, action, split_msg):
 
     elif action == "-enditem" and species_id is not None:
         consumed = any(
-            tag.strip().lower() in {"[eat]", "[consumed]"}
-            for tag in split_msg[4:]
+            tag.strip().lower() in {"[eat]", "[consumed]"} for tag in split_msg[4:]
         )
         context.record_initial_item(
             species_id,
@@ -797,9 +795,7 @@ def _record_public_team_observation(battle, action, split_msg):
     elif action == "-activate" and species_id is not None:
         normalized_effect = split_msg[3].lower()
         if normalized_effect.startswith("item: "):
-            consumed = any(
-                tag.strip().lower() == "[consumed]" for tag in split_msg[4:]
-            )
+            consumed = any(tag.strip().lower() == "[consumed]" for tag in split_msg[4:])
             context.record_initial_item(
                 species_id,
                 normalize_name(split_msg[3].split(":", 1)[1]),
@@ -832,19 +828,14 @@ def _record_public_team_observation(battle, action, split_msg):
         elif any(tag.lower().startswith("[from]") for tag in split_msg[4:]):
             context.mark_current_ability_changed(species_id)
         else:
-            context.record_base_ability(
-                species_id, normalize_name(split_msg[3])
-            )
+            context.record_base_ability(species_id, normalize_name(split_msg[3]))
         return
 
     if action == "-ability" and any(
-        normalize_name(tag) == "trace"
-        or tag.strip().lower() == "[from] ability: trace"
+        normalize_name(tag) == "trace" or tag.strip().lower() == "[from] ability: trace"
         for tag in split_msg[4:]
     ):
-        source_tags = [
-            tag for tag in split_msg[4:] if tag.lower().startswith("[of] ")
-        ]
+        source_tags = [tag for tag in split_msg[4:] if tag.lower().startswith("[of] ")]
         source_is_opponent = (
             source_tags
             and isinstance(battle.opponent.name, str)
@@ -885,10 +876,9 @@ def _record_public_team_observation(battle, action, split_msg):
     ability_id = normalize_name(ability_tags[0].split(":", 1)[1])
     source_tags = [tag for tag in split_msg[3:] if tag.lower().startswith("[of] ")]
     if source_tags:
-        source_is_opponent = (
-            isinstance(battle.opponent.name, str)
-            and source_tags[0][5:].startswith(battle.opponent.name)
-        )
+        source_is_opponent = isinstance(battle.opponent.name, str) and source_tags[0][
+            5:
+        ].startswith(battle.opponent.name)
     else:
         source_is_opponent = actor_is_opponent and action in {
             "move",

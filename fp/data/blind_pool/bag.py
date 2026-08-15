@@ -76,9 +76,7 @@ class BlindPoolBagStore:
         self._registry = registry
         self._fingerprint = compute_registry_fingerprint(registry)
         self._active_ids = tuple(entry.team_id for entry in registry.active_entries)
-        self._random = (
-            random.SystemRandom() if random_source is None else random_source
-        )
+        self._random = random.SystemRandom() if random_source is None else random_source
         self._reservation_id_factory = reservation_id_factory or (
             lambda: uuid.uuid4().hex
         )

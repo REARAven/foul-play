@@ -64,13 +64,19 @@ AUTHORIZATION_VALUE = (
 NEW_SPECIES_VARIANTS = {
     "eelektross": ("assaultvest", "poweruppunch", "bulkyutility"),
     "flygon": (
-        "choicescarf", "choiceband", "dragondance", "loadeddice",
+        "choicescarf",
+        "choiceband",
+        "dragondance",
+        "loadeddice",
         "mixedlifeorb",
     ),
     "froslass": ("sashlead", "bulkyspikes", "choicespecs"),
     "heracross": ("flameorbguts", "choicescarf", "bulkup"),
     "hitmontop": (
-        "assaultvest", "fastboots", "technicianoffense", "technicianspdef",
+        "assaultvest",
+        "fastboots",
+        "technicianoffense",
+        "technicianspdef",
     ),
     "houndoom": ("nastyplotlifeorb", "choicescarf", "nastyplotboots"),
 }
@@ -80,8 +86,11 @@ REPLACEMENT_VARIANTS = {
     "dustox": ("blacksludgeutility", "bootsutility"),
     "forretress": ("overcoathelmet", "sturdyboots"),
     "jellicent": (
-        "bootsphysical", "colburphysical", "waterabsorbspdef",
-        "cursedbodyspdef", "choicespecs",
+        "bootsphysical",
+        "colburphysical",
+        "waterabsorbspdef",
+        "cursedbodyspdef",
+        "choicespecs",
     ),
 }
 TOUCHED_VARIANT_IDS = {**NEW_SPECIES_VARIANTS, **REPLACEMENT_VARIANTS}
@@ -143,218 +152,398 @@ def _expected(weight, confidence, item, ability, nature, evs, ivs, moves, role):
 
 EXPECTED_TOUCHED_SETS = {
     ("eelektross", "assaultvest"): _expected(
-        4, "established", "assaultvest", "levitate", "brave",
-        (252, 252, 0, 4, 0, 0), IVS_31,
+        4,
+        "established",
+        "assaultvest",
+        "levitate",
+        "brave",
+        (252, 252, 0, 4, 0, 0),
+        IVS_31,
         ("voltswitch", "knockoff", "closecombat", "flamethrower"),
         "slow mixed Assault Vest pivot",
     ),
     ("eelektross", "poweruppunch"): _expected(
-        2, "experimental", "leftovers", "levitate", "adamant",
-        (252, 252, 0, 0, 4, 0), IVS_31,
+        2,
+        "experimental",
+        "leftovers",
+        "levitate",
+        "adamant",
+        (252, 252, 0, 0, 4, 0),
+        IVS_31,
         ("substitute", "poweruppunch", "knockoff", "supercellslam"),
         "Substitute-based physical setup attacker",
     ),
     ("eelektross", "bulkyutility"): _expected(
-        3, "plausible", "heavydutyboots", "levitate", "careful",
-        (252, 4, 0, 0, 252, 0), IVS_31,
+        3,
+        "plausible",
+        "heavydutyboots",
+        "levitate",
+        "careful",
+        (252, 4, 0, 0, 252, 0),
+        IVS_31,
         ("knockoff", "voltswitch", "toxic", "dragontail"),
         "specially defensive utility pivot",
     ),
     ("flygon", "choicescarf"): _expected(
-        4, "established", "choicescarf", "levitate", "jolly",
-        (0, 252, 0, 0, 4, 252), IVS_31,
+        4,
+        "established",
+        "choicescarf",
+        "levitate",
+        "jolly",
+        (0, 252, 0, 0, 4, 252),
+        IVS_31,
         ("earthquake", "outrage", "uturn", "stoneedge"),
         "fast revenge killer and pivot",
     ),
     ("flygon", "choiceband"): _expected(
-        3, "plausible", "choiceband", "levitate", "jolly",
-        (0, 252, 0, 0, 4, 252), IVS_31,
+        3,
+        "plausible",
+        "choiceband",
+        "levitate",
+        "jolly",
+        (0, 252, 0, 0, 4, 252),
+        IVS_31,
         ("earthquake", "scaleshot", "firstimpression", "uturn"),
         "immediate physical wallbreaker with priority",
     ),
     ("flygon", "dragondance"): _expected(
-        3, "plausible", "clearamulet", "levitate", "jolly",
-        (0, 252, 0, 0, 4, 252), IVS_31,
+        3,
+        "plausible",
+        "clearamulet",
+        "levitate",
+        "jolly",
+        (0, 252, 0, 0, 4, 252),
+        IVS_31,
         ("dragondance", "earthquake", "throatchop", "scaleshot"),
         "physical setup attacker resistant to stat reduction",
     ),
     ("flygon", "loadeddice"): _expected(
-        2, "experimental", "loadeddice", "levitate", "jolly",
-        (0, 252, 4, 0, 0, 252), IVS_31,
+        2,
+        "experimental",
+        "loadeddice",
+        "levitate",
+        "jolly",
+        (0, 252, 4, 0, 0, 252),
+        IVS_31,
         ("stealthrock", "earthquake", "scaleshot", "uturn"),
         "Loaded Dice Scale Shot utility attacker",
     ),
     ("flygon", "mixedlifeorb"): _expected(
-        2, "experimental", "lifeorb", "levitate", "naive",
-        (0, 88, 0, 168, 0, 252), IVS_31,
+        2,
+        "experimental",
+        "lifeorb",
+        "levitate",
+        "naive",
+        (0, 88, 0, 168, 0, 252),
+        IVS_31,
         ("earthquake", "dracometeor", "fireblast", "stealthrock"),
         "mixed offensive hazard setter",
     ),
     ("froslass", "sashlead"): _expected(
-        4, "established", "focussash", "cursedbody", "timid",
-        (0, 0, 0, 252, 4, 252), IVS_0_ATK,
+        4,
+        "established",
+        "focussash",
+        "cursedbody",
+        "timid",
+        (0, 0, 0, 252, 4, 252),
+        IVS_0_ATK,
         ("spikes", "taunt", "destinybond", "icywind"),
         "fast Focus Sash hazard and disruption lead",
     ),
     ("froslass", "bulkyspikes"): _expected(
-        3, "plausible", "heavydutyboots", "cursedbody", "timid",
-        (252, 0, 200, 0, 0, 56), IVS_0_ATK,
+        3,
+        "plausible",
+        "heavydutyboots",
+        "cursedbody",
+        "timid",
+        (252, 0, 200, 0, 0, 56),
+        IVS_0_ATK,
         ("hex", "willowisp", "painsplit", "spikes"),
         "bulky status and hazard utility",
     ),
     ("froslass", "choicespecs"): _expected(
-        2, "experimental", "choicespecs", "cursedbody", "timid",
-        (4, 0, 0, 252, 0, 252), IVS_0_ATK,
+        2,
+        "experimental",
+        "choicespecs",
+        "cursedbody",
+        "timid",
+        (4, 0, 0, 252, 0, 252),
+        IVS_0_ATK,
         ("icebeam", "shadowball", "trick", "thunderbolt"),
         "fast special wallbreaker with Trick",
     ),
     ("heracross", "flameorbguts"): _expected(
-        4, "established", "flameorb", "guts", "jolly",
-        (0, 252, 0, 0, 4, 252), IVS_31,
+        4,
+        "established",
+        "flameorb",
+        "guts",
+        "jolly",
+        (0, 252, 0, 0, 4, 252),
+        IVS_31,
         ("closecombat", "facade", "knockoff", "trailblaze"),
         "Guts physical wallbreaker with Speed boosting",
     ),
     ("heracross", "choicescarf"): _expected(
-        3, "plausible", "choicescarf", "moxie", "jolly",
-        (0, 252, 0, 0, 4, 252), IVS_31,
+        3,
+        "plausible",
+        "choicescarf",
+        "moxie",
+        "jolly",
+        (0, 252, 0, 0, 4, 252),
+        IVS_31,
         ("closecombat", "megahorn", "knockoff", "stoneedge"),
         "Choice Scarf revenge killer and potential cleaner",
     ),
     ("heracross", "bulkup"): _expected(
-        2, "plausible", "leftovers", "guts", "jolly",
-        (0, 252, 4, 0, 0, 252), IVS_31,
+        2,
+        "plausible",
+        "leftovers",
+        "guts",
+        "jolly",
+        (0, 252, 4, 0, 0, 252),
+        IVS_31,
         ("bulkup", "closecombat", "knockoff", "earthquake"),
         "Leftovers physical setup attacker",
     ),
     ("hitmontop", "assaultvest"): _expected(
-        4, "established", "assaultvest", "intimidate", "adamant",
-        (248, 252, 0, 0, 8, 0), IVS_31,
+        4,
+        "established",
+        "assaultvest",
+        "intimidate",
+        "adamant",
+        (248, 252, 0, 0, 8, 0),
+        IVS_31,
         ("closecombat", "machpunch", "rapidspin", "tripleaxel"),
         "bulky Assault Vest spinner with Intimidate",
     ),
     ("hitmontop", "fastboots"): _expected(
-        3, "plausible", "heavydutyboots", "intimidate", "adamant",
-        (0, 252, 0, 0, 4, 252), IVS_31,
+        3,
+        "plausible",
+        "heavydutyboots",
+        "intimidate",
+        "adamant",
+        (0, 252, 0, 0, 4, 252),
+        IVS_31,
         ("closecombat", "machpunch", "rapidspin", "tripleaxel"),
         "faster offensive spinner with Intimidate",
     ),
     ("hitmontop", "technicianoffense"): _expected(
-        3, "plausible", "heavydutyboots", "technician", "adamant",
-        (248, 252, 0, 0, 8, 0), IVS_31,
+        3,
+        "plausible",
+        "heavydutyboots",
+        "technician",
+        "adamant",
+        (248, 252, 0, 0, 8, 0),
+        IVS_31,
         ("closecombat", "bulletpunch", "rapidspin", "tripleaxel"),
         "bulky Technician attacker and spinner",
     ),
     ("hitmontop", "technicianspdef"): _expected(
-        2, "experimental", "heavydutyboots", "technician", "careful",
-        (248, 8, 0, 0, 252, 0), IVS_31,
+        2,
+        "experimental",
+        "heavydutyboots",
+        "technician",
+        "careful",
+        (248, 8, 0, 0, 252, 0),
+        IVS_31,
         ("toxic", "machpunch", "rapidspin", "tripleaxel"),
         "specially defensive Technician utility spinner",
     ),
     ("houndoom", "nastyplotlifeorb"): _expected(
-        4, "established", "lifeorb", "flashfire", "timid",
-        (0, 0, 0, 252, 4, 252), IVS_0_ATK,
+        4,
+        "established",
+        "lifeorb",
+        "flashfire",
+        "timid",
+        (0, 0, 0, 252, 4, 252),
+        IVS_0_ATK,
         ("nastyplot", "darkpulse", "flamethrower", "hiddenpowergrass60"),
         "Life Orb Nasty Plot wallbreaker",
     ),
     ("houndoom", "choicescarf"): _expected(
-        2, "experimental", "choicescarf", "flashfire", "timid",
-        (0, 0, 0, 252, 4, 252), IVS_0_ATK,
+        2,
+        "experimental",
+        "choicescarf",
+        "flashfire",
+        "timid",
+        (0, 0, 0, 252, 4, 252),
+        IVS_0_ATK,
         ("overheat", "flamethrower", "darkpulse", "sludgebomb"),
         "Choice Scarf special revenge killer",
     ),
     ("houndoom", "nastyplotboots"): _expected(
-        3, "plausible", "heavydutyboots", "flashfire", "timid",
-        (0, 0, 0, 252, 4, 252), IVS_0_ATK,
+        3,
+        "plausible",
+        "heavydutyboots",
+        "flashfire",
+        "timid",
+        (0, 0, 0, 252, 4, 252),
+        IVS_0_ATK,
         ("nastyplot", "fireblast", "darkpulse", "substitute"),
         "Heavy-Duty Boots Nasty Plot attacker",
     ),
     ("claydol", "regeneratorrocks"): _expected(
-        4, "established", "heavydutyboots", "regenerator", "calm",
-        (252, 0, 0, 4, 252, 0), IVS_31,
+        4,
+        "established",
+        "heavydutyboots",
+        "regenerator",
+        "calm",
+        (252, 0, 0, 4, 252, 0),
+        IVS_31,
         ("stealthrock", "teleport", "rapidspin", "futuresight"),
         "specially defensive Regenerator hazard, removal, and pivot utility",
     ),
     ("claydol", "regeneratortrickroom"): _expected(
-        3, "plausible", "heavydutyboots", "regenerator", "sassy",
-        (252, 0, 0, 4, 252, 0), IVS_0_ATK,
+        3,
+        "plausible",
+        "heavydutyboots",
+        "regenerator",
+        "sassy",
+        (252, 0, 0, 4, 252, 0),
+        IVS_0_ATK,
         ("teleport", "toxic", "trickroom", "futuresight"),
         "slow Regenerator Trick Room and pivot support",
     ),
     ("claydol", "levitaterocks"): _expected(
-        3, "plausible", "heavydutyboots", "levitate", "calm",
-        (252, 0, 0, 4, 252, 0), IVS_31,
+        3,
+        "plausible",
+        "heavydutyboots",
+        "levitate",
+        "calm",
+        (252, 0, 0, 4, 252, 0),
+        IVS_31,
         ("stealthrock", "teleport", "rapidspin", "futuresight"),
         "specially defensive Levitate hazard, removal, and pivot utility",
     ),
     ("druddigon", "roughskinutility"): _expected(
-        4, "established", "rockyhelmet", "roughskin", "impish",
-        (252, 0, 252, 0, 4, 0), IVS_31,
+        4,
+        "established",
+        "rockyhelmet",
+        "roughskin",
+        "impish",
+        (252, 0, 252, 0, 4, 0),
+        IVS_31,
         ("dragontail", "cragmend", "stealthrock", "glare"),
         "physical contact punishment, hazards, paralysis, and phazing",
     ),
     ("druddigon", "choiceband"): _expected(
-        3, "plausible", "choiceband", "roughskin", "adamant",
-        (252, 252, 0, 0, 4, 0), IVS_31,
+        3,
+        "plausible",
+        "choiceband",
+        "roughskin",
+        "adamant",
+        (252, 252, 0, 0, 4, 0),
+        IVS_31,
         ("suckerpunch", "dragonclaw", "superpower", "gunkshot"),
         "bulky Choice Band physical wallbreaker",
     ),
     ("druddigon", "moldbreakerspdef"): _expected(
-        2, "experimental", "rockyhelmet", "moldbreaker", "careful",
-        (252, 4, 0, 0, 252, 0), IVS_31,
+        2,
+        "experimental",
+        "rockyhelmet",
+        "moldbreaker",
+        "careful",
+        (252, 4, 0, 0, 252, 0),
+        IVS_31,
         ("earthquake", "stealthrock", "cragmend", "dragontail"),
         "specially defensive Mold Breaker utility and phazing",
     ),
     ("dustox", "blacksludgeutility"): _expected(
-        4, "established", "blacksludge", "levitate", "careful",
-        (252, 0, 4, 0, 252, 0), IVS_31,
+        4,
+        "established",
+        "blacksludge",
+        "levitate",
+        "careful",
+        (252, 0, 4, 0, 252, 0),
+        IVS_31,
         ("uturn", "defog", "roost", "corrosivegas"),
         "specially defensive item-removal and Defog utility",
     ),
     ("dustox", "bootsutility"): _expected(
-        3, "plausible", "heavydutyboots", "levitate", "calm",
-        (248, 0, 0, 8, 252, 0), IVS_31,
+        3,
+        "plausible",
+        "heavydutyboots",
+        "levitate",
+        "calm",
+        (248, 0, 0, 8, 252, 0),
+        IVS_31,
         ("defog", "sludgebomb", "uturn", "roost"),
         "specially defensive Boots removal and pivot utility",
     ),
     ("forretress", "overcoathelmet"): _expected(
-        4, "established", "rockyhelmet", "overcoat", "bold",
-        (252, 0, 252, 0, 4, 0), IVS_31,
+        4,
+        "established",
+        "rockyhelmet",
+        "overcoat",
+        "bold",
+        (252, 0, 252, 0, 4, 0),
+        IVS_31,
         ("bodypress", "stealthrock", "voltswitch", "rapidspin"),
         "physical wall, hazard setter, spinner, and contact punishment",
     ),
     ("forretress", "sturdyboots"): _expected(
-        3, "plausible", "heavydutyboots", "sturdy", "bold",
-        (252, 0, 252, 0, 4, 0), IVS_31,
+        3,
+        "plausible",
+        "heavydutyboots",
+        "sturdy",
+        "bold",
+        (252, 0, 252, 0, 4, 0),
+        IVS_31,
         ("spikes", "stealthrock", "voltswitch", "rapidspin"),
         "Sturdy dual-hazard and removal utility",
     ),
     ("jellicent", "bootsphysical"): _expected(
-        4, "established", "heavydutyboots", "waterabsorb", "bold",
-        (252, 0, 252, 4, 0, 0), IVS_0_ATK,
+        4,
+        "established",
+        "heavydutyboots",
+        "waterabsorb",
+        "bold",
+        (252, 0, 252, 4, 0, 0),
+        IVS_0_ATK,
         ("scald", "shadowball", "taunt", "strengthsap"),
         "physically defensive Boots spinblocker and disruption utility",
     ),
     ("jellicent", "colburphysical"): _expected(
-        3, "plausible", "colburberry", "waterabsorb", "bold",
-        (252, 0, 252, 4, 0, 0), IVS_0_ATK,
+        3,
+        "plausible",
+        "colburberry",
+        "waterabsorb",
+        "bold",
+        (252, 0, 252, 4, 0, 0),
+        IVS_0_ATK,
         ("scald", "shadowball", "taunt", "strengthsap"),
         "physically defensive spinblocker using Colbur Berry for Dark attacks",
     ),
     ("jellicent", "waterabsorbspdef"): _expected(
-        4, "established", "leftovers", "waterabsorb", "calm",
-        (252, 0, 0, 4, 252, 0), IVS_0_ATK,
+        4,
+        "established",
+        "leftovers",
+        "waterabsorb",
+        "calm",
+        (252, 0, 0, 4, 252, 0),
+        IVS_0_ATK,
         ("hex", "willowisp", "recover", "surf"),
         "specially defensive Water Absorb status utility",
     ),
     ("jellicent", "cursedbodyspdef"): _expected(
-        3, "plausible", "leftovers", "cursedbody", "calm",
-        (252, 0, 0, 4, 252, 0), IVS_0_ATK,
+        3,
+        "plausible",
+        "leftovers",
+        "cursedbody",
+        "calm",
+        (252, 0, 0, 4, 252, 0),
+        IVS_0_ATK,
         ("hex", "willowisp", "recover", "surf"),
         "specially defensive Cursed Body status utility",
     ),
     ("jellicent", "choicespecs"): _expected(
-        2, "experimental", "choicespecs", "waterabsorb", "modest",
-        (252, 0, 0, 252, 4, 0), IVS_0_ATK,
+        2,
+        "experimental",
+        "choicespecs",
+        "waterabsorb",
+        "modest",
+        (252, 0, 0, 252, 4, 0),
+        IVS_0_ATK,
         ("trick", "icebeam", "hydropump", "shadowball"),
         "bulky Choice Specs special wallbreaker",
     ),
@@ -417,9 +606,7 @@ def _assert_public_data_firewall(document):
         if isinstance(value, dict):
             for key, item in value.items():
                 if key.casefold() in FORBIDDEN_STRUCTURAL_KEYS:
-                    raise AssertionError(
-                        f"forbidden structural key {key!r} at {path}"
-                    )
+                    raise AssertionError(f"forbidden structural key {key!r} at {path}")
                 check_string(key, f"{path}.<key:{key}>", is_key=True)
                 walk(item, f"{path}.{key}")
         elif isinstance(value, list):
@@ -596,8 +783,7 @@ class TestBatchThreeDocument(unittest.TestCase):
     def setUpClass(cls):
         cls.documents = {version: _document(version) for version in VERSION_PATHS}
         cls.datasets = {
-            version: load_public_prior(path)
-            for version, path in VERSION_PATHS.items()
+            version: load_public_prior(path) for version, path in VERSION_PATHS.items()
         }
 
     def test_01_encoding_hash_identity_and_inventories_are_exact(self):
@@ -644,8 +830,13 @@ class TestBatchThreeDocument(unittest.TestCase):
         old = self.documents["1.2.0"]
         new = self.documents["1.3.0"]
         for key in (
-            "schema_version", "visibility", "dataset_id", "format_id",
-            "patch_version", "metadata", "sources",
+            "schema_version",
+            "visibility",
+            "dataset_id",
+            "format_id",
+            "patch_version",
+            "metadata",
+            "sources",
         ):
             self.assertEqual(old[key], new[key], key)
         self.assertEqual("1.3.0", new["dataset_version"])
@@ -671,7 +862,8 @@ class TestBatchThreeDocument(unittest.TestCase):
         self.assertEqual(
             "lifeorb",
             next(
-                variant for variant in new_records["aerodactyl"]["variants"]
+                variant
+                for variant in new_records["aerodactyl"]["variants"]
                 if variant["variant_id"] == "dragondance"
             )["item_id"],
         )
@@ -703,15 +895,16 @@ class TestBatchThreeDocument(unittest.TestCase):
                 self.assertEqual(SOURCE_IDS, variant.source_ids)
                 self.assertEqual(
                     {
-                        "role", "rationale", "distinguishing_evidence",
-                        "weight_reason", "confidence",
+                        "role",
+                        "rationale",
+                        "distinguishing_evidence",
+                        "weight_reason",
+                        "confidence",
                     },
                     set(variant.metadata),
                 )
                 self.assertEqual(expected["role"], variant.metadata["role"])
-                self.assertEqual(
-                    expected["confidence"], variant.metadata["confidence"]
-                )
+                self.assertEqual(expected["confidence"], variant.metadata["confidence"])
                 self.assertIn(
                     variant.metadata["confidence"],
                     {"established", "plausible", "experimental"},
@@ -781,8 +974,10 @@ class TestBatchThreeDocument(unittest.TestCase):
                     "entries": _entries(
                         docs["1.3.0"],
                         lambda species, variant: (
-                            species["species_id"], variant["variant_id"]
-                        ) in unusual,
+                            species["species_id"],
+                            variant["variant_id"],
+                        )
+                        in unusual,
                     ),
                 },
             ]
@@ -805,9 +1000,7 @@ class TestBatchThreeDocument(unittest.TestCase):
     def test_06_authorization_firewall_and_negative_validators_are_exact(self):
         document = self.documents["1.3.0"]
         _assert_public_data_firewall(document)
-        self.assertEqual(
-            AUTHORIZATION_VALUE, document["metadata"]["authorization"]
-        )
+        self.assertEqual(AUTHORIZATION_VALUE, document["metadata"]["authorization"])
         self.assertEqual(1, json.dumps(document).count(AUTHORIZATION_VALUE))
 
         wrong_path = copy.deepcopy(document)
@@ -848,7 +1041,8 @@ class TestBatchThreeDocument(unittest.TestCase):
 
         illegal = copy.deepcopy(document)
         eelektross = next(
-            species for species in illegal["species"]
+            species
+            for species in illegal["species"]
             if species["species_id"] == "eelektross"
         )
         eelektross["variants"][0]["move_ids"][0] = "spectralthief"
@@ -862,9 +1056,7 @@ class TestBatchThreeDocument(unittest.TestCase):
 class TestBatchThreeSelectionPopulationAndNarrowing(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.generic_configuration = _startup(
-            "1.3.0", PublicPriorFallback.GENERIC
-        )
+        cls.generic_configuration = _startup("1.3.0", PublicPriorFallback.GENERIC)
         cls.none_configuration = _startup("1.3.0", PublicPriorFallback.NONE)
         cls.old_configuration = _startup("1.2.0", PublicPriorFallback.NONE)
         cls.dataset = cls.none_configuration.registry.get(IDENTITY)
@@ -991,9 +1183,7 @@ class TestBatchThreeSelectionPopulationAndNarrowing(unittest.TestCase):
             return _compatible_ids(
                 self.dataset,
                 species_id,
-                _evidence(
-                    context, species_id, moves=moves, item=item, ability=ability
-                ),
+                _evidence(context, species_id, moves=moves, item=item, ability=ability),
             )
 
         checks = (
@@ -1026,29 +1216,69 @@ class TestBatchThreeSelectionPopulationAndNarrowing(unittest.TestCase):
             ("heracross", {"bulkup"}, {"moves": ("bulkup",)}),
             ("heracross", {"bulkup"}, {"item": "leftovers"}),
             ("hitmontop", {"assaultvest"}, {"item": "assaultvest"}),
-            ("hitmontop", {"fastboots"}, {"item": "heavydutyboots", "ability": "intimidate"}),
-            ("hitmontop", {"technicianoffense"}, {"moves": ("bulletpunch",), "ability": "technician"}),
-            ("hitmontop", {"technicianspdef"}, {"moves": ("toxic",), "ability": "technician"}),
+            (
+                "hitmontop",
+                {"fastboots"},
+                {"item": "heavydutyboots", "ability": "intimidate"},
+            ),
+            (
+                "hitmontop",
+                {"technicianoffense"},
+                {"moves": ("bulletpunch",), "ability": "technician"},
+            ),
+            (
+                "hitmontop",
+                {"technicianspdef"},
+                {"moves": ("toxic",), "ability": "technician"},
+            ),
             ("hitmontop", {"assaultvest", "fastboots"}, {"ability": "intimidate"}),
-            ("hitmontop", {"technicianoffense", "technicianspdef"}, {"ability": "technician"}),
+            (
+                "hitmontop",
+                {"technicianoffense", "technicianspdef"},
+                {"ability": "technician"},
+            ),
             ("houndoom", {"nastyplotlifeorb"}, {"item": "lifeorb"}),
             ("houndoom", {"nastyplotlifeorb"}, {"moves": ("hiddenpowergrass60",)}),
             ("houndoom", {"choicescarf"}, {"item": "choicescarf"}),
             ("houndoom", {"choicescarf"}, {"moves": ("sludgebomb",)}),
             ("houndoom", {"nastyplotboots"}, {"item": "heavydutyboots"}),
             ("houndoom", {"nastyplotboots"}, {"moves": ("substitute",)}),
-            ("houndoom", {"nastyplotlifeorb", "nastyplotboots"}, {"moves": ("nastyplot",)}),
-            ("claydol", {"regeneratorrocks", "regeneratortrickroom"}, {"ability": "regenerator"}),
+            (
+                "houndoom",
+                {"nastyplotlifeorb", "nastyplotboots"},
+                {"moves": ("nastyplot",)},
+            ),
+            (
+                "claydol",
+                {"regeneratorrocks", "regeneratortrickroom"},
+                {"ability": "regenerator"},
+            ),
             ("claydol", {"levitaterocks"}, {"ability": "levitate"}),
             ("claydol", {"regeneratortrickroom"}, {"moves": ("trickroom",)}),
             ("claydol", {"regeneratortrickroom"}, {"moves": ("toxic",)}),
-            ("claydol", {"regeneratorrocks", "levitaterocks"}, {"moves": ("rapidspin",)}),
-            ("claydol", {"regeneratorrocks", "levitaterocks"}, {"moves": ("stealthrock",)}),
-            ("druddigon", {"roughskinutility"}, {"moves": ("glare",), "ability": "roughskin"}),
+            (
+                "claydol",
+                {"regeneratorrocks", "levitaterocks"},
+                {"moves": ("rapidspin",)},
+            ),
+            (
+                "claydol",
+                {"regeneratorrocks", "levitaterocks"},
+                {"moves": ("stealthrock",)},
+            ),
+            (
+                "druddigon",
+                {"roughskinutility"},
+                {"moves": ("glare",), "ability": "roughskin"},
+            ),
             ("druddigon", {"choiceband"}, {"item": "choiceband"}),
             ("druddigon", {"choiceband"}, {"moves": ("gunkshot",)}),
             ("druddigon", {"moldbreakerspdef"}, {"ability": "moldbreaker"}),
-            ("druddigon", {"roughskinutility", "moldbreakerspdef"}, {"moves": ("cragmend",)}),
+            (
+                "druddigon",
+                {"roughskinutility", "moldbreakerspdef"},
+                {"moves": ("cragmend",)},
+            ),
             ("dustox", {"blacksludgeutility"}, {"item": "blacksludge"}),
             ("dustox", {"blacksludgeutility"}, {"moves": ("corrosivegas",)}),
             ("dustox", {"bootsutility"}, {"item": "heavydutyboots"}),
@@ -1059,12 +1289,24 @@ class TestBatchThreeSelectionPopulationAndNarrowing(unittest.TestCase):
             ("forretress", {"sturdyboots"}, {"moves": ("spikes",)}),
             ("jellicent", {"bootsphysical"}, {"item": "heavydutyboots"}),
             ("jellicent", {"colburphysical"}, {"item": "colburberry"}),
-            ("jellicent", {"waterabsorbspdef"}, {"item": "leftovers", "ability": "waterabsorb"}),
+            (
+                "jellicent",
+                {"waterabsorbspdef"},
+                {"item": "leftovers", "ability": "waterabsorb"},
+            ),
             ("jellicent", {"cursedbodyspdef"}, {"ability": "cursedbody"}),
             ("jellicent", {"choicespecs"}, {"item": "choicespecs"}),
             ("jellicent", {"choicespecs"}, {"moves": ("icebeam",)}),
-            ("jellicent", {"bootsphysical", "colburphysical"}, {"moves": ("strengthsap",)}),
-            ("jellicent", {"waterabsorbspdef", "cursedbodyspdef"}, {"moves": ("hex", "willowisp", "recover", "surf")}),
+            (
+                "jellicent",
+                {"bootsphysical", "colburphysical"},
+                {"moves": ("strengthsap",)},
+            ),
+            (
+                "jellicent",
+                {"waterabsorbspdef", "cursedbodyspdef"},
+                {"moves": ("hex", "willowisp", "recover", "surf")},
+            ),
         )
         for species_id, expected, kwargs in checks:
             with self.subTest(species=species_id, expected=expected, evidence=kwargs):
@@ -1086,9 +1328,7 @@ class TestBatchThreeSelectionPopulationAndNarrowing(unittest.TestCase):
             evidence=conflict,
             rng=_FixedRng(0.5),
         )
-        self.assertIs(
-            PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT, result.status
-        )
+        self.assertIs(PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT, result.status)
 
         compatible = _compatible_ids(
             self.dataset,
@@ -1099,9 +1339,7 @@ class TestBatchThreeSelectionPopulationAndNarrowing(unittest.TestCase):
                 moves=("hex", "willowisp", "recover", "surf"),
             ),
         )
-        self.assertEqual(
-            {"waterabsorbspdef", "cursedbodyspdef"}, compatible
-        )
+        self.assertEqual({"waterabsorbspdef", "cursedbodyspdef"}, compatible)
 
         for species_id, variant_id in REMOVED_VARIANT_IDS:
             record = self.dataset.get_species(species_id)
@@ -1150,9 +1388,7 @@ class TestBatchThreeSelectionPopulationAndNarrowing(unittest.TestCase):
         self.assertNotIn("candidate_ids", parameters)
 
     def test_13_still_uncovered_species_obeys_explicit_fallback_policy(self):
-        generic_context = self.generic_configuration.create_battle_context(
-            "gen9tugs"
-        )
+        generic_context = self.generic_configuration.create_battle_context("gen9tugs")
         generic_battle = _battle(generic_context, "xatu")
         with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
             sampled = prepare_battles(generic_battle, 1)[0][0]

@@ -173,8 +173,7 @@ class BlindPoolBagFixture(unittest.TestCase):
         registry=None,
     ) -> BlindPoolBagStore:
         identifiers = iter(
-            reservation_ids
-            or [format(index, "032x") for index in range(1, 100)]
+            reservation_ids or [format(index, "032x") for index in range(1, 100)]
         )
         return BlindPoolBagStore(
             self.state_config,
@@ -922,8 +921,7 @@ class TestBlindPoolBagStateValidation(BlindPoolBagFixture):
         document = self._registry_document()
         reordered = {
             "entries": [
-                dict(reversed(tuple(entry.items())))
-                for entry in document["entries"]
+                dict(reversed(tuple(entry.items()))) for entry in document["entries"]
             ],
             "format_id": document["format_id"],
             "registry_version": document["registry_version"],

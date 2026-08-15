@@ -136,7 +136,9 @@ def _dataset(
     )
 
 
-def _context(*datasets, selected=None, fallback=PublicPriorFallback.NONE, format_id="gen9tugs"):
+def _context(
+    *datasets, selected=None, fallback=PublicPriorFallback.NONE, format_id="gen9tugs"
+):
     datasets = tuple(datasets or (_dataset(),))
     identities = tuple(selected or tuple(dataset.identity for dataset in datasets))
     return PublicPriorSearchContext(
@@ -237,11 +239,15 @@ class TestContextFallbackAndPrecedence(unittest.TestCase):
         dataset = _dataset()
         with self.assertRaises(TypeError):
             PublicPriorSearchContext(
-                PublicPriorRegistry((dataset,)), (dataset.identity,), format_id="gen9tugs"
+                PublicPriorRegistry((dataset,)),
+                (dataset.identity,),
+                format_id="gen9tugs",
             )
 
     def test_03_generic_and_none_are_the_only_fallback_values(self):
-        self.assertEqual({"generic", "none"}, {item.value for item in PublicPriorFallback})
+        self.assertEqual(
+            {"generic", "none"}, {item.value for item in PublicPriorFallback}
+        )
 
     def test_04_public_context_is_immutable(self):
         context = _context()
@@ -269,22 +275,36 @@ class TestContextFallbackAndPrecedence(unittest.TestCase):
     def test_08_global_standard_mode_has_no_public_registry(self):
         mode = StandardBattleMode()
         self.assertFalse(hasattr(mode, "public_prior_context"))
-        self.assertFalse(any(isinstance(value, PublicPriorRegistry) for value in vars(mode).values()))
+        self.assertFalse(
+            any(isinstance(value, PublicPriorRegistry) for value in vars(mode).values())
+        )
 
     def test_09_exact_format_match_permits_public_sampling(self):
         self.assertIs(PublicPriorSelectionStatus.SELECTED, _selected(_context()).status)
 
     def test_10_format_mismatch_prevents_public_sampling(self):
         result = select_public_prior_variant(
-            _context(), battle_format="gen9ou", species_id="pikachu", level=50, evidence=None
+            _context(),
+            battle_format="gen9ou",
+            species_id="pikachu",
+            level=50,
+            evidence=None,
         )
         self.assertIs(PublicPriorSelectionStatus.CONTEXT_FORMAT_MISMATCH, result.status)
 
     def test_11_exact_forms_are_distinct(self):
-        wash = _dataset("wash", species_id="rotomwash", variants=(_variant(ability="levitate"),))
+        wash = _dataset(
+            "wash", species_id="rotomwash", variants=(_variant(ability="levitate"),)
+        )
         context = _context(wash)
-        self.assertIs(PublicPriorSelectionStatus.SELECTED, _selected(context, species="rotomwash").status)
-        self.assertIs(PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT, _selected(context, species="rotomheat").status)
+        self.assertIs(
+            PublicPriorSelectionStatus.SELECTED,
+            _selected(context, species="rotomwash").status,
+        )
+        self.assertIs(
+            PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT,
+            _selected(context, species="rotomheat").status,
+        )
 
     def test_12_dataset_selection_order_is_respected(self):
         first = _dataset("first", variants=(_variant(item="lightball"),))
@@ -293,7 +313,10 @@ class TestContextFallbackAndPrecedence(unittest.TestCase):
         self.assertEqual("choicescarf", _selected(context).variant.item_id)
 
     def test_13_first_compatible_dataset_wins(self):
-        miss = _dataset("miss", variants=(_variant(moves=("tackle", "protect", "rest", "sleeptalk")),))
+        miss = _dataset(
+            "miss",
+            variants=(_variant(moves=("tackle", "protect", "rest", "sleeptalk")),),
+        )
         hit = _dataset("hit", variants=(_variant(item="choicespecs"),))
         context = _context(miss, hit)
         result = _selected(context, _evidence(moves=("thunderbolt",)))
@@ -319,8 +342,12 @@ class TestContextFallbackAndPrecedence(unittest.TestCase):
 
     def test_17_weighted_selection_uses_authored_weights_and_rng(self):
         variants = (_variant("a", weight=1), _variant("b", weight=3))
-        self.assertEqual("a", choose_weighted_public_variant(variants, _FixedRng(0)).variant_id)
-        self.assertEqual("b", choose_weighted_public_variant(variants, _FixedRng(0.99)).variant_id)
+        self.assertEqual(
+            "a", choose_weighted_public_variant(variants, _FixedRng(0)).variant_id
+        )
+        self.assertEqual(
+            "b", choose_weighted_public_variant(variants, _FixedRng(0.99)).variant_id
+        )
 
     def test_18_weighted_selection_does_not_mutate_weights(self):
         variants = (_variant("a", weight=2), _variant("b", weight=7))
@@ -341,21 +368,35 @@ class TestCompatibilityAndFirewall(unittest.TestCase):
         self.context = _context(_dataset(variants=(self.special, self.physical)))
 
     def test_19_public_selected_move_filters_variants(self):
-        self.assertEqual("special", _selected(self.context, _evidence(moves=("thunderbolt",))).variant.variant_id)
+        self.assertEqual(
+            "special",
+            _selected(
+                self.context, _evidence(moves=("thunderbolt",))
+            ).variant.variant_id,
+        )
 
     def test_20_multiple_moves_filter_cumulatively(self):
         evidence = _evidence(moves=("quickattack", "nuzzle"))
-        self.assertEqual("physical", _selected(self.context, evidence).variant.variant_id)
+        self.assertEqual(
+            "physical", _selected(self.context, evidence).variant.variant_id
+        )
 
     def test_21_public_item_evidence_filters_variants(self):
-        self.assertEqual("physical", _selected(self.context, _evidence(item="choicescarf")).variant.variant_id)
+        self.assertEqual(
+            "physical",
+            _selected(self.context, _evidence(item="choicescarf")).variant.variant_id,
+        )
 
     def test_22_public_base_ability_filters_variants(self):
         evidence = _evidence(ability="lightningrod")
-        self.assertEqual("physical", _selected(self.context, evidence).variant.variant_id)
+        self.assertEqual(
+            "physical", _selected(self.context, evidence).variant.variant_id
+        )
 
     def test_23_public_level_filters_variants(self):
-        self.assertFalse(public_variant_is_compatible(self.special, "pikachu", 100, None))
+        self.assertFalse(
+            public_variant_is_compatible(self.special, "pikachu", 100, None)
+        )
 
     def test_24_private_candidate_count_does_not_affect_sampling(self):
         battle = _battle(self.context)
@@ -371,7 +412,9 @@ class TestCompatibilityAndFirewall(unittest.TestCase):
         with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
             first_copy = prepare_battles(first, 1)[0][0]
             second_copy = prepare_battles(second, 1)[0][0]
-        self.assertEqual(first_copy.opponent.active.item, second_copy.opponent.active.item)
+        self.assertEqual(
+            first_copy.opponent.active.item, second_copy.opponent.active.item
+        )
         generic.assert_not_called()
 
     def test_26_private_exhausted_match_does_not_affect_sampling(self):
@@ -391,8 +434,12 @@ class TestCompatibilityAndFirewall(unittest.TestCase):
             for path in (ROOT / "fp" / "search").glob("*.py")
         )
         forbidden = (
-            "TeamPoolCandidateId", "TeamRecordId", "PoolIdentity",
-            "baseline_candidate_ids", "active_candidate_ids", "CandidateAccess",
+            "TeamPoolCandidateId",
+            "TeamRecordId",
+            "PoolIdentity",
+            "baseline_candidate_ids",
+            "active_candidate_ids",
+            "CandidateAccess",
         )
         self.assertFalse({token for token in forbidden if token in sources})
 
@@ -410,9 +457,14 @@ class TestCompatibilityAndFirewall(unittest.TestCase):
 
     def test_30_closing_jaws_moves_record_without_private_match(self):
         battle = _battle()
-        _process(battle, "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[from] ability: Closing Jaws")
+        _process(
+            battle,
+            "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[from] ability: Closing Jaws",
+        )
         member = battle.team_inference.observation_ledger.member("pikachu")
-        self.assertIn(PublicObservationSource.CLOSING_JAWS_SELECTED_MOVE, member.provenance)
+        self.assertIn(
+            PublicObservationSource.CLOSING_JAWS_SELECTED_MOVE, member.provenance
+        )
 
     def test_31_corrosive_gas_item_evidence_records_without_private_match(self):
         battle = _battle()
@@ -423,7 +475,10 @@ class TestCompatibilityAndFirewall(unittest.TestCase):
 
     def test_32_trace_evidence_records_without_private_match(self):
         battle = _battle()
-        _process(battle, "|-ability|p2a: Pikachu|Closing Jaws|Trace|[from] ability: Trace|[of] p1a: Weedle")
+        _process(
+            battle,
+            "|-ability|p2a: Pikachu|Closing Jaws|Trace|[from] ability: Trace|[of] p1a: Weedle",
+        )
         member = battle.team_inference.observation_ledger.member("pikachu")
         self.assertEqual("trace", member.base_ability_id)
         self.assertTrue(member.current_ability_changed)
@@ -453,16 +508,12 @@ class TestCompatibilityAndFirewall(unittest.TestCase):
         for observed, candidate in compatible:
             with self.subTest(observed=observed, candidate=candidate):
                 self.assertTrue(
-                    observed_move_is_compatible_with_candidate_move(
-                        observed, candidate
-                    )
+                    observed_move_is_compatible_with_candidate_move(observed, candidate)
                 )
         for observed, candidate in incompatible:
             with self.subTest(observed=observed, candidate=candidate):
                 self.assertFalse(
-                    observed_move_is_compatible_with_candidate_move(
-                        observed, candidate
-                    )
+                    observed_move_is_compatible_with_candidate_move(observed, candidate)
                 )
 
     def test_32b_generic_hidden_power_keeps_all_typed_candidates_only(self):
@@ -487,7 +538,9 @@ class TestCompatibilityAndFirewall(unittest.TestCase):
             _variant("ice", moves=("hiddenpowerice60", "surf", "protect", "rest")),
         )
         context = _context(_dataset(variants=variants))
-        initial = _evidence(moves=("hiddenpower", "surf"), item="lightball", ability="static")
+        initial = _evidence(
+            moves=("hiddenpower", "surf"), item="lightball", ability="static"
+        )
         self.assertTrue(
             all(
                 public_variant_is_compatible(variant, "pikachu", 50, initial)
@@ -524,9 +577,7 @@ class TestCompatibilityAndFirewall(unittest.TestCase):
         _process(typed, "|move|p2a: Pikachu|Hidden Power Fire|p1a: Weedle")
         self.assertEqual(
             ("hiddenpowerfire",),
-            typed.team_inference.observation_ledger.member(
-                "pikachu"
-            ).selected_move_ids,
+            typed.team_inference.observation_ledger.member("pikachu").selected_move_ids,
         )
 
 
@@ -560,18 +611,12 @@ class TestOriginalItemTransitions(unittest.TestCase):
         _process(battle, "|-item|p2a: Pikachu|Throat Spray")
         evidence = battle.team_inference.observation_ledger.member("pikachu")
         self.assertEqual("throatspray", evidence.initial_item_id)
-        self.assertTrue(
-            candidate_original_item_is_compatible("throatspray", evidence)
-        )
+        self.assertTrue(candidate_original_item_is_compatible("throatspray", evidence))
 
     def test_confident_original_item_precedes_an_inconsistent_ambiguity_flag(self):
         evidence = _evidence(item="throatspray", ambiguous=True)
-        self.assertTrue(
-            candidate_original_item_is_compatible("throatspray", evidence)
-        )
-        self.assertFalse(
-            candidate_original_item_is_compatible("choicespecs", evidence)
-        )
+        self.assertTrue(candidate_original_item_is_compatible("throatspray", evidence))
+        self.assertFalse(candidate_original_item_is_compatible("choicespecs", evidence))
 
     def test_bare_enditem_preserves_throat_spray_original_item(self):
         battle = _battle()
@@ -586,12 +631,8 @@ class TestOriginalItemTransitions(unittest.TestCase):
         self.assertIn(PublicObservationSource.ITEM_REMOVED, evidence.provenance)
         self.assertIsNone(battle.opponent.active.item)
         self.assertEqual("throatspray", battle.opponent.active.removed_item)
-        self.assertTrue(
-            candidate_original_item_is_compatible("throatspray", evidence)
-        )
-        self.assertFalse(
-            candidate_original_item_is_compatible("choicespecs", evidence)
-        )
+        self.assertTrue(candidate_original_item_is_compatible("throatspray", evidence))
+        self.assertFalse(candidate_original_item_is_compatible("choicespecs", evidence))
 
     def test_focus_sash_consumption_preserves_original_item(self):
         battle = _battle()
@@ -601,9 +642,7 @@ class TestOriginalItemTransitions(unittest.TestCase):
         self.assertEqual("focussash", evidence.initial_item_id)
         self.assertIn(PublicObservationSource.ITEM_CONSUMED, evidence.provenance)
         self.assertIsNone(battle.opponent.active.item)
-        self.assertFalse(
-            candidate_original_item_is_compatible("leftovers", evidence)
-        )
+        self.assertFalse(candidate_original_item_is_compatible("leftovers", evidence))
 
     def test_knock_off_and_corrosive_gas_preserve_original_item(self):
         for move_name in ("Knock Off", "Corrosive Gas"):
@@ -612,12 +651,9 @@ class TestOriginalItemTransitions(unittest.TestCase):
                 battle.opponent.active.item = "eviolite"
                 _process(
                     battle,
-                    "|-enditem|p2a: Pikachu|Eviolite|[from] move: "
-                    + move_name,
+                    "|-enditem|p2a: Pikachu|Eviolite|[from] move: " + move_name,
                 )
-                evidence = battle.team_inference.observation_ledger.member(
-                    "pikachu"
-                )
+                evidence = battle.team_inference.observation_ledger.member("pikachu")
                 self.assertEqual("eviolite", evidence.initial_item_id)
                 self.assertIsNone(battle.opponent.active.item)
                 self.assertTrue(
@@ -641,12 +677,8 @@ class TestOriginalItemTransitions(unittest.TestCase):
         self.assertIn(PublicObservationSource.ITEM_ACQUIRED, evidence.provenance)
         self.assertEqual("choicescarf", battle.opponent.active.item)
         self.assertEqual("leftovers", battle.opponent.active.removed_item)
-        self.assertTrue(
-            candidate_original_item_is_compatible("leftovers", evidence)
-        )
-        self.assertFalse(
-            candidate_original_item_is_compatible("choicescarf", evidence)
-        )
+        self.assertTrue(candidate_original_item_is_compatible("leftovers", evidence))
+        self.assertFalse(candidate_original_item_is_compatible("choicescarf", evidence))
 
     def test_acquisition_without_original_evidence_remains_ambiguous(self):
         battle = _battle()
@@ -657,9 +689,7 @@ class TestOriginalItemTransitions(unittest.TestCase):
         evidence = battle.team_inference.observation_ledger.member("pikachu")
         self.assertIsNone(evidence.initial_item_id)
         self.assertTrue(evidence.item_ambiguous)
-        self.assertTrue(
-            candidate_original_item_is_compatible("leftovers", evidence)
-        )
+        self.assertTrue(candidate_original_item_is_compatible("leftovers", evidence))
 
     def test_item_suppression_changes_neither_original_nor_current_item(self):
         pokemon = Pokemon("pikachu", 50)
@@ -669,9 +699,7 @@ class TestOriginalItemTransitions(unittest.TestCase):
             pokemon, _variant(item="leftovers"), evidence
         )
         self.assertEqual("leftovers", pokemon.item)
-        self.assertTrue(
-            candidate_original_item_is_compatible("leftovers", evidence)
-        )
+        self.assertTrue(candidate_original_item_is_compatible("leftovers", evidence))
 
     def test_unknown_current_item_does_not_erase_confident_original_item(self):
         pokemon = Pokemon("pikachu", 50)
@@ -685,9 +713,7 @@ class TestOriginalItemTransitions(unittest.TestCase):
         pokemon.item = None
         pokemon.removed_item = "throatspray"
         evidence = _evidence(item="throatspray")
-        self.assertFalse(
-            candidate_original_item_is_compatible("choicespecs", evidence)
-        )
+        self.assertFalse(candidate_original_item_is_compatible("choicespecs", evidence))
         populate_pokemon_from_public_variant(
             pokemon, _variant(item="throatspray"), evidence
         )
@@ -753,9 +779,7 @@ class TestOriginalItemTransitions(unittest.TestCase):
             (PublicPriorFallback.GENERIC, 1),
         ):
             with self.subTest(fallback=fallback.value):
-                context = _context(
-                    _dataset(variants=(variant,)), fallback=fallback
-                )
+                context = _context(_dataset(variants=(variant,)), fallback=fallback)
                 battle = _battle(context)
                 battle.team_inference.record_initial_item(
                     "pikachu",
@@ -765,9 +789,7 @@ class TestOriginalItemTransitions(unittest.TestCase):
                 battle.opponent.active.add_move("thunderbolt")
                 battle.opponent.active.ability = "static"
                 canonical = copy.deepcopy(battle.opponent.active)
-                with mock.patch(
-                    "fp.search.standard_battles.sample_pokemon"
-                ) as generic:
+                with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
                     sampled = prepare_battles(battle, 1)[0][0]
                 self.assertEqual(expected_generic_calls, generic.call_count)
                 self.assertEqual(canonical, battle.opponent.active)
@@ -810,15 +832,28 @@ class TestCopiedPopulationAndFallback(unittest.TestCase):
 
     def test_37_canonical_spread_remains_unchanged(self):
         battle = _battle(self.context)
-        before = (battle.opponent.active.nature, battle.opponent.active.evs, battle.opponent.active.ivs)
+        before = (
+            battle.opponent.active.nature,
+            battle.opponent.active.evs,
+            battle.opponent.active.ivs,
+        )
         self._sample(battle)
-        after = (battle.opponent.active.nature, battle.opponent.active.evs, battle.opponent.active.ivs)
+        after = (
+            battle.opponent.active.nature,
+            battle.opponent.active.evs,
+            battle.opponent.active.ivs,
+        )
         self.assertEqual(before, after)
 
     def test_38_sampled_copy_receives_one_coherent_variant(self):
         pokemon = self._sample()[0][0].opponent.active
-        self.assertEqual(("lightball", "static", "timid"), (pokemon.item, pokemon.ability, pokemon.nature))
-        self.assertEqual(set(self.variant.move_ids), {move.name for move in pokemon.moves})
+        self.assertEqual(
+            ("lightball", "static", "timid"),
+            (pokemon.item, pokemon.ability, pokemon.nature),
+        )
+        self.assertEqual(
+            set(self.variant.move_ids), {move.name for move in pokemon.moves}
+        )
         self.assertEqual(self.variant.ivs.as_tuple(), pokemon.ivs)
 
     def test_39_generic_sampler_not_called_after_public_success(self):
@@ -848,7 +883,9 @@ class TestCopiedPopulationAndFallback(unittest.TestCase):
     def test_43_fainted_pokemon_are_not_sampled(self):
         battle = _battle(self.context)
         battle.opponent.active.hp = 0
-        with mock.patch("fp.search.standard_battles.populate_pokemon_from_public_variant") as populate:
+        with mock.patch(
+            "fp.search.standard_battles.populate_pokemon_from_public_variant"
+        ) as populate:
             self._sample(battle)
         populate.assert_not_called()
 
@@ -856,46 +893,69 @@ class TestCopiedPopulationAndFallback(unittest.TestCase):
         battle = _battle(self.context)
         before = copy.deepcopy(battle.user.active)
         sampled = self._sample(battle)[0][0]
-        self.assertEqual((before.item, before.ability, before.moves), (sampled.user.active.item, sampled.user.active.ability, sampled.user.active.moves))
+        self.assertEqual(
+            (before.item, before.ability, before.moves),
+            (
+                sampled.user.active.item,
+                sampled.user.active.ability,
+                sampled.user.active.moves,
+            ),
+        )
 
     def test_45_revealed_move_pp_is_preserved(self):
         battle = _battle(self.context)
         move = battle.opponent.active.add_move("thunderbolt")
         move.current_pp = 3
-        sampled_move = self._sample(battle)[0][0].opponent.active.get_move("thunderbolt")
-        self.assertEqual((3, move.max_pp), (sampled_move.current_pp, sampled_move.max_pp))
+        sampled_move = self._sample(battle)[0][0].opponent.active.get_move(
+            "thunderbolt"
+        )
+        self.assertEqual(
+            (3, move.max_pp), (sampled_move.current_pp, sampled_move.max_pp)
+        )
 
     def test_46_missing_variant_moves_are_added_once(self):
         pokemon = Pokemon("pikachu", 50)
         pokemon.add_move("thunderbolt")
-        self.assertTrue(populate_pokemon_from_public_variant(pokemon, self.variant, _evidence(moves=("thunderbolt",))))
+        self.assertTrue(
+            populate_pokemon_from_public_variant(
+                pokemon, self.variant, _evidence(moves=("thunderbolt",))
+            )
+        )
         self.assertEqual(4, len({move.name for move in pokemon.moves}))
 
     def test_47_publicly_revealed_moves_are_never_removed(self):
         pokemon = Pokemon("pikachu", 50)
         revealed = pokemon.add_move("thunderbolt")
-        populate_pokemon_from_public_variant(pokemon, self.variant, _evidence(moves=("thunderbolt",)))
+        populate_pokemon_from_public_variant(
+            pokemon, self.variant, _evidence(moves=("thunderbolt",))
+        )
         self.assertIs(revealed, pokemon.get_move("thunderbolt"))
 
     def test_48_five_move_states_are_never_constructed(self):
         pokemon = Pokemon("pikachu", 50)
         pokemon.add_move("tackle")
         before = tuple(pokemon.moves)
-        self.assertFalse(populate_pokemon_from_public_variant(pokemon, self.variant, None))
+        self.assertFalse(
+            populate_pokemon_from_public_variant(pokemon, self.variant, None)
+        )
         self.assertEqual(before, tuple(pokemon.moves))
 
     def test_49_removed_item_is_not_restored(self):
         pokemon = Pokemon("pikachu", 50)
         pokemon.item = None
         pokemon.removed_item = "lightball"
-        populate_pokemon_from_public_variant(pokemon, self.variant, _evidence(item="lightball"))
+        populate_pokemon_from_public_variant(
+            pokemon, self.variant, _evidence(item="lightball")
+        )
         self.assertEqual((None, "lightball"), (pokemon.item, pokemon.removed_item))
 
     def test_50_consumed_item_is_not_restored(self):
         pokemon = Pokemon("pikachu", 50)
         pokemon.item = None
         pokemon.removed_item = "sitrusberry"
-        populate_pokemon_from_public_variant(pokemon, self.variant, _evidence(item="sitrusberry"))
+        populate_pokemon_from_public_variant(
+            pokemon, self.variant, _evidence(item="sitrusberry")
+        )
         self.assertIsNone(pokemon.item)
 
     def test_51_transferred_current_item_is_preserved(self):
@@ -912,8 +972,12 @@ class TestCopiedPopulationAndFallback(unittest.TestCase):
     def test_53_known_base_and_current_ability_are_preserved(self):
         pokemon = Pokemon("pikachu", 50)
         pokemon.ability = pokemon.original_ability = "static"
-        populate_pokemon_from_public_variant(pokemon, self.variant, _evidence(ability="static"))
-        self.assertEqual(("static", "static"), (pokemon.original_ability, pokemon.ability))
+        populate_pokemon_from_public_variant(
+            pokemon, self.variant, _evidence(ability="static")
+        )
+        self.assertEqual(
+            ("static", "static"), (pokemon.original_ability, pokemon.ability)
+        )
 
     def test_54_trace_base_and_copied_current_ability_are_preserved(self):
         trace_variant = _variant(ability="trace")
@@ -922,7 +986,9 @@ class TestCopiedPopulationAndFallback(unittest.TestCase):
         pokemon.ability = "closingjaws"
         evidence = _evidence(ability="trace", changed=True)
         populate_pokemon_from_public_variant(pokemon, trace_variant, evidence)
-        self.assertEqual(("trace", "closingjaws"), (pokemon.original_ability, pokemon.ability))
+        self.assertEqual(
+            ("trace", "closingjaws"), (pokemon.original_ability, pokemon.ability)
+        )
 
     def test_55_gastro_acid_suppression_remains_present(self):
         pokemon = Pokemon("pikachu", 50)
@@ -986,7 +1052,10 @@ class TestCopiedPopulationAndFallback(unittest.TestCase):
 
         generic.assert_not_called()
         sampled_pokemon = sampled.opponent.active
-        self.assertEqual("typed", _selected(context, ledger_before.member("pikachu")).variant.variant_id)
+        self.assertEqual(
+            "typed",
+            _selected(context, ledger_before.member("pikachu")).variant.variant_id,
+        )
         self.assertEqual(
             set(variant.move_ids), {move.name for move in sampled_pokemon.moves}
         )
@@ -1059,7 +1128,10 @@ class TestIVSerializationAndIsolation(unittest.TestCase):
         zero = Pokemon("pikachu", 50)
         populate_pokemon_from_public_variant(full, self.full, None)
         populate_pokemon_from_public_variant(zero, self.zero, None)
-        self.assertLess(pokemon_to_poke_engine_pkmn(zero).speed, pokemon_to_poke_engine_pkmn(full).speed)
+        self.assertLess(
+            pokemon_to_poke_engine_pkmn(zero).speed,
+            pokemon_to_poke_engine_pkmn(full).speed,
+        )
 
     def test_65_no_poke_engine_state_schema_field_is_added(self):
         state = battle_to_poke_engine_state(_battle())
@@ -1072,7 +1144,9 @@ class TestIVSerializationAndIsolation(unittest.TestCase):
         def legacy_generic(pokemon, mode):
             pokemon.set_spread("timid", [0, 0, 0, 252, 4, 252])
 
-        with mock.patch("fp.search.standard_battles.sample_pokemon", side_effect=legacy_generic):
+        with mock.patch(
+            "fp.search.standard_battles.sample_pokemon", side_effect=legacy_generic
+        ):
             sampled = prepare_battles(battle, 1)[0][0]
         self.assertEqual((31,) * 6, sampled.opponent.active.ivs)
         self.assertIsInstance(sampled.opponent.active.evs, list)
@@ -1100,7 +1174,9 @@ class TestIVSerializationAndIsolation(unittest.TestCase):
         self.assertEqual([0.25] * 4, [weight for _, weight in samples])
 
     def test_71_mcts_input_remains_ordinary_serialized_state(self):
-        sampled = prepare_battles(_battle(_context(_dataset(variants=(self.zero,)))), 1)[0][0]
+        sampled = prepare_battles(
+            _battle(_context(_dataset(variants=(self.zero,)))), 1
+        )[0][0]
         state_string = battle_to_poke_engine_state(sampled).to_string()
         self.assertIsInstance(state_string, str)
         self.assertNotIn("syntheticprior", state_string)
@@ -1112,16 +1188,26 @@ class TestIVSerializationAndIsolation(unittest.TestCase):
 
     def test_73_no_runtime_cache_is_created(self):
         context = _context()
-        with mock.patch.object(builtins, "open", side_effect=AssertionError("runtime file access")):
-            self.assertIs(PublicPriorSelectionStatus.SELECTED, _selected(context).status)
+        with mock.patch.object(
+            builtins, "open", side_effect=AssertionError("runtime file access")
+        ):
+            self.assertIs(
+                PublicPriorSelectionStatus.SELECTED, _selected(context).status
+            )
 
     def test_74_no_network_call_occurs(self):
         context = _context()
-        with mock.patch.object(socket, "create_connection", side_effect=AssertionError("network")):
-            self.assertIs(PublicPriorSelectionStatus.SELECTED, _selected(context).status)
+        with mock.patch.object(
+            socket, "create_connection", side_effect=AssertionError("network")
+        ):
+            self.assertIs(
+                PublicPriorSelectionStatus.SELECTED, _selected(context).status
+            )
 
     def test_75_no_production_public_prior_json_exists(self):
-        self.assertEqual([], list((ROOT / "fp" / "data" / "public_priors").glob("*.json")))
+        self.assertEqual(
+            [], list((ROOT / "fp" / "data" / "public_priors").glob("*.json"))
+        )
 
     def test_76_no_private_team_pool_conversion_path_exists(self):
         paths = (
@@ -1147,9 +1233,13 @@ class TestIVSerializationAndIsolation(unittest.TestCase):
 
 class TestCumulativeRegressions(unittest.TestCase):
     def test_79_phase_one_loader_checkpoint_remains_present(self):
-        source = (ROOT / "tests" / "test_team_pool_loader.py").read_text(encoding="utf-8")
+        source = (ROOT / "tests" / "test_team_pool_loader.py").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("class Test", source)
-        self.assertTrue((ROOT / "fp" / "data" / "team_pools" / "validation.py").is_file())
+        self.assertTrue(
+            (ROOT / "fp" / "data" / "team_pools" / "validation.py").is_file()
+        )
 
     def test_80_phase_two_inference_checkpoint_remains_present(self):
         battle = _battle()
@@ -1184,7 +1274,10 @@ class TestCumulativeRegressions(unittest.TestCase):
         battle = _battle()
         battle.user.active = Pokemon("lapras", 50)
         battle.user.active.ability = "persistent"
-        fieldstart(battle, ["", "-fieldstart", "move: Trick Room", "[of] p1a: Lapras", "[persistent]"])
+        fieldstart(
+            battle,
+            ["", "-fieldstart", "move: Trick Room", "[of] p1a: Lapras", "[persistent]"],
+        )
         self.assertEqual(8, battle.trick_room_turns_remaining)
 
     def test_85_ancient_shell_serialization_remains_passing(self):
@@ -1195,7 +1288,10 @@ class TestCumulativeRegressions(unittest.TestCase):
     def test_86_corrosive_gas_parsing_remains_passing(self):
         battle = _battle(species="dustox")
         battle.opponent.active.item = "leftovers"
-        remove_item(battle, ["", "-enditem", "p2a: Dustox", "Leftovers", "[from] move: Corrosive Gas"])
+        remove_item(
+            battle,
+            ["", "-enditem", "p2a: Dustox", "Leftovers", "[from] move: Corrosive Gas"],
+        )
         self.assertIsNone(battle.opponent.active.item)
         self.assertEqual("leftovers", battle.opponent.active.removed_item)
 
@@ -1225,7 +1321,9 @@ class TestCumulativeRegressions(unittest.TestCase):
         battle.team_inference.record_public_member("raichu", 50)
         sampled = prepare_battles(battle, 1)[0][0]
         self.assertEqual("pikachu", sampled.opponent.active.name)
-        self.assertEqual(["raichu"], [pokemon.name for pokemon in sampled.opponent.reserve])
+        self.assertEqual(
+            ["raichu"], [pokemon.name for pokemon in sampled.opponent.reserve]
+        )
 
     def test_90_ambiguous_item_history_blocks_item_injection(self):
         pokemon = Pokemon("pikachu", 50)
@@ -1257,7 +1355,13 @@ class TestCumulativeRegressions(unittest.TestCase):
                         "details": "Pikachu, L50",
                         "condition": "100/100",
                         "active": True,
-                        "stats": {"atk": 77, "def": 60, "spa": 70, "spd": 65, "spe": 90},
+                        "stats": {
+                            "atk": 77,
+                            "def": 60,
+                            "spa": 70,
+                            "spd": 65,
+                            "spe": 90,
+                        },
                         "moves": ["tackle"],
                         "baseAbility": "static",
                         "ability": "static",

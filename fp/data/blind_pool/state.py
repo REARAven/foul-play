@@ -249,11 +249,7 @@ def validate_blind_pool_bag_state(
             "state_last_consumed_invalid",
             "Later Blind Ladder cycles require a consumed ID",
         )
-    if (
-        cycle_number > 1
-        and next_index == 0
-        and cycle_order[0] == last_consumed_id
-    ):
+    if cycle_number > 1 and next_index == 0 and cycle_order[0] == last_consumed_id:
         _fail(
             "state_cycle_boundary_repeat",
             "Blind Ladder state repeats a team across the cycle boundary",
@@ -329,12 +325,15 @@ def _state_document(state: BlindPoolBagState) -> dict[str, Any]:
 
 
 def _serialize_state(state: BlindPoolBagState) -> str:
-    return json.dumps(
-        _state_document(state),
-        ensure_ascii=True,
-        separators=(",", ":"),
-        sort_keys=True,
-    ) + "\n"
+    return (
+        json.dumps(
+            _state_document(state),
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n"
+    )
 
 
 def _fsync_directory(path: Path) -> None:

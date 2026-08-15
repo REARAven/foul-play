@@ -49,9 +49,7 @@ class PublicPriorSearchContext:
     selected_identities: tuple[PublicPriorIdentity, ...]
     fallback_policy: PublicPriorFallback
     format_id: str
-    diagnostics: tuple[SelectedDatasetDiagnostic, ...] = field(
-        init=False, repr=True
-    )
+    diagnostics: tuple[SelectedDatasetDiagnostic, ...] = field(init=False, repr=True)
 
     def __post_init__(self) -> None:
         if not isinstance(self.registry, PublicPriorRegistry):

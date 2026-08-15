@@ -52,7 +52,9 @@ def _pokemon(species_id, slot_number):
 
 
 def _team(team_id="teamone", variant_id="default", species=SPECIES):
-    pokemon = [_pokemon(species_id, index + 1) for index, species_id in enumerate(species)]
+    pokemon = [
+        _pokemon(species_id, index + 1) for index, species_id in enumerate(species)
+    ]
     return {
         "team_id": team_id,
         "variant_id": variant_id,
@@ -132,7 +134,9 @@ class TestTeamPoolLoader(unittest.TestCase):
         self.assertIsInstance(pool.metadata["nested"]["values"], tuple)
 
     def test_03_canonical_roster_key_is_order_independent(self):
-        self.assertEqual(canonical_roster_key(SPECIES), canonical_roster_key(reversed(SPECIES)))
+        self.assertEqual(
+            canonical_roster_key(SPECIES), canonical_roster_key(reversed(SPECIES))
+        )
 
     def test_04_canonical_roster_key_preserves_exact_forms(self):
         ordinary = canonical_roster_key(
@@ -178,7 +182,9 @@ class TestTeamPoolLoader(unittest.TestCase):
 
     def test_09_multiple_pools_coexist_in_immutable_registry(self):
         second = _document(pool_id="anotherpool", pool_version="2")
-        registry = TeamPoolRegistry((_load_document(_document()), _load_document(second)))
+        registry = TeamPoolRegistry(
+            (_load_document(_document()), _load_document(second))
+        )
         self.assertEqual(2, len(registry))
         with self.assertRaises(TypeError):
             registry.pool_lookup[PoolIdentity("x", "1", "gen9tugs")] = registry.pools[0]
@@ -230,12 +236,17 @@ class TestTeamPoolLoader(unittest.TestCase):
 
     def test_15_empty_pool_is_rejected(self):
         error = _validation_error(_document([]))
-        self.assertEqual("pool must contain at least one team", error.issues[-1].message)
+        self.assertEqual(
+            "pool must contain at least one team", error.issues[-1].message
+        )
 
     def test_16_duplicate_team_identity_is_rejected(self):
         error = _validation_error(_document([_team(), _team()]))
         self.assertTrue(
-            any("duplicate team-record identity" in issue.message for issue in error.issues)
+            any(
+                "duplicate team-record identity" in issue.message
+                for issue in error.issues
+            )
         )
 
     def test_17_team_with_fewer_than_six_pokemon_is_rejected(self):
@@ -256,13 +267,26 @@ class TestTeamPoolLoader(unittest.TestCase):
         team = _team()
         team["pokemon"][1]["slot_id"] = "slot1"
         error = _validation_error(_document([team]))
-        self.assertTrue(any("duplicate slot ID 'slot1'" == issue.message for issue in error.issues))
+        self.assertTrue(
+            any("duplicate slot ID 'slot1'" == issue.message for issue in error.issues)
+        )
 
     def test_20_species_clause_violation_across_forms_is_rejected(self):
-        species = ("raichu", "raichualola", "blastoise", "venusaur", "snorlax", "gengar")
+        species = (
+            "raichu",
+            "raichualola",
+            "blastoise",
+            "venusaur",
+            "snorlax",
+            "gengar",
+        )
         error = _validation_error(_document([_team(species=species)]))
-        issue = next(issue for issue in error.issues if "Species Clause" in issue.message)
-        self.assertEqual("Species Clause violation for base species 'raichu'", issue.message)
+        issue = next(
+            issue for issue in error.issues if "Species Clause" in issue.message
+        )
+        self.assertEqual(
+            "Species Clause violation for base species 'raichu'", issue.message
+        )
 
     def test_21_unknown_exact_species_form_is_rejected(self):
         document = _document()
@@ -271,14 +295,21 @@ class TestTeamPoolLoader(unittest.TestCase):
         pokemon["base_species_id"] = "madeupmon"
         document["teams"][0].pop("roster_key")
         error = _validation_error(document)
-        self.assertTrue(any("unknown exact species/form ID 'madeupmon'" == issue.message for issue in error.issues))
+        self.assertTrue(
+            any(
+                "unknown exact species/form ID 'madeupmon'" == issue.message
+                for issue in error.issues
+            )
+        )
 
     def test_22_noncanonical_species_id_is_rejected_not_rewritten(self):
         document = _document()
         document["teams"][0]["pokemon"][0]["species_id"] = "Porygon-2"
         document["teams"][0].pop("roster_key")
         error = _validation_error(document)
-        issue = next(issue for issue in error.issues if issue.path.endswith(".species_id"))
+        issue = next(
+            issue for issue in error.issues if issue.path.endswith(".species_id")
+        )
         self.assertEqual(
             "expected canonical ID 'porygon2', received 'Porygon-2'", issue.message
         )
@@ -294,7 +325,12 @@ class TestTeamPoolLoader(unittest.TestCase):
         document = _document()
         document["teams"][0]["pokemon"][0]["move_ids"][0] = "madeupmove"
         error = _validation_error(document)
-        self.assertTrue(any("unknown move ID 'madeupmove'" == issue.message for issue in error.issues))
+        self.assertTrue(
+            any(
+                "unknown move ID 'madeupmove'" == issue.message
+                for issue in error.issues
+            )
+        )
 
     def test_25_noncanonical_move_id_is_rejected_not_rewritten(self):
         document = _document()
@@ -302,7 +338,8 @@ class TestTeamPoolLoader(unittest.TestCase):
         error = _validation_error(document)
         self.assertTrue(
             any(
-                issue.message == "expected canonical ID 'sleeptalk', received 'Sleep Talk'"
+                issue.message
+                == "expected canonical ID 'sleeptalk', received 'Sleep Talk'"
                 for issue in error.issues
             )
         )
@@ -316,73 +353,128 @@ class TestTeamPoolLoader(unittest.TestCase):
             "sleeptalk",
         ]
         error = _validation_error(document)
-        self.assertTrue(any("duplicate move ID 'tackle'" == issue.message for issue in error.issues))
+        self.assertTrue(
+            any("duplicate move ID 'tackle'" == issue.message for issue in error.issues)
+        )
 
     def test_27_record_without_exactly_four_moves_is_rejected(self):
         document = _document()
         document["teams"][0]["pokemon"][0]["move_ids"].pop()
         error = _validation_error(document)
-        self.assertTrue(any("expected exactly 4 entries, received 3" == issue.message for issue in error.issues))
+        self.assertTrue(
+            any(
+                "expected exactly 4 entries, received 3" == issue.message
+                for issue in error.issues
+            )
+        )
 
     def test_28_invalid_nature_is_rejected(self):
         document = _document()
         document["teams"][0]["pokemon"][0]["nature_id"] = "invented"
         error = _validation_error(document)
-        self.assertTrue(any("unknown nature ID 'invented'" == issue.message for issue in error.issues))
+        self.assertTrue(
+            any(
+                "unknown nature ID 'invented'" == issue.message
+                for issue in error.issues
+            )
+        )
 
     def test_29_ev_field_names_ranges_and_total_are_validated(self):
         cases = []
         wrong_field = _document()
-        wrong_field["teams"][0]["pokemon"][0]["evs"]["speed"] = wrong_field["teams"][0]["pokemon"][0]["evs"].pop("spe")
+        wrong_field["teams"][0]["pokemon"][0]["evs"]["speed"] = wrong_field["teams"][0][
+            "pokemon"
+        ][0]["evs"].pop("spe")
         cases.append((wrong_field, "unexpected stat field"))
         bad_range = _document()
         bad_range["teams"][0]["pokemon"][0]["evs"]["hp"] = 253
         cases.append((bad_range, "must be between 0 and 252"))
         bad_total = _document()
-        bad_total["teams"][0]["pokemon"][0]["evs"].update({"hp": 252, "atk": 252, "def": 252})
+        bad_total["teams"][0]["pokemon"][0]["evs"].update(
+            {"hp": 252, "atk": 252, "def": 252}
+        )
         cases.append((bad_total, "total must not exceed 510"))
         for document, message in cases:
             with self.subTest(message=message):
-                self.assertTrue(any(message in issue.message for issue in _validation_error(document).issues))
+                self.assertTrue(
+                    any(
+                        message in issue.message
+                        for issue in _validation_error(document).issues
+                    )
+                )
 
     def test_30_iv_field_names_and_ranges_are_validated(self):
         wrong_field = _document()
-        wrong_field["teams"][0]["pokemon"][0]["ivs"]["speed"] = wrong_field["teams"][0]["pokemon"][0]["ivs"].pop("spe")
-        self.assertTrue(any("unexpected stat field" in issue.message for issue in _validation_error(wrong_field).issues))
+        wrong_field["teams"][0]["pokemon"][0]["ivs"]["speed"] = wrong_field["teams"][0][
+            "pokemon"
+        ][0]["ivs"].pop("spe")
+        self.assertTrue(
+            any(
+                "unexpected stat field" in issue.message
+                for issue in _validation_error(wrong_field).issues
+            )
+        )
         bad_range = _document()
         bad_range["teams"][0]["pokemon"][0]["ivs"]["hp"] = 32
-        self.assertTrue(any("must be between 0 and 31" in issue.message for issue in _validation_error(bad_range).issues))
+        self.assertTrue(
+            any(
+                "must be between 0 and 31" in issue.message
+                for issue in _validation_error(bad_range).issues
+            )
+        )
 
     def test_31_invalid_level_is_rejected(self):
         for value in (0, 101, True, 1.5):
             with self.subTest(value=value):
                 document = _document()
                 document["teams"][0]["pokemon"][0]["level"] = value
-                self.assertTrue(any(issue.path.endswith(".level") for issue in _validation_error(document).issues))
+                self.assertTrue(
+                    any(
+                        issue.path.endswith(".level")
+                        for issue in _validation_error(document).issues
+                    )
+                )
 
     def test_32_base_current_ability_mismatch_is_rejected(self):
         document = _document()
         document["teams"][0]["pokemon"][0]["current_ability_id"] = "staticx"
         error = _validation_error(document)
-        self.assertTrue(any("must equal base_ability_id" in issue.message for issue in error.issues))
+        self.assertTrue(
+            any("must equal base_ability_id" in issue.message for issue in error.issues)
+        )
 
     def test_33_invalid_public_field_declaration_is_rejected(self):
         document = _document()
         document["teams"][0]["pokemon"][0]["public_fields"] = ["species_id", "nickname"]
         error = _validation_error(document)
-        self.assertTrue(any("unrecognized public field 'nickname'" == issue.message for issue in error.issues))
+        self.assertTrue(
+            any(
+                "unrecognized public field 'nickname'" == issue.message
+                for issue in error.issues
+            )
+        )
 
     def test_34_invalid_variant_of_reference_is_rejected(self):
         team = _team("teamtwo", "alternate")
         team["variant_of"] = {"team_id": "missing", "variant_id": "default"}
         error = _validation_error(_document([team]))
-        self.assertTrue(any("variant_of references unknown team record" in issue.message for issue in error.issues))
+        self.assertTrue(
+            any(
+                "variant_of references unknown team record" in issue.message
+                for issue in error.issues
+            )
+        )
 
     def test_35_source_roster_key_mismatch_is_rejected(self):
         team = _team()
         team["roster_key"] = sorted(("raichu", *SPECIES[1:]))
         error = _validation_error(_document([team]))
-        self.assertTrue(any("source roster key does not match" in issue.message for issue in error.issues))
+        self.assertTrue(
+            any(
+                "source roster key does not match" in issue.message
+                for issue in error.issues
+            )
+        )
 
     def test_36_validation_reports_multiple_independent_errors(self):
         document = _document()
@@ -485,12 +577,19 @@ class TestTeamPoolLoader(unittest.TestCase):
             path = Path(directory, "pool.json")
             valid = json.dumps(_document())
             path.write_text(
-                valid.replace('"schema_version": 1', '"schema_version": 1, "schema_version": 1', 1),
+                valid.replace(
+                    '"schema_version": 1', '"schema_version": 1, "schema_version": 1', 1
+                ),
                 encoding="utf-8",
             )
             with self.assertRaises(TeamPoolValidationError) as caught:
                 load_team_pool(path)
-            self.assertTrue(any("duplicate JSON field" in issue.message for issue in caught.exception.issues))
+            self.assertTrue(
+                any(
+                    "duplicate JSON field" in issue.message
+                    for issue in caught.exception.issues
+                )
+            )
 
     def test_explicit_base_species_must_match_authoritative_metadata(self):
         document = _document()
@@ -501,7 +600,12 @@ class TestTeamPoolLoader(unittest.TestCase):
         pokemon["current_ability_id"] = _ability_for("raichualola")
         document["teams"][0].pop("roster_key")
         error = _validation_error(document)
-        self.assertTrue(any("authoritative base species 'raichu'" in issue.message for issue in error.issues))
+        self.assertTrue(
+            any(
+                "authoritative base species 'raichu'" in issue.message
+                for issue in error.issues
+            )
+        )
 
     def test_species_specific_unknown_ability_is_rejected(self):
         document = _document()
@@ -509,14 +613,24 @@ class TestTeamPoolLoader(unittest.TestCase):
         pokemon["base_ability_id"] = "levitate"
         pokemon["current_ability_id"] = "levitate"
         error = _validation_error(document)
-        self.assertTrue(any("is not listed for species 'pikachu'" in issue.message for issue in error.issues))
+        self.assertTrue(
+            any(
+                "is not listed for species 'pikachu'" in issue.message
+                for issue in error.issues
+            )
+        )
 
     def test_no_item_requires_explicit_canonical_string(self):
         for value in (None, "", "No Item"):
             with self.subTest(value=value):
                 document = _document()
                 document["teams"][0]["pokemon"][0]["item_id"] = value
-                self.assertTrue(any(issue.path.endswith(".item_id") for issue in _validation_error(document).issues))
+                self.assertTrue(
+                    any(
+                        issue.path.endswith(".item_id")
+                        for issue in _validation_error(document).issues
+                    )
+                )
 
     def test_valid_variant_reference_is_retained(self):
         base = _team("teamone", "default")
@@ -530,7 +644,9 @@ class TestTeamPoolLoader(unittest.TestCase):
         document = _document()
         document["pool"]["source_documents"] = ["Document One.docx"]
         error = _validation_error(document)
-        self.assertTrue(any(issue.path == "$.pool.source_documents[0]" for issue in error.issues))
+        self.assertTrue(
+            any(issue.path == "$.pool.source_documents[0]" for issue in error.issues)
+        )
 
     def test_canonical_roster_key_rejects_partial_and_noncanonical_inputs(self):
         with self.assertRaisesRegex(ValueError, "exactly six"):
@@ -551,8 +667,12 @@ class TestTeamPoolLoader(unittest.TestCase):
         datasets_state = dict(vars(standard_mode.team_datasets))
         smogon_state = dict(vars(standard_mode.smogon_sets))
         _load_document(_document())
-        self.assertEqual(mode_ids, {key: id(value) for key, value in BATTLE_MODES.items()})
-        self.assertEqual(mode_states, {key: dict(vars(value)) for key, value in BATTLE_MODES.items()})
+        self.assertEqual(
+            mode_ids, {key: id(value) for key, value in BATTLE_MODES.items()}
+        )
+        self.assertEqual(
+            mode_states, {key: dict(vars(value)) for key, value in BATTLE_MODES.items()}
+        )
         self.assertEqual(datasets_id, id(standard_mode.team_datasets))
         self.assertEqual(smogon_id, id(standard_mode.smogon_sets))
         self.assertEqual(datasets_state, vars(standard_mode.team_datasets))

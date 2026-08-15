@@ -28,12 +28,7 @@ from fp.websocket_client import PSWebsocketClient
 
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCTION_PATH = (
-    ROOT
-    / "fp"
-    / "data"
-    / "public_priors"
-    / "pools"
-    / "tugspublicarchetypes-1.0.0.json"
+    ROOT / "fp" / "data" / "public_priors" / "pools" / "tugspublicarchetypes-1.0.0.json"
 )
 IDENTITY = PublicPriorIdentity("tugspublicarchetypes", "1.0.0", "gen9tugs")
 OPPONENT_PREVIEW = (
@@ -218,16 +213,12 @@ class TestBattleTimerRuntime(unittest.TestCase):
     def test_10_off_runtime_sends_no_timer_on(self):
         FoulPlayConfig.battle_timer = False
         _, _, websocket = asyncio.run(_accept_and_start(None))
-        self.assertNotIn(
-            ("battle-gen9tugs-209", ("/timer on",)), websocket.sent
-        )
+        self.assertNotIn(("battle-gen9tugs-209", ("/timer on",)), websocket.sent)
 
     def test_11_off_runtime_sends_no_timer_off(self):
         FoulPlayConfig.battle_timer = False
         _, _, websocket = asyncio.run(_accept_and_start(None))
-        self.assertNotIn(
-            ("battle-gen9tugs-209", ("/timer off",)), websocket.sent
-        )
+        self.assertNotIn(("battle-gen9tugs-209", ("/timer off",)), websocket.sent)
 
     def test_12_repeated_battle_updates_do_not_duplicate_timer_on(self):
         FoulPlayConfig.battle_timer = True
@@ -245,9 +236,7 @@ class TestBattleTimerRuntime(unittest.TestCase):
     def test_15_incoming_timer_protocol_still_processes_when_off(self):
         FoulPlayConfig.battle_timer = False
         battle, _, websocket = asyncio.run(_accept_and_start(None))
-        battle.msg_list = [
-            "|inactive|Time left: 60 sec this turn|60 sec total"
-        ]
+        battle.msg_list = ["|inactive|Time left: 60 sec this turn|60 sec total"]
         process_battle_updates(battle)
         self.assertEqual(60, battle.time_remaining)
         battle.msg_list = ["|inactiveoff|Battle timer is now OFF."]
@@ -288,9 +277,7 @@ class TestBattleTimerRuntime(unittest.TestCase):
         FoulPlayConfig.battle_timer = True
         websocket = FinishedSocket()
         with mock.patch("fp.run_battle.battle_mode", return_value=FinishedMode()):
-            winner = asyncio.run(
-                pokemon_battle(websocket, "gen9tugs", None)
-            )
+            winner = asyncio.run(pokemon_battle(websocket, "gen9tugs", None))
         self.assertEqual("LifecycleBot", winner)
         self.assertEqual(["battle-finished"], websocket.left)
         self.assertEqual(
@@ -349,7 +336,10 @@ class TestLivePublicPriorLifecycle(unittest.TestCase):
         self.assertIs(PublicPriorFallback.GENERIC, context.fallback_policy)
         self.assertEqual("gen9tugs", battle.pokemon_format)
         self.assertEqual("gen9tugs", context.registry.get(IDENTITY).identity.format_id)
-        self.assertEqual(OPPONENT_PREVIEW, tuple(member.species_id for member in context_ledger_sorted(battle)))
+        self.assertEqual(
+            OPPONENT_PREVIEW,
+            tuple(member.species_id for member in context_ledger_sorted(battle)),
+        )
         self.assertIn(("", ("/accept Opponent",)), websocket.sent)
         self.assertEqual(["login", "accept"], websocket.events)
 
@@ -372,14 +362,19 @@ class TestLivePublicPriorLifecycle(unittest.TestCase):
         def generic(pokemon, _mode):
             generic_species.append(pokemon.name)
 
-        with mock.patch("fp.search.standard_battles.logger.debug") as sampling_logger, mock.patch(
+        with mock.patch(
+            "fp.search.standard_battles.logger.debug"
+        ) as sampling_logger, mock.patch(
             "fp.search.standard_battles.sample_pokemon", side_effect=generic
         ):
             sampled = prepare_battles(battle, 1)[0][0]
 
         sampled_druddigon = _find_opponent(sampled, "druddigon")
         self.assertEqual("rockyhelmet", sampled_druddigon.item)
-        self.assertEqual(("roughskin", "roughskin"), (sampled_druddigon.ability, sampled_druddigon.original_ability))
+        self.assertEqual(
+            ("roughskin", "roughskin"),
+            (sampled_druddigon.ability, sampled_druddigon.original_ability),
+        )
         self.assertEqual("glare", sampled_druddigon.moves[0].name)
         self.assertEqual(
             {"cragmend", "glare", "dragontail", "stealthrock"},
@@ -388,14 +383,14 @@ class TestLivePublicPriorLifecycle(unittest.TestCase):
         self.assertEqual(canonical, _pokemon_state(battle.opponent.active))
         self.assertEqual(["aerodactyl"], generic_species)
 
-        diagnostics = "\n".join(
-            call.args[0] for call in sampling_logger.call_args_list
-        )
+        diagnostics = "\n".join(call.args[0] for call in sampling_logger.call_args_list)
         self.assertIn(
             "Public prior selected: species=druddigon dataset=tugspublicarchetypes version=1.0.0 variant=roughskinutility",
             diagnostics,
         )
-        self.assertIn("Public prior miss: species=aerodactyl fallback=generic", diagnostics)
+        self.assertIn(
+            "Public prior miss: species=aerodactyl fallback=generic", diagnostics
+        )
         for private_value in (
             "rockyhelmet",
             "cragmend",
@@ -419,8 +414,18 @@ class TestLivePublicPriorLifecycle(unittest.TestCase):
             copied.team_inference.observation_ledger,
         )
         copied.team_inference.record_selected_move("druddigon", "glare")
-        self.assertEqual((), battle.team_inference.observation_ledger.member("druddigon").selected_move_ids)
-        self.assertEqual(("glare",), copied.team_inference.observation_ledger.member("druddigon").selected_move_ids)
+        self.assertEqual(
+            (),
+            battle.team_inference.observation_ledger.member(
+                "druddigon"
+            ).selected_move_ids,
+        )
+        self.assertEqual(
+            ("glare",),
+            copied.team_inference.observation_ledger.member(
+                "druddigon"
+            ).selected_move_ids,
+        )
         self.assertFalse(
             {"__copy__", "__getstate__", "__setstate__", "__reduce__", "__reduce_ex__"}
             & set(Battle.__dict__)
@@ -456,7 +461,12 @@ class TestLivePublicPriorLifecycle(unittest.TestCase):
         )
         self.assertIsNot(first.team_inference, second.team_inference)
         first.team_inference.record_selected_move("druddigon", "glare")
-        self.assertEqual((), second.team_inference.observation_ledger.member("druddigon").selected_move_ids)
+        self.assertEqual(
+            (),
+            second.team_inference.observation_ledger.member(
+                "druddigon"
+            ).selected_move_ids,
+        )
 
     def test_06_none_lifecycle_is_public_only_and_cache_network_free(self):
         configuration = _runtime(PublicPriorFallback.NONE)
@@ -470,12 +480,16 @@ class TestLivePublicPriorLifecycle(unittest.TestCase):
             with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
                 sampled = prepare_battles(battle, 1)[0][0]
 
-        self.assertIs(PublicPriorFallback.NONE, battle.public_prior_context.fallback_policy)
+        self.assertIs(
+            PublicPriorFallback.NONE, battle.public_prior_context.fallback_policy
+        )
         mode.team_datasets.initialize.assert_not_called()
         mode.smogon_sets.initialize.assert_not_called()
         generic.assert_not_called()
         self.assertEqual("rockyhelmet", _find_opponent(sampled, "druddigon").item)
-        self.assertEqual(constants.UNKNOWN_ITEM, _find_opponent(sampled, "aerodactyl").item)
+        self.assertEqual(
+            constants.UNKNOWN_ITEM, _find_opponent(sampled, "aerodactyl").item
+        )
 
     def test_07_no_configuration_preserves_legacy_generic_behavior(self):
         battle, mode, _ = asyncio.run(_accept_and_start(None))

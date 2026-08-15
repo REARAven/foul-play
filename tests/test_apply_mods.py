@@ -119,9 +119,7 @@ class TestApplyMods:
         assert 5 == all_move_json["banefulbunker"][constants.PP]
 
     @pytest.mark.parametrize("format_name", ["gen9ou", "gen9nationaldex"])
-    def test_fresh_ordinary_gen9_process_does_not_contain_cragmend(
-        self, format_name
-    ):
+    def test_fresh_ordinary_gen9_process_does_not_contain_cragmend(self, format_name):
         script = (
             "from fp.data import all_move_json; "
             "from fp.data.mods.apply_mods import apply_mods; "

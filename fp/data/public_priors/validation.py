@@ -62,9 +62,7 @@ _SOURCE_FIELDS = frozenset(
         "metadata",
     }
 )
-_SPECIES_FIELDS = frozenset(
-    {"species_id", "base_species_id", "variants", "metadata"}
-)
+_SPECIES_FIELDS = frozenset({"species_id", "base_species_id", "variants", "metadata"})
 _VARIANT_FIELDS = frozenset(
     {
         "variant_id",
@@ -353,9 +351,7 @@ def _source_record(
         dataset_context,
     )
     start_count = len(issues)
-    source_id = _string(
-        obj, "source_id", path, issues, dataset_context, canonical=True
-    )
+    source_id = _string(obj, "source_id", path, issues, dataset_context, canonical=True)
     kind_value = _string(obj, "kind", path, issues, dataset_context)
     kind = None
     if kind_value is not None:
@@ -672,21 +668,17 @@ def _variant_record(
         # nonempty canonical ID is therefore the strongest safe v1 check.
         pass
 
-    if (
-        len(issues) != start_count
-        or None
-        in (
-            variant_id,
-            weight,
-            item_id,
-            base_ability_id,
-            move_ids,
-            nature_id,
-            evs,
-            ivs,
-            level,
-            source_ids,
-        )
+    if len(issues) != start_count or None in (
+        variant_id,
+        weight,
+        item_id,
+        base_ability_id,
+        move_ids,
+        nature_id,
+        evs,
+        ivs,
+        level,
+        source_ids,
     ):
         return None, variant_id
     return (
@@ -856,7 +848,9 @@ def validate_public_prior_document(
 ) -> PublicPriorDataset:
     """Validate one parsed JSON value and return an immutable v1 dataset."""
 
-    del source_path  # Diagnostics use JSON paths; the loader retains no live file object.
+    del (
+        source_path
+    )  # Diagnostics use JSON paths; the loader retains no live file object.
     issues: list[ValidationIssue] = []
     document = _materialize(document, "$", issues)
     top = _require_object(document, "$", issues)
@@ -904,9 +898,7 @@ def validate_public_prior_document(
         top.get("dataset_id") if isinstance(top.get("dataset_id"), str) else None
     )
     context = {"dataset_id": dataset_hint}
-    visibility = _string(
-        top, "visibility", "$", issues, context, required=False
-    )
+    visibility = _string(top, "visibility", "$", issues, context, required=False)
     if visibility is not None and visibility != PUBLIC_VISIBILITY:
         _issue(
             issues,
@@ -916,9 +908,7 @@ def validate_public_prior_document(
             field="visibility",
             invalid_value=visibility,
         )
-    dataset_id = _string(
-        top, "dataset_id", "$", issues, context, canonical=True
-    )
+    dataset_id = _string(top, "dataset_id", "$", issues, context, canonical=True)
     dataset_version = _string(top, "dataset_version", "$", issues, context)
     format_id = _string(top, "format_id", "$", issues, context, canonical=True)
     patch_version = _string(

@@ -448,9 +448,7 @@ class TestBlindPoolRoomCorrelation(BlindPoolLifecycleFixture):
                 self.assertIsNone(correlator.feed(message))
 
     def test_stale_excluded_room_is_ignored(self):
-        correlator = self.correlator(
-            excluded_room_ids=("battle-gen9tugs-401",)
-        )
+        correlator = self.correlator(excluded_room_ids=("battle-gen9tugs-401",))
         self.assertIsNone(correlator.feed(room_message()))
 
     def test_candidate_state_is_bounded(self):
@@ -524,7 +522,9 @@ class TestBlindPoolLifecycleOrdering(BlindPoolLifecycleFixture):
         self.assertEqual(1, commit.call_count)
         self.assertEqual(1, self.store.snapshot().next_index)
 
-    async def test_duplicate_challenge_and_global_event_do_not_hide_same_frame_room(self):
+    async def test_duplicate_challenge_and_global_event_do_not_hide_same_frame_room(
+        self,
+    ):
         combined = "\n".join(
             (
                 CHALLENGE,
@@ -540,7 +540,10 @@ class TestBlindPoolLifecycleOrdering(BlindPoolLifecycleFixture):
             "|updateuser|",
             "\n".join(transport.handoffs[0][1]),
         )
-    async def test_correlated_initialization_and_request_are_handed_to_normal_readers(self):
+
+    async def test_correlated_initialization_and_request_are_handed_to_normal_readers(
+        self,
+    ):
         request = json.dumps({"rqid": 17, "private": PRIVATE_SENTINEL})
         initial = "\n".join(
             (
@@ -575,9 +578,7 @@ class TestBlindPoolLifecycleOrdering(BlindPoolLifecycleFixture):
             self.assertIn("|teampreview", setup)
             self.assertNotIn("|request|", setup)
             battle = SimpleNamespace(
-                user=SimpleNamespace(
-                    initialize_first_turn_user_from_json=mock.Mock()
-                ),
+                user=SimpleNamespace(initialize_first_turn_user_from_json=mock.Mock()),
                 request_json=None,
                 rqid=None,
             )
@@ -695,7 +696,9 @@ class TestBlindPoolLifecycleOrdering(BlindPoolLifecycleFixture):
             events.append("commit")
             return result
 
-        with mock.patch.object(self.store, "reserve_next", side_effect=reserve), mock.patch.object(
+        with mock.patch.object(
+            self.store, "reserve_next", side_effect=reserve
+        ), mock.patch.object(
             self.store,
             "mark_accept_sent",
             side_effect=mark,
@@ -735,7 +738,9 @@ class TestBlindPoolLifecycleOrdering(BlindPoolLifecycleFixture):
         self.assertEqual(1, len(prepare_calls))
         self.assertEqual(1, len(transport.sent))
 
-    async def test_deduplication_clears_after_resolution_and_stale_room_is_ignored(self):
+    async def test_deduplication_clears_after_resolution_and_stale_room_is_ignored(
+        self,
+    ):
         transport = FakeTransport(
             (
                 CHALLENGE,
@@ -793,9 +798,7 @@ class TestBlindPoolLifecycleFailures(BlindPoolLifecycleFixture):
             "mark_accept_sent",
             side_effect=mark_then_cancel,
         ):
-            await self.assert_self_cancellation(
-                self.coordinator(transport).run_once()
-            )
+            await self.assert_self_cancellation(self.coordinator(transport).run_once())
         self.assertEqual("accept_sent", self.store.snapshot().reservation.phase)
         self.assertLessEqual(len(transport.sent), 1)
 
@@ -833,9 +836,7 @@ class TestBlindPoolLifecycleFailures(BlindPoolLifecycleFixture):
             "feed",
             new=correlate_then_cancel,
         ):
-            await self.assert_self_cancellation(
-                self.coordinator(transport).run_once()
-            )
+            await self.assert_self_cancellation(self.coordinator(transport).run_once())
         state = self.store.snapshot()
         self.assertIsNone(state.reservation)
         self.assertEqual(1, state.next_index)
@@ -878,7 +879,9 @@ class TestBlindPoolLifecycleFailures(BlindPoolLifecycleFixture):
         self.assertIsNone(state.reservation)
         self.assertEqual(1, state.next_index)
 
-    async def test_reserve_exception_after_replace_keeps_one_identified_reservation(self):
+    async def test_reserve_exception_after_replace_keeps_one_identified_reservation(
+        self,
+    ):
         prepared = []
 
         async def prepare(team_id):
@@ -1114,7 +1117,9 @@ class TestBlindPoolLifecycleFailures(BlindPoolLifecycleFixture):
         self.assertEqual("reconciliation_required", captured.exception.code)
         self.assertEqual(calls_after_ambiguity, transport.receive_calls)
 
-    async def test_disconnect_and_unrelated_or_malformed_traffic_leave_accept_sent(self):
+    async def test_disconnect_and_unrelated_or_malformed_traffic_leave_accept_sent(
+        self,
+    ):
         messages = (
             CHALLENGE,
             PRIVATE_SENTINEL,
@@ -1141,7 +1146,10 @@ class TestBlindPoolLifecycleFailures(BlindPoolLifecycleFixture):
         for _ in range(100):
             await asyncio.sleep(0)
             state = self.store.initialize_or_load()
-            if state.reservation is not None and state.reservation.phase == "accept_sent":
+            if (
+                state.reservation is not None
+                and state.reservation.phase == "accept_sent"
+            ):
                 break
         task.cancel()
         with self.assertRaises(asyncio.CancelledError):
@@ -1332,7 +1340,10 @@ class TestBlindPoolLifecycleRecovery(BlindPoolLifecycleFixture):
         for _ in range(100):
             await asyncio.sleep(0)
             state = self.store.initialize_or_load()
-            if state.reservation is not None and state.reservation.phase == "accept_sent":
+            if (
+                state.reservation is not None
+                and state.reservation.phase == "accept_sent"
+            ):
                 break
         second_transport = FakeTransport((CHALLENGE, room_message()))
         with self.assertRaises(BlindPoolLifecycleError) as captured:

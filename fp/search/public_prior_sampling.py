@@ -196,9 +196,7 @@ def select_public_prior_variant(
         compatible = tuple(
             variant
             for variant in species.variants
-            if public_variant_is_compatible(
-                variant, species_id, level, evidence
-            )
+            if public_variant_is_compatible(variant, species_id, level, evidence)
         )
         if not compatible:
             continue
@@ -208,9 +206,7 @@ def select_public_prior_variant(
             variant=choose_weighted_public_variant(compatible, rng=rng),
         )
 
-    return PublicPriorSelectionResult(
-        PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT
-    )
+    return PublicPriorSelectionResult(PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT)
 
 
 def _populate_item(
@@ -218,9 +214,7 @@ def _populate_item(
 ) -> None:
     item_ambiguous = evidence is not None and evidence.item_ambiguous
     item_was_removed = (
-        pokemon.removed_item is not None
-        or pokemon.knocked_off
-        or pokemon.item is None
+        pokemon.removed_item is not None or pokemon.knocked_off or pokemon.item is None
     )
     if item_ambiguous or item_was_removed:
         return
@@ -237,9 +231,7 @@ def _populate_ability(
         if evidence is not None and evidence.base_ability_id is not None
         else variant.base_ability_id
     )
-    current_changed = (
-        evidence is not None and evidence.current_ability_changed
-    ) or (
+    current_changed = (evidence is not None and evidence.current_ability_changed) or (
         pokemon.original_ability is not None
         and pokemon.ability != pokemon.original_ability
     )
@@ -295,9 +287,7 @@ def populate_pokemon_from_public_variant(
             resolved_moves.append(resolved_move)
 
     missing_move_ids = tuple(
-        move_id
-        for move_id in variant.move_ids
-        if move_id not in resolved_candidate_ids
+        move_id for move_id in variant.move_ids if move_id not in resolved_candidate_ids
     )
     if len(resolved_moves) + len(missing_move_ids) > 4:
         return False

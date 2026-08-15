@@ -417,15 +417,15 @@ class TeamInferenceContext:
         existing = self._observation_ledger.member(species_id)
         if existing is not None:
             return
-        self._replace_member(
-            OpponentMemberEvidence(species_id=species_id, level=level)
-        )
+        self._replace_member(OpponentMemberEvidence(species_id=species_id, level=level))
 
     @staticmethod
     def _with_provenance(
         member: OpponentMemberEvidence, source: PublicObservationSource
     ) -> tuple[PublicObservationSource, ...]:
-        return tuple(sorted(set(member.provenance + (source,)), key=lambda item: item.value))
+        return tuple(
+            sorted(set(member.provenance + (source,)), key=lambda item: item.value)
+        )
 
     def record_selected_move(
         self,
@@ -461,8 +461,7 @@ class TeamInferenceContext:
         ):
             return
         conflict = (
-            member.initial_item_id is not None
-            and member.initial_item_id != item_id
+            member.initial_item_id is not None and member.initial_item_id != item_id
         )
         self._replace_member(
             replace(
@@ -506,8 +505,7 @@ class TeamInferenceContext:
         ):
             return
         conflict = (
-            member.base_ability_id is not None
-            and member.base_ability_id != ability_id
+            member.base_ability_id is not None and member.base_ability_id != ability_id
         )
         self._replace_member(
             replace(

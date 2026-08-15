@@ -82,7 +82,9 @@ def _variant(**overrides):
     return value
 
 
-def _document(dataset_id="syntheticprior", version="1", format_id="gen9tugs", **overrides):
+def _document(
+    dataset_id="syntheticprior", version="1", format_id="gen9tugs", **overrides
+):
     value = {
         "schema_version": 1,
         "visibility": "public",
@@ -226,9 +228,7 @@ class TestBattleTimerConfiguration(unittest.TestCase):
     def test_04_unsupported_timer_values_are_rejected(self):
         for value in ("yes", "no", "true", "false", "automatic", "disabled", "0", "1"):
             with self.subTest(value=value), self.assertRaises(SystemExit):
-                FoulPlayConfig.configure(
-                    _base_argv() + ["--battle-timer", value]
-                )
+                FoulPlayConfig.configure(_base_argv() + ["--battle-timer", value])
 
     def test_05_help_identifies_choices_semantics_and_default(self):
         output = io.StringIO()
@@ -242,8 +242,7 @@ class TestBattleTimerConfiguration(unittest.TestCase):
 
     def test_06_existing_arguments_without_timer_field_remain_compatible(self):
         FoulPlayConfig.configure(
-            _base_argv()
-            + ["--team-name", "legacy-team", "--search-time-ms", "321"]
+            _base_argv() + ["--team-name", "legacy-team", "--search-time-ms", "321"]
         )
         self.assertTrue(FoulPlayConfig.battle_timer)
         self.assertEqual("legacy-team", FoulPlayConfig.team_name)
@@ -308,8 +307,7 @@ class TestBattleTimerConfiguration(unittest.TestCase):
 
     def test_19_team_loading_configuration_is_unchanged(self):
         FoulPlayConfig.configure(
-            _base_argv()
-            + ["--team-name", "custom-team", "--battle-timer", "off"]
+            _base_argv() + ["--team-name", "custom-team", "--battle-timer", "off"]
         )
         self.assertEqual("custom-team", FoulPlayConfig.team_name)
         self.assertIsNone(FoulPlayConfig.team_list)
@@ -381,7 +379,9 @@ class TestPublicPriorCliAndLoading(unittest.TestCase):
             "--public-prior-fallback",
             "none",
         ]
-        self.assertEqual(("first.json", "second.json"), FoulPlayConfig.configure(argv).file_paths)
+        self.assertEqual(
+            ("first.json", "second.json"), FoulPlayConfig.configure(argv).file_paths
+        )
 
     def test_03_argument_occurrence_order_is_preserved(self):
         argv = _base_argv() + [
@@ -392,7 +392,9 @@ class TestPublicPriorCliAndLoading(unittest.TestCase):
             "--public-prior-fallback",
             "generic",
         ]
-        self.assertEqual(("z.json", "a.json"), FoulPlayConfig.configure(argv).file_paths)
+        self.assertEqual(
+            ("z.json", "a.json"), FoulPlayConfig.configure(argv).file_paths
+        )
 
     def test_04_fallback_accepts_only_generic_and_none(self):
         for value, expected in (
@@ -402,7 +404,12 @@ class TestPublicPriorCliAndLoading(unittest.TestCase):
             with self.subTest(value=value):
                 options = FoulPlayConfig.configure(
                     _base_argv()
-                    + ["--public-prior-file", "a.json", "--public-prior-fallback", value]
+                    + [
+                        "--public-prior-file",
+                        "a.json",
+                        "--public-prior-fallback",
+                        value,
+                    ]
                 )
                 self.assertIs(expected, options.fallback_policy)
         with self.assertRaises(SystemExit):
@@ -435,7 +442,9 @@ class TestPublicPriorCliAndLoading(unittest.TestCase):
                 )
             finally:
                 os.chdir(previous)
-        self.assertEqual("syntheticprior", configuration.selected_identities[0].dataset_id)
+        self.assertEqual(
+            "syntheticprior", configuration.selected_identities[0].dataset_id
+        )
 
     def test_09_local_absolute_file_loads(self):
         with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory:
@@ -448,27 +457,37 @@ class TestPublicPriorCliAndLoading(unittest.TestCase):
     def test_10_missing_file_fails_startup(self):
         with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory:
             missing = Path(directory, "missing.json")
-            with self.assertRaisesRegex(PublicPriorConfigurationError, "does not exist"):
-                load_public_prior_runtime_configuration(_options((missing,)), "gen9tugs")
+            with self.assertRaisesRegex(
+                PublicPriorConfigurationError, "does not exist"
+            ):
+                load_public_prior_runtime_configuration(
+                    _options((missing,)), "gen9tugs"
+                )
 
     def test_11_invalid_utf8_fails_startup(self):
         with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory:
             path = Path(directory, "invalid.json")
             path.write_bytes(b"\xff\xfe")
-            with self.assertRaisesRegex(PublicPriorConfigurationError, "not valid UTF-8"):
+            with self.assertRaisesRegex(
+                PublicPriorConfigurationError, "not valid UTF-8"
+            ):
                 load_public_prior_runtime_configuration(_options((path,)), "gen9tugs")
 
     def test_12_malformed_json_fails_startup(self):
         with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory:
             path = Path(directory, "malformed.json")
             path.write_text("{", encoding="utf-8")
-            with self.assertRaisesRegex(PublicPriorConfigurationError, "malformed JSON"):
+            with self.assertRaisesRegex(
+                PublicPriorConfigurationError, "malformed JSON"
+            ):
                 load_public_prior_runtime_configuration(_options((path,)), "gen9tugs")
 
     def test_13_wrong_schema_fails_startup(self):
         with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory:
             path = _write(directory, _document(schema_version=2))
-            with self.assertRaisesRegex(PublicPriorConfigurationError, "schema_version"):
+            with self.assertRaisesRegex(
+                PublicPriorConfigurationError, "schema_version"
+            ):
                 load_public_prior_runtime_configuration(_options((path,)), "gen9tugs")
 
     def test_14_visibility_other_than_public_fails_startup(self):
@@ -488,18 +507,24 @@ class TestPublicPriorCliAndLoading(unittest.TestCase):
             first = _write(directory, _document(), "first.json")
             second = _write(directory, _document(), "second.json")
             with self.assertRaisesRegex(PublicPriorConfigurationError, "duplicates"):
-                load_public_prior_runtime_configuration(_options((first, second)), "gen9tugs")
+                load_public_prior_runtime_configuration(
+                    _options((first, second)), "gen9tugs"
+                )
 
     def test_17_duplicate_file_paths_producing_one_identity_are_rejected(self):
         with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory:
             path = _write(directory, _document())
             with self.assertRaisesRegex(PublicPriorConfigurationError, "duplicates"):
-                load_public_prior_runtime_configuration(_options((path, path)), "gen9tugs")
+                load_public_prior_runtime_configuration(
+                    _options((path, path)), "gen9tugs"
+                )
 
     def test_18_format_mismatch_is_rejected(self):
         with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory:
             path = _write(directory, _document(format_id="gen9ou"))
-            with self.assertRaisesRegex(PublicPriorConfigurationError, "expected --pokemon-format"):
+            with self.assertRaisesRegex(
+                PublicPriorConfigurationError, "expected --pokemon-format"
+            ):
                 load_public_prior_runtime_configuration(_options((path,)), "gen9tugs")
 
 
@@ -512,13 +537,20 @@ class TestStartupOrdering(unittest.TestCase):
         import fp.main as main_module
 
         events = []
-        with mock.patch.object(FoulPlayConfig, "configure", side_effect=lambda: events.append("configure") or self._options()), mock.patch.object(
-            main_module, "init_logging"
-        ), mock.patch.object(main_module, "apply_mods", side_effect=lambda spec: events.append("overlay")), mock.patch.object(
+        with mock.patch.object(
+            FoulPlayConfig,
+            "configure",
+            side_effect=lambda: events.append("configure") or self._options(),
+        ), mock.patch.object(main_module, "init_logging"), mock.patch.object(
+            main_module, "apply_mods", side_effect=lambda spec: events.append("overlay")
+        ), mock.patch.object(
             main_module,
             "load_public_prior_runtime_configuration",
-            side_effect=lambda options, format_id: events.append("validate") or (_ for _ in ()).throw(PublicPriorConfigurationError("stop")),
-        ), mock.patch.object(main_module.PSWebsocketClient, "create", new=mock.AsyncMock()) as create:
+            side_effect=lambda options, format_id: events.append("validate")
+            or (_ for _ in ()).throw(PublicPriorConfigurationError("stop")),
+        ), mock.patch.object(
+            main_module.PSWebsocketClient, "create", new=mock.AsyncMock()
+        ) as create:
             with self.assertRaises(PublicPriorConfigurationError):
                 asyncio.run(main_module.run_foul_play())
         self.assertEqual(["configure", "overlay", "validate"], events)
@@ -529,16 +561,22 @@ class TestStartupOrdering(unittest.TestCase):
 
         events = []
         sentinel = RuntimeError("connected")
-        with mock.patch.object(FoulPlayConfig, "configure", return_value=self._options()), mock.patch.object(
-            main_module, "init_logging"
-        ), mock.patch.object(main_module, "apply_mods", side_effect=lambda spec: events.append("overlay")), mock.patch.object(
+        with mock.patch.object(
+            FoulPlayConfig, "configure", return_value=self._options()
+        ), mock.patch.object(main_module, "init_logging"), mock.patch.object(
+            main_module, "apply_mods", side_effect=lambda spec: events.append("overlay")
+        ), mock.patch.object(
             main_module,
             "load_public_prior_runtime_configuration",
-            side_effect=lambda options, format_id: events.append("validate") or mock.sentinel.configuration,
+            side_effect=lambda options, format_id: events.append("validate")
+            or mock.sentinel.configuration,
         ), mock.patch.object(
             main_module.PSWebsocketClient,
             "create",
-            new=mock.AsyncMock(side_effect=lambda *args: events.append("connect") or (_ for _ in ()).throw(sentinel)),
+            new=mock.AsyncMock(
+                side_effect=lambda *args: events.append("connect")
+                or (_ for _ in ()).throw(sentinel)
+            ),
         ):
             with self.assertRaisesRegex(RuntimeError, "connected"):
                 asyncio.run(main_module.run_foul_play())
@@ -547,13 +585,17 @@ class TestStartupOrdering(unittest.TestCase):
     def test_21_validation_failure_performs_no_login_attempt(self):
         import fp.main as main_module
 
-        with mock.patch.object(FoulPlayConfig, "configure", return_value=self._options()), mock.patch.object(
-            main_module, "init_logging"
-        ), mock.patch.object(main_module, "apply_mods"), mock.patch.object(
+        with mock.patch.object(
+            FoulPlayConfig, "configure", return_value=self._options()
+        ), mock.patch.object(main_module, "init_logging"), mock.patch.object(
+            main_module, "apply_mods"
+        ), mock.patch.object(
             main_module,
             "load_public_prior_runtime_configuration",
             side_effect=PublicPriorConfigurationError("invalid prior"),
-        ), mock.patch.object(main_module.PSWebsocketClient, "create", new=mock.AsyncMock()) as create:
+        ), mock.patch.object(
+            main_module.PSWebsocketClient, "create", new=mock.AsyncMock()
+        ) as create:
             with self.assertRaises(PublicPriorConfigurationError):
                 asyncio.run(main_module.run_foul_play())
         create.assert_not_awaited()
@@ -564,15 +606,17 @@ class TestRuntimeConfiguration(unittest.TestCase):
         configuration = _load_documents(_document())
         self.assertIsInstance(configuration.registry.dataset_lookup, MappingProxyType)
         with self.assertRaises(TypeError):
-            configuration.registry.dataset_lookup[configuration.selected_identities[0]] = None
+            configuration.registry.dataset_lookup[
+                configuration.selected_identities[0]
+            ] = None
 
     def test_23_selected_identity_order_matches_file_order(self):
-        configuration = _load_documents(
-            _document("zetaprior"), _document("alphaprior")
-        )
+        configuration = _load_documents(_document("zetaprior"), _document("alphaprior"))
         self.assertEqual(
             ("zetaprior", "alphaprior"),
-            tuple(identity.dataset_id for identity in configuration.selected_identities),
+            tuple(
+                identity.dataset_id for identity in configuration.selected_identities
+            ),
         )
 
     def test_24_runtime_configuration_is_immutable(self):
@@ -589,8 +633,14 @@ class TestRuntimeConfiguration(unittest.TestCase):
 
     def test_26_two_battles_do_not_share_observations(self):
         configuration = _load_documents(_document())
-        first = Battle("first", public_prior_context=configuration.create_battle_context("gen9tugs"))
-        second = Battle("second", public_prior_context=configuration.create_battle_context("gen9tugs"))
+        first = Battle(
+            "first",
+            public_prior_context=configuration.create_battle_context("gen9tugs"),
+        )
+        second = Battle(
+            "second",
+            public_prior_context=configuration.create_battle_context("gen9tugs"),
+        )
         first.team_inference.record_public_member("pikachu", 50)
         self.assertEqual(1, len(first.team_inference.observation_ledger.members))
         self.assertEqual(0, len(second.team_inference.observation_ledger.members))
@@ -608,7 +658,12 @@ class TestRuntimeConfiguration(unittest.TestCase):
     def test_28_registry_is_not_stored_on_standard_battle_mode(self):
         mode = StandardBattleMode()
         self.assertFalse(hasattr(mode, "public_prior_configuration"))
-        self.assertFalse(any(type(value).__name__ == "PublicPriorRegistry" for value in vars(mode).values()))
+        self.assertFalse(
+            any(
+                type(value).__name__ == "PublicPriorRegistry"
+                for value in vars(mode).values()
+            )
+        )
 
     def test_29_no_context_is_created_without_prior_files(self):
         mode = _FakeMode()
@@ -618,7 +673,9 @@ class TestRuntimeConfiguration(unittest.TestCase):
         self.assertNotIn("public_prior_context", mode.start_kwargs[0])
 
     def test_30_context_fallback_is_generic_when_explicitly_configured(self):
-        configuration = _load_documents(_document(), fallback=PublicPriorFallback.GENERIC)
+        configuration = _load_documents(
+            _document(), fallback=PublicPriorFallback.GENERIC
+        )
         self.assertIs(
             PublicPriorFallback.GENERIC,
             configuration.create_battle_context("gen9tugs").fallback_policy,
@@ -633,7 +690,9 @@ class TestRuntimeConfiguration(unittest.TestCase):
 
     def test_32_battle_format_matches_context_format(self):
         configuration = _load_documents(_document())
-        self.assertEqual("gen9tugs", configuration.create_battle_context("gen9tugs").format_id)
+        self.assertEqual(
+            "gen9tugs", configuration.create_battle_context("gen9tugs").format_id
+        )
         with self.assertRaises(PublicPriorConfigurationError):
             configuration.create_battle_context("gen9ou")
 
@@ -642,8 +701,16 @@ class TestRuntimeConfiguration(unittest.TestCase):
         mode = _FakeMode()
         socket = _FakeSocket()
         with mock.patch("fp.run_battle.battle_mode", return_value=mode):
-            asyncio.run(start_battle(socket, "gen9tugs", None, public_prior_configuration=configuration))
-            asyncio.run(start_battle(socket, "gen9tugs", None, public_prior_configuration=configuration))
+            asyncio.run(
+                start_battle(
+                    socket, "gen9tugs", None, public_prior_configuration=configuration
+                )
+            )
+            asyncio.run(
+                start_battle(
+                    socket, "gen9tugs", None, public_prior_configuration=configuration
+                )
+            )
         self.assertIsNot(
             mode.start_kwargs[0]["public_prior_context"],
             mode.start_kwargs[1]["public_prior_context"],
@@ -658,33 +725,62 @@ class TestRuntimeConfiguration(unittest.TestCase):
                 "fp.data.public_priors.runtime.load_public_prior",
                 wraps=runtime.load_public_prior,
             ) as loader:
-                configuration = load_public_prior_runtime_configuration(_options((path,)), "gen9tugs")
+                configuration = load_public_prior_runtime_configuration(
+                    _options((path,)), "gen9tugs"
+                )
             mode = _FakeMode()
             socket = _FakeSocket()
             with mock.patch("fp.run_battle.battle_mode", return_value=mode):
-                asyncio.run(start_battle(socket, "gen9tugs", None, public_prior_configuration=configuration))
-                asyncio.run(start_battle(socket, "gen9tugs", None, public_prior_configuration=configuration))
+                asyncio.run(
+                    start_battle(
+                        socket,
+                        "gen9tugs",
+                        None,
+                        public_prior_configuration=configuration,
+                    )
+                )
+                asyncio.run(
+                    start_battle(
+                        socket,
+                        "gen9tugs",
+                        None,
+                        public_prior_configuration=configuration,
+                    )
+                )
         self.assertEqual(1, loader.call_count)
 
     def test_35_no_directory_scanning_occurs(self):
-        with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory, mock.patch.object(
+        with tempfile.TemporaryDirectory(
+            dir=FIXTURE_TEMP_ROOT
+        ) as directory, mock.patch.object(
             Path, "glob", side_effect=AssertionError("glob called")
-        ), mock.patch.object(Path, "rglob", side_effect=AssertionError("rglob called")), mock.patch(
-            "os.walk", side_effect=AssertionError("walk called")
-        ):
+        ), mock.patch.object(
+            Path, "rglob", side_effect=AssertionError("rglob called")
+        ), mock.patch("os.walk", side_effect=AssertionError("walk called")):
             path = _write(directory, _document())
-            self.assertEqual(1, len(load_public_prior_runtime_configuration(_options((path,)), "gen9tugs").registry))
+            self.assertEqual(
+                1,
+                len(
+                    load_public_prior_runtime_configuration(
+                        _options((path,)), "gen9tugs"
+                    ).registry
+                ),
+            )
 
     def test_36_no_glob_expansion_occurs_inside_foul_play(self):
         with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory:
             _write(directory, _document())
             wildcard = Path(directory, "*.json")
             with self.assertRaises(PublicPriorConfigurationError):
-                load_public_prior_runtime_configuration(_options((wildcard,)), "gen9tugs")
+                load_public_prior_runtime_configuration(
+                    _options((wildcard,)), "gen9tugs"
+                )
 
     def test_37_no_url_input_is_supported(self):
         with mock.patch("fp.data.public_priors.runtime.load_public_prior") as loader:
-            with self.assertRaisesRegex(PublicPriorConfigurationError, "local filesystem"):
+            with self.assertRaisesRegex(
+                PublicPriorConfigurationError, "local filesystem"
+            ):
                 load_public_prior_runtime_configuration(
                     _options(("https://example.invalid/prior.json",)), "gen9tugs"
                 )
@@ -709,7 +805,9 @@ class TestRuntimeConfiguration(unittest.TestCase):
     def test_40_safe_logging_includes_dataset_identity(self):
         with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory:
             path = _write(directory, _document())
-            with self.assertLogs("fp.data.public_priors.runtime", level="INFO") as captured:
+            with self.assertLogs(
+                "fp.data.public_priors.runtime", level="INFO"
+            ) as captured:
                 load_public_prior_runtime_configuration(_options((path,)), "gen9tugs")
         text = "\n".join(captured.output)
         self.assertIn("dataset_id=syntheticprior", text)
@@ -718,10 +816,14 @@ class TestRuntimeConfiguration(unittest.TestCase):
 
     def test_41_safe_logging_excludes_full_variants(self):
         document = _document()
-        document["species"][0]["variants"][0]["metadata"] = {"secretmarker": "neverlogthis"}
+        document["species"][0]["variants"][0]["metadata"] = {
+            "secretmarker": "neverlogthis"
+        }
         with tempfile.TemporaryDirectory(dir=FIXTURE_TEMP_ROOT) as directory:
             path = _write(directory, document)
-            with self.assertLogs("fp.data.public_priors.runtime", level="INFO") as captured:
+            with self.assertLogs(
+                "fp.data.public_priors.runtime", level="INFO"
+            ) as captured:
                 load_public_prior_runtime_configuration(_options((path,)), "gen9tugs")
         text = "\n".join(captured.output)
         self.assertNotIn("neverlogthis", text)
@@ -750,12 +852,16 @@ class TestGenericDatasetPolicy(unittest.TestCase):
         mode.smogon_sets.initialize.assert_called_once()
 
     def test_44_generic_preview_initializes_team_datasets(self):
-        context = _load_documents(_document(), fallback=PublicPriorFallback.GENERIC).create_battle_context("gen9tugs")
+        context = _load_documents(
+            _document(), fallback=PublicPriorFallback.GENERIC
+        ).create_battle_context("gen9tugs")
         mode, _ = self._assert_initializes(context)
         mode.team_datasets.initialize.assert_called_once()
 
     def test_45_generic_preview_initializes_smogon_sets(self):
-        context = _load_documents(_document(), fallback=PublicPriorFallback.GENERIC).create_battle_context("gen9tugs")
+        context = _load_documents(
+            _document(), fallback=PublicPriorFallback.GENERIC
+        ).create_battle_context("gen9tugs")
         mode, _ = self._assert_initializes(context)
         mode.smogon_sets.initialize.assert_called_once()
 
@@ -776,31 +882,41 @@ class TestGenericDatasetPolicy(unittest.TestCase):
 
     def test_48_none_performs_no_team_datasets_cache_read(self):
         context = _load_documents(_document()).create_battle_context("gen9tugs")
-        with mock.patch("builtins.open", side_effect=AssertionError("cache read")) as opened:
+        with mock.patch(
+            "builtins.open", side_effect=AssertionError("cache read")
+        ) as opened:
             self._assert_initializes(context)
         opened.assert_not_called()
 
     def test_49_none_performs_no_smogon_cache_read(self):
         context = _load_documents(_document()).create_battle_context("gen9tugs")
-        with mock.patch("fp.data.sets.smogon.json.load", side_effect=AssertionError("cache read")) as loaded:
+        with mock.patch(
+            "fp.data.sets.smogon.json.load", side_effect=AssertionError("cache read")
+        ) as loaded:
             self._assert_initializes(context)
         loaded.assert_not_called()
 
     def test_50_none_performs_no_team_datasets_network_call(self):
         context = _load_documents(_document()).create_battle_context("gen9tugs")
-        with mock.patch("fp.data.sets.base.requests.get", side_effect=AssertionError("network")) as requested:
+        with mock.patch(
+            "fp.data.sets.base.requests.get", side_effect=AssertionError("network")
+        ) as requested:
             self._assert_initializes(context)
         requested.assert_not_called()
 
     def test_51_none_performs_no_smogon_network_call(self):
         context = _load_documents(_document()).create_battle_context("gen9tugs")
-        with mock.patch("fp.data.sets.smogon.requests.get", side_effect=AssertionError("network")) as requested:
+        with mock.patch(
+            "fp.data.sets.smogon.requests.get", side_effect=AssertionError("network")
+        ) as requested:
             self._assert_initializes(context)
         requested.assert_not_called()
 
     def test_52_none_creates_no_generic_cache_directory(self):
         context = _load_documents(_document()).create_battle_context("gen9tugs")
-        with mock.patch("os.makedirs", side_effect=AssertionError("cache directory")) as makedirs:
+        with mock.patch(
+            "os.makedirs", side_effect=AssertionError("cache directory")
+        ) as makedirs:
             self._assert_initializes(context)
         makedirs.assert_not_called()
         script = (
@@ -820,7 +936,9 @@ class TestGenericDatasetPolicy(unittest.TestCase):
     def test_53_none_public_miss_leaves_pokemon_unsampled(self):
         from .test_public_prior_sampling import _battle, _context, _dataset
 
-        context = _context(_dataset(species_id="raichu"), fallback=PublicPriorFallback.NONE)
+        context = _context(
+            _dataset(species_id="raichu"), fallback=PublicPriorFallback.NONE
+        )
         battle = _battle(context)
         with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
             sampled = prepare_battles(battle, 1)[0][0]
@@ -830,7 +948,9 @@ class TestGenericDatasetPolicy(unittest.TestCase):
     def test_54_generic_public_miss_invokes_existing_generic_sampler(self):
         from .test_public_prior_sampling import _battle, _context, _dataset
 
-        context = _context(_dataset(species_id="raichu"), fallback=PublicPriorFallback.GENERIC)
+        context = _context(
+            _dataset(species_id="raichu"), fallback=PublicPriorFallback.GENERIC
+        )
         with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
             prepare_battles(_battle(context), 1)
         generic.assert_called_once()
@@ -858,7 +978,9 @@ class TestGenericDatasetPolicy(unittest.TestCase):
         previous = FoulPlayConfig.smogon_stats
         FoulPlayConfig.smogon_stats = "gen9ou"
         try:
-            context = _load_documents(_document(), fallback=PublicPriorFallback.GENERIC).create_battle_context("gen9tugs")
+            context = _load_documents(
+                _document(), fallback=PublicPriorFallback.GENERIC
+            ).create_battle_context("gen9tugs")
             mode, _ = self._assert_initializes(context)
         finally:
             FoulPlayConfig.smogon_stats = previous
@@ -871,7 +993,9 @@ class TestGenericDatasetPolicy(unittest.TestCase):
             public_prior_context=None,
             format_spec=FormatSpec.from_format_string("gen9ou"),
         )
-        self.assertTrue(mode.initialize_datasets_if_enabled(battle, "gen9ou", {"pikachu"}))
+        self.assertTrue(
+            mode.initialize_datasets_if_enabled(battle, "gen9ou", {"pikachu"})
+        )
         mode.team_datasets.initialize.assert_called_once()
         mode.smogon_sets.initialize.assert_called_once()
 
@@ -881,7 +1005,9 @@ class TestGenericDatasetPolicy(unittest.TestCase):
             public_prior_context=None,
             format_spec=FormatSpec.from_format_string("gen9nationaldex"),
         )
-        self.assertTrue(mode.initialize_datasets_if_enabled(battle, "gen9nationaldex", {"pikachu"}))
+        self.assertTrue(
+            mode.initialize_datasets_if_enabled(battle, "gen9nationaldex", {"pikachu"})
+        )
         mode.team_datasets.initialize.assert_called_once()
         mode.smogon_sets.initialize.assert_called_once()
 
@@ -929,7 +1055,9 @@ class TestFirewallRegressionsAndMechanics(unittest.TestCase):
         self.assertEqual(49, self._focused_count("test_team_pool_inference.py"))
 
     def test_66_existing_phase_three_tests_remain_present(self):
-        self.assertEqual(114, self._focused_count("test_team_pool_observation_filtering.py"))
+        self.assertEqual(
+            114, self._focused_count("test_team_pool_observation_filtering.py")
+        )
 
     def test_67_existing_phase_four_tests_remain_present(self):
         self.assertEqual(80, self._focused_count("test_public_prior_loader.py"))
@@ -1027,9 +1155,7 @@ class TestFirewallRegressionsAndMechanics(unittest.TestCase):
         mode.team_datasets.initialize = mock.Mock()
         mode.smogon_sets.initialize = mock.Mock()
         self.assertFalse(
-            mode.initialize_datasets_if_enabled(
-                battle, "gen9tugs", {"pikachu"}
-            )
+            mode.initialize_datasets_if_enabled(battle, "gen9tugs", {"pikachu"})
         )
 
     def test_75_main_loads_once_and_injects_same_factory_for_two_battles(self):
@@ -1158,9 +1284,7 @@ class TestZLocalNoSecurityConfiguration(unittest.TestCase):
             "ws://0.0.0.0:8013/showdown/websocket",
             "ws://localhost.example:8013/showdown/websocket",
         ):
-            with self.subTest(uri=uri), self.assertRaises(
-                LocalLoginConfigurationError
-            ):
+            with self.subTest(uri=uri), self.assertRaises(LocalLoginConfigurationError):
                 validate_loopback_websocket_uri(uri)
 
     def test_80_malformed_or_ambiguous_uris_are_rejected(self):
@@ -1171,9 +1295,7 @@ class TestZLocalNoSecurityConfiguration(unittest.TestCase):
             "ws://user@127.0.0.1:8013/showdown/websocket",
             "ws://127.0.0.1:notaport/showdown/websocket",
         ):
-            with self.subTest(uri=uri), self.assertRaises(
-                LocalLoginConfigurationError
-            ):
+            with self.subTest(uri=uri), self.assertRaises(LocalLoginConfigurationError):
                 validate_loopback_websocket_uri(uri)
 
     def test_81_password_conflict_is_rejected_by_cli(self):
@@ -1223,9 +1345,7 @@ class TestZLocalNoSecurityConfiguration(unittest.TestCase):
 class TestZLocalNoSecurityProtocols(unittest.IsolatedAsyncioTestCase):
     async def test_84_default_mode_preserves_public_assertion_flow(self):
         client = _local_login_client(["|challstr|4|challenge-value"])
-        response = SimpleNamespace(
-            status_code=200, text="assertion-value", content=b""
-        )
+        response = SimpleNamespace(status_code=200, text="assertion-value", content=b"")
         with mock.patch(
             "fp.websocket_client.requests.post", return_value=response
         ) as post, mock.patch(
@@ -1319,9 +1439,7 @@ class TestZLocalNoSecurityProtocols(unittest.IsolatedAsyncioTestCase):
 
     async def test_88_public_assertion_is_absent_from_logs(self):
         client = _local_login_client(["|challstr|4|challenge-value"])
-        response = SimpleNamespace(
-            status_code=200, text="assertion-value", content=b""
-        )
+        response = SimpleNamespace(status_code=200, text="assertion-value", content=b"")
         with mock.patch(
             "fp.websocket_client.requests.post", return_value=response
         ), mock.patch(

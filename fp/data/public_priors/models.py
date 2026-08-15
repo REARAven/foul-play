@@ -230,9 +230,13 @@ class PublicPriorDataset:
             raise TypeError("identity must be a PublicPriorIdentity")
         sources = tuple(self.sources)
         species = tuple(self.species)
-        if not sources or not all(isinstance(source, PublicSource) for source in sources):
+        if not sources or not all(
+            isinstance(source, PublicSource) for source in sources
+        ):
             raise TypeError("sources must contain one or more PublicSource values")
-        if not species or not all(isinstance(record, SpeciesPrior) for record in species):
+        if not species or not all(
+            isinstance(record, SpeciesPrior) for record in species
+        ):
             raise TypeError("species must contain one or more SpeciesPrior values")
         sources = tuple(sorted(sources, key=lambda source: source.source_id))
         species = tuple(sorted(species, key=lambda record: record.species_id))
@@ -349,8 +353,7 @@ class PublicPriorRegistry:
         if not isinstance(dataset_identities, tuple):
             raise TypeError("dataset_identities must be an explicit tuple")
         if not all(
-            isinstance(identity, PublicPriorIdentity)
-            for identity in dataset_identities
+            isinstance(identity, PublicPriorIdentity) for identity in dataset_identities
         ):
             raise TypeError("dataset identities must be PublicPriorIdentity values")
         references = {

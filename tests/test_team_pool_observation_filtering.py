@@ -125,8 +125,13 @@ def _evidence(battle):
 class TestPolicyLedgerAndIsolation(unittest.TestCase):
     def test_01_closed_candidates_are_reference_only(self):
         battle, _, _ = _scenario()
-        self.assertIs(CandidateAccess.REFERENCE_ONLY, battle.team_inference.candidate_access)
-        self.assertIs(CandidateAccess.REFERENCE_ONLY, battle.team_inference.safe_summary().candidate_access)
+        self.assertIs(
+            CandidateAccess.REFERENCE_ONLY, battle.team_inference.candidate_access
+        )
+        self.assertIs(
+            CandidateAccess.REFERENCE_ONLY,
+            battle.team_inference.safe_summary().candidate_access,
+        )
 
     def test_02_open_remains_placeholder_without_record_exposure(self):
         battle, _, _ = _scenario(policy=TeamSheetPolicy.OPEN)
@@ -156,20 +161,35 @@ class TestPolicyLedgerAndIsolation(unittest.TestCase):
         copied = copy.deepcopy(battle)
         _process(copied, "|move|p2a: Pikachu|Iron Head|p1a: Weedle")
         self.assertIsNot(copied.team_inference, battle.team_inference)
-        self.assertIsNot(copied.team_inference.observation_ledger, battle.team_inference.observation_ledger)
+        self.assertIsNot(
+            copied.team_inference.observation_ledger,
+            battle.team_inference.observation_ledger,
+        )
         self.assertEqual((), _evidence(battle).selected_move_ids)
 
     def test_06_registry_is_not_stored_on_battle(self):
         battle, _, _ = _scenario()
-        self.assertFalse(any(isinstance(value, TeamPoolRegistry) for value in vars(battle).values()))
+        self.assertFalse(
+            any(isinstance(value, TeamPoolRegistry) for value in vars(battle).values())
+        )
 
     def test_07_registry_is_not_stored_on_context(self):
         battle, _, _ = _scenario()
         context = battle.team_inference
-        self.assertFalse(any(isinstance(getattr(context, slot), TeamPoolRegistry) for slot in context.__slots__))
+        self.assertFalse(
+            any(
+                isinstance(getattr(context, slot), TeamPoolRegistry)
+                for slot in context.__slots__
+            )
+        )
 
     def test_08_original_roster_candidate_ids_remain_immutable(self):
-        battle, registry, _ = _scenario((_variant("one"), _variant("two", moves=("ironhead", "protect", "rest", "sleeptalk"))))
+        battle, registry, _ = _scenario(
+            (
+                _variant("one"),
+                _variant("two", moves=("ironhead", "protect", "rest", "sleeptalk")),
+            )
+        )
         baseline = battle.team_inference.baseline_candidate_ids
         _process(battle, "|move|p2a: Pikachu|Iron Head|p1a: Weedle")
         filtered = _filtered(battle, registry)
@@ -177,7 +197,10 @@ class TestPolicyLedgerAndIsolation(unittest.TestCase):
         self.assertIsInstance(filtered.baseline_candidate_ids, tuple)
 
     def test_09_active_candidates_recompute_from_baseline(self):
-        records = (_variant("left", item="leftovers"), _variant("scarf", item="choicescarf"))
+        records = (
+            _variant("left", item="leftovers"),
+            _variant("scarf", item="choicescarf"),
+        )
         battle, registry, _ = _scenario(records)
         _process(battle, "|-item|p2a: Pikachu|Leftovers")
         battle.team_inference = _filtered(battle, registry)
@@ -223,13 +246,20 @@ class TestMoveEvidence(unittest.TestCase):
         self.assertEqual("both", filtered.candidate_ids[0].team_record_id.team_id)
 
     def test_12_selected_move_that_misses_filters(self):
-        self._assert_iron_filters("|move|p2a: Pikachu|Iron Head|p1a: Weedle|[miss]", "|-miss|p2a: Pikachu|p1a: Weedle")
+        self._assert_iron_filters(
+            "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[miss]",
+            "|-miss|p2a: Pikachu|p1a: Weedle",
+        )
 
     def test_13_selected_move_that_hits_immunity_filters(self):
-        self._assert_iron_filters("|move|p2a: Pikachu|Iron Head|p1a: Weedle", "|-immune|p1a: Weedle")
+        self._assert_iron_filters(
+            "|move|p2a: Pikachu|Iron Head|p1a: Weedle", "|-immune|p1a: Weedle"
+        )
 
     def test_14_selected_move_that_fails_filters(self):
-        self._assert_iron_filters("|move|p2a: Pikachu|Iron Head||[still]", "|-fail|p2a: Pikachu")
+        self._assert_iron_filters(
+            "|move|p2a: Pikachu|Iron Head||[still]", "|-fail|p2a: Pikachu"
+        )
 
     def test_15_closing_jaws_selected_iron_head_filters(self):
         records = tuple(
@@ -241,35 +271,68 @@ class TestMoveEvidence(unittest.TestCase):
             for record in self.records
         )
         battle, registry, _ = _scenario(records)
-        _process(battle, "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[from] ability: Closing Jaws")
-        self.assertEqual("iron", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
-        self.assertIn(PublicObservationSource.CLOSING_JAWS_SELECTED_MOVE, _evidence(battle).provenance)
+        _process(
+            battle,
+            "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[from] ability: Closing Jaws",
+        )
+        self.assertEqual(
+            "iron", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id
+        )
+        self.assertIn(
+            PublicObservationSource.CLOSING_JAWS_SELECTED_MOVE,
+            _evidence(battle).provenance,
+        )
 
     def test_16_closing_jaws_failed_sucker_punch_filters(self):
         records = (
             _variant("tackle", ability="closingjaws"),
-            _variant("sucker", moves=("suckerpunch", "protect", "rest", "sleeptalk"), ability="closingjaws"),
+            _variant(
+                "sucker",
+                moves=("suckerpunch", "protect", "rest", "sleeptalk"),
+                ability="closingjaws",
+            ),
         )
         battle, registry, _ = _scenario(records)
-        _process(battle, "|move|p2a: Pikachu|Sucker Punch||[from] ability: Closing Jaws|[still]", "|-fail|p2a: Pikachu")
-        self.assertEqual("sucker", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
+        _process(
+            battle,
+            "|move|p2a: Pikachu|Sucker Punch||[from] ability: Closing Jaws|[still]",
+            "|-fail|p2a: Pikachu",
+        )
+        self.assertEqual(
+            "sucker",
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
 
     def test_17_magic_bounce_called_move_does_not_filter(self):
-        records = tuple(_variant(record.record_id.team_id, moves=record.pokemon[0].move_ids, ability="magicbounce") for record in self.records)
+        records = tuple(
+            _variant(
+                record.record_id.team_id,
+                moves=record.pokemon[0].move_ids,
+                ability="magicbounce",
+            )
+            for record in self.records
+        )
         battle, registry, _ = _scenario(records)
-        _process(battle, "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[from] ability: Magic Bounce")
+        _process(
+            battle,
+            "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[from] ability: Magic Bounce",
+        )
         self.assertEqual((), _evidence(battle).selected_move_ids)
         self.assertEqual(2, _filtered(battle, registry).candidate_count)
 
     def test_18_metronome_called_move_does_not_filter(self):
         battle, registry, _ = _scenario(self.records)
-        _process(battle, "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[from] move: Metronome")
+        _process(
+            battle, "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[from] move: Metronome"
+        )
         self.assertEqual((), _evidence(battle).selected_move_ids)
         self.assertEqual(2, _filtered(battle, registry).candidate_count)
 
     def test_19_sleep_talk_called_move_does_not_filter(self):
         battle, registry, _ = _scenario(self.records)
-        _process(battle, "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[from] move: Sleep Talk")
+        _process(
+            battle, "|move|p2a: Pikachu|Iron Head|p1a: Weedle|[from] move: Sleep Talk"
+        )
         self.assertEqual((), _evidence(battle).selected_move_ids)
         self.assertEqual(2, _filtered(battle, registry).candidate_count)
 
@@ -288,13 +351,19 @@ class TestMoveEvidence(unittest.TestCase):
 
 class TestItemEvidence(unittest.TestCase):
     def setUp(self):
-        self.records = (_variant("left", item="leftovers"), _variant("scarf", item="choicescarf"))
+        self.records = (
+            _variant("left", item="leftovers"),
+            _variant("scarf", item="choicescarf"),
+        )
 
     def _assert_item(self, message, item_id, expected_team):
         battle, registry, _ = _scenario(self.records)
         _process(battle, message)
         self.assertEqual(item_id, _evidence(battle).initial_item_id)
-        self.assertEqual(expected_team, _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
+        self.assertEqual(
+            expected_team,
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
 
     def test_22_direct_initial_item_reveal_filters(self):
         self._assert_item("|-item|p2a: Pikachu|Leftovers", "leftovers", "left")
@@ -366,7 +435,9 @@ class TestItemEvidence(unittest.TestCase):
 
     def test_22h_leech_seed_heal_does_not_record_item(self):
         battle, registry, _ = _scenario(self.records)
-        _process(battle, "|-heal|p2a: Pikachu|100/100|[from] Leech Seed|[of] p1a: Weedle")
+        _process(
+            battle, "|-heal|p2a: Pikachu|100/100|[from] Leech Seed|[of] p1a: Weedle"
+        )
         self.assertIsNone(_evidence(battle).initial_item_id)
         self.assertEqual(2, _filtered(battle, registry).candidate_count)
 
@@ -397,19 +468,35 @@ class TestItemEvidence(unittest.TestCase):
         self.assertEqual("stickybarb", battle.user.active.item)
 
     def test_23_item_activation_filters(self):
-        self._assert_item("|-activate|p2a: Pikachu|item: Leftovers", "leftovers", "left")
+        self._assert_item(
+            "|-activate|p2a: Pikachu|item: Leftovers", "leftovers", "left"
+        )
 
     def test_24_consumed_item_filters(self):
-        records = (_variant("sitrus", item="sitrusberry"), _variant("scarf", item="choicescarf"))
+        records = (
+            _variant("sitrus", item="sitrusberry"),
+            _variant("scarf", item="choicescarf"),
+        )
         battle, registry, _ = _scenario(records)
         _process(battle, "|-enditem|p2a: Pikachu|Sitrus Berry|[eat]")
-        self.assertEqual("sitrus", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
+        self.assertEqual(
+            "sitrus",
+            _filtered(battle, registry).candidate_ids[0].team_record_id.team_id,
+        )
 
     def test_25_knock_off_removal_filters(self):
-        self._assert_item("|-enditem|p2a: Pikachu|Leftovers|[from] move: Knock Off|[of] p1a: Weedle", "leftovers", "left")
+        self._assert_item(
+            "|-enditem|p2a: Pikachu|Leftovers|[from] move: Knock Off|[of] p1a: Weedle",
+            "leftovers",
+            "left",
+        )
 
     def test_26_corrosive_gas_removal_filters(self):
-        self._assert_item("|-enditem|p2a: Pikachu|Leftovers|[from] move: Corrosive Gas", "leftovers", "left")
+        self._assert_item(
+            "|-enditem|p2a: Pikachu|Leftovers|[from] move: Corrosive Gas",
+            "leftovers",
+            "left",
+        )
 
     def test_27_trick_does_not_mistake_received_item_for_initial(self):
         battle, registry, _ = _scenario(self.records)
@@ -426,9 +513,11 @@ class TestItemEvidence(unittest.TestCase):
         self.assertEqual("leftovers", evidence.initial_item_id)
         self.assertFalse(evidence.item_ambiguous)
         self.assertEqual(
-            {PublicObservationSource.TEAM_PREVIEW,
-             PublicObservationSource.DIRECT_ITEM_REVEAL,
-             PublicObservationSource.ITEM_ACQUIRED},
+            {
+                PublicObservationSource.TEAM_PREVIEW,
+                PublicObservationSource.DIRECT_ITEM_REVEAL,
+                PublicObservationSource.ITEM_ACQUIRED,
+            },
             set(evidence.provenance),
         )
         self.assertEqual(1, _filtered(battle, registry).candidate_count)
@@ -460,7 +549,9 @@ class TestItemEvidence(unittest.TestCase):
 
 class TestAbilityEvidence(unittest.TestCase):
     def _ability_scenario(self, first, second="static"):
-        return _scenario((_variant("first", ability=first), _variant("second", ability=second)))
+        return _scenario(
+            (_variant("first", ability=first), _variant("second", ability=second))
+        )
 
     def test_31a_heal_opponent_actor_owns_ability_despite_user_source(self):
         battle, registry, _ = self._ability_scenario("waterabsorb", "static")
@@ -625,7 +716,9 @@ class TestAbilityEvidence(unittest.TestCase):
                     f"|-damage|p2a: Pikachu|90/100|[from] ability: {ability}|[of] p1a: Weedle",
                 )
                 self.assertIsNone(_evidence(battle).base_ability_id)
-                self.assertNotEqual(normalize_name(ability), battle.opponent.active.ability)
+                self.assertNotEqual(
+                    normalize_name(ability), battle.opponent.active.ability
+                )
 
     def test_31r_trace_ownership_remains_on_tracing_opponent_base_ability(self):
         battle, registry, _ = self._ability_scenario("trace", "closingjaws")
@@ -667,44 +760,64 @@ class TestAbilityEvidence(unittest.TestCase):
         battle, registry, _ = self._ability_scenario("static", "lightningrod")
         _process(battle, "|-ability|p2a: Pikachu|Static")
         self.assertEqual("static", _evidence(battle).base_ability_id)
-        self.assertEqual("first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
+        self.assertEqual(
+            "first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id
+        )
 
     def test_32_download_reveal_filters(self):
         battle, registry, _ = self._ability_scenario("download", "static")
         _process(battle, "|-ability|p2a: Pikachu|Download")
-        self.assertEqual("first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
+        self.assertEqual(
+            "first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id
+        )
 
     def test_33_closing_jaws_ability_reveal_filters(self):
         battle, registry, _ = self._ability_scenario("closingjaws", "static")
         _process(battle, "|-activate|p2a: Pikachu|ability: Closing Jaws")
         self.assertEqual("closingjaws", _evidence(battle).base_ability_id)
-        self.assertEqual("first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
+        self.assertEqual(
+            "first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id
+        )
 
     def test_34_neutralizing_gas_reveal_filters(self):
         battle, registry, _ = self._ability_scenario("neutralizinggas", "static")
         _process(battle, "|-ability|p2a: Pikachu|Neutralizing Gas")
-        self.assertEqual("first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
+        self.assertEqual(
+            "first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id
+        )
 
     def test_35_trace_records_trace_as_base_ability(self):
         battle, registry, _ = self._ability_scenario("trace", "closingjaws")
-        _process(battle, "|-ability|p2a: Pikachu|Closing Jaws|Trace|[from] ability: Trace|[of] p1a: Weedle")
+        _process(
+            battle,
+            "|-ability|p2a: Pikachu|Closing Jaws|Trace|[from] ability: Trace|[of] p1a: Weedle",
+        )
         self.assertEqual("trace", _evidence(battle).base_ability_id)
         self.assertTrue(_evidence(battle).current_ability_changed)
-        self.assertEqual("first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
+        self.assertEqual(
+            "first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id
+        )
 
     def test_36_trace_copied_current_ability_does_not_replace_trace(self):
         battle, registry, _ = self._ability_scenario("trace", "closingjaws")
-        _process(battle, "|-ability|p2a: Pikachu|Closing Jaws|Trace|[from] ability: Trace|[of] p1a: Weedle")
+        _process(
+            battle,
+            "|-ability|p2a: Pikachu|Closing Jaws|Trace|[from] ability: Trace|[of] p1a: Weedle",
+        )
         _process(battle, "|-activate|p2a: Pikachu|ability: Closing Jaws")
         self.assertEqual("trace", _evidence(battle).base_ability_id)
-        self.assertEqual("first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
+        self.assertEqual(
+            "first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id
+        )
 
     def test_37_gastro_acid_does_not_erase_base_ability(self):
         battle, registry, _ = self._ability_scenario("static", "lightningrod")
         _process(battle, "|-ability|p2a: Pikachu|Static")
         _process(battle, "|-start|p2a: Pikachu|Gastro Acid")
         self.assertEqual("static", _evidence(battle).base_ability_id)
-        self.assertEqual("first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id)
+        self.assertEqual(
+            "first", _filtered(battle, registry).candidate_ids[0].team_record_id.team_id
+        )
 
     def test_38_inferred_ability_is_ignored(self):
         battle, registry, _ = self._ability_scenario("static", "lightningrod")
@@ -721,7 +834,9 @@ class TestAbilityEvidence(unittest.TestCase):
 
 class TestFilteringRulesAndStates(unittest.TestCase):
     def test_40_exact_level_filters(self):
-        battle, registry, _ = _scenario((_variant("hundred", level=100), _variant("fifty", level=50)))
+        battle, registry, _ = _scenario(
+            (_variant("hundred", level=100), _variant("fifty", level=50))
+        )
         filtered = _filtered(battle, registry)
         self.assertEqual("hundred", filtered.candidate_ids[0].team_record_id.team_id)
         self.assertIs(CandidateFilterState.REDUCED, filtered.filter_state)
@@ -732,7 +847,10 @@ class TestFilteringRulesAndStates(unittest.TestCase):
         battle = _battle(species=ALTERNATE_SPECIES)
         _match(battle, registry)
         self.assertIs(TeamPoolMatchState.NO_MATCH, battle.team_inference.match_state)
-        self.assertIs(CandidateFilterState.NOT_APPLICABLE, _filtered(battle, registry).filter_state)
+        self.assertIs(
+            CandidateFilterState.NOT_APPLICABLE,
+            _filtered(battle, registry).filter_state,
+        )
 
     def test_42_preview_order_remains_irrelevant(self):
         pool = _pool(records=(_team_record("ordinary"),))
@@ -741,8 +859,14 @@ class TestFilteringRulesAndStates(unittest.TestCase):
         second = _battle(species=tuple(reversed(DEFAULT_SPECIES)))
         _match(first, registry)
         _match(second, registry)
-        self.assertEqual(first.team_inference.baseline_candidate_ids, second.team_inference.baseline_candidate_ids)
-        self.assertEqual(_filtered(first, registry).candidate_ids, _filtered(second, registry).candidate_ids)
+        self.assertEqual(
+            first.team_inference.baseline_candidate_ids,
+            second.team_inference.baseline_candidate_ids,
+        )
+        self.assertEqual(
+            _filtered(first, registry).candidate_ids,
+            _filtered(second, registry).candidate_ids,
+        )
 
     def test_43_nature_and_ev_differences_do_not_filter(self):
         records = (
@@ -780,8 +904,18 @@ class TestFilteringRulesAndStates(unittest.TestCase):
         self.assertEqual(first, second)
 
     def test_48_multi_pool_candidates_filter_independently(self):
-        first_pool = _pool("firstpool", records=(_variant("left", moves=("tackle", "protect", "rest", "sleeptalk")),))
-        second_pool = _pool("secondpool", records=(_variant("iron", moves=("ironhead", "protect", "rest", "sleeptalk")),))
+        first_pool = _pool(
+            "firstpool",
+            records=(
+                _variant("left", moves=("tackle", "protect", "rest", "sleeptalk")),
+            ),
+        )
+        second_pool = _pool(
+            "secondpool",
+            records=(
+                _variant("iron", moves=("ironhead", "protect", "rest", "sleeptalk")),
+            ),
+        )
         registry = TeamPoolRegistry((first_pool, second_pool))
         battle = _battle()
         _match(battle, registry)
@@ -800,9 +934,21 @@ class TestFilteringRulesAndStates(unittest.TestCase):
 
     def test_50_unique_closed_candidate_does_not_populate_hidden_state(self):
         battle, registry, _ = _scenario()
-        before = (battle.opponent.active.item, battle.opponent.active.ability, tuple(battle.opponent.active.moves), battle.opponent.active.nature, tuple(battle.opponent.active.evs))
+        before = (
+            battle.opponent.active.item,
+            battle.opponent.active.ability,
+            tuple(battle.opponent.active.moves),
+            battle.opponent.active.nature,
+            tuple(battle.opponent.active.evs),
+        )
         _filtered(battle, registry)
-        after = (battle.opponent.active.item, battle.opponent.active.ability, tuple(battle.opponent.active.moves), battle.opponent.active.nature, tuple(battle.opponent.active.evs))
+        after = (
+            battle.opponent.active.item,
+            battle.opponent.active.ability,
+            tuple(battle.opponent.active.moves),
+            battle.opponent.active.nature,
+            tuple(battle.opponent.active.evs),
+        )
         self.assertEqual(before, after)
 
     def test_51_multiple_compatible_candidates_remain_ambiguous(self):
@@ -812,13 +958,22 @@ class TestFilteringRulesAndStates(unittest.TestCase):
         self.assertEqual(2, filtered.candidate_count)
 
     def test_52_some_eliminated_produces_reduced(self):
-        battle, registry, _ = _scenario((_variant("one"), _variant("two", moves=("ironhead", "protect", "rest", "sleeptalk"))))
+        battle, registry, _ = _scenario(
+            (
+                _variant("one"),
+                _variant("two", moves=("ironhead", "protect", "rest", "sleeptalk")),
+            )
+        )
         _process(battle, "|move|p2a: Pikachu|Iron Head|p1a: Weedle")
-        self.assertIs(CandidateFilterState.REDUCED, _filtered(battle, registry).filter_state)
+        self.assertIs(
+            CandidateFilterState.REDUCED, _filtered(battle, registry).filter_state
+        )
 
     def test_53_no_eliminated_produces_consistent(self):
         battle, registry, _ = _scenario((_variant("one"), _variant("two")))
-        self.assertIs(CandidateFilterState.CONSISTENT, _filtered(battle, registry).filter_state)
+        self.assertIs(
+            CandidateFilterState.CONSISTENT, _filtered(battle, registry).filter_state
+        )
 
     def test_54_all_eliminated_produces_exhausted(self):
         battle, registry, _ = _scenario((_variant("one"), _variant("two")))
@@ -858,25 +1013,39 @@ class TestFilteringRulesAndStates(unittest.TestCase):
         self.assertIs(CandidateFilterState.NOT_APPLICABLE, filtered.filter_state)
 
     def test_conflicting_public_evidence_has_distinct_state(self):
-        battle, registry, _ = _scenario((_variant("left", item="leftovers"), _variant("scarf", item="choicescarf")))
+        battle, registry, _ = _scenario(
+            (_variant("left", item="leftovers"), _variant("scarf", item="choicescarf"))
+        )
         context = battle.team_inference
-        context.record_initial_item("pikachu", "leftovers", PublicObservationSource.DIRECT_ITEM_REVEAL)
-        context.record_initial_item("pikachu", "choicescarf", PublicObservationSource.ITEM_ACTIVATION)
+        context.record_initial_item(
+            "pikachu", "leftovers", PublicObservationSource.DIRECT_ITEM_REVEAL
+        )
+        context.record_initial_item(
+            "pikachu", "choicescarf", PublicObservationSource.ITEM_ACTIVATION
+        )
         filtered = _filtered(battle, registry)
-        self.assertIs(CandidateFilterState.CONFLICTING_PUBLIC_EVIDENCE, filtered.filter_state)
+        self.assertIs(
+            CandidateFilterState.CONFLICTING_PUBLIC_EVIDENCE, filtered.filter_state
+        )
         self.assertEqual(2, filtered.candidate_count)
 
 
 class TestMutationAndScopeBoundaries(unittest.TestCase):
     def test_59_filtering_creates_no_cache_or_file(self):
         battle, registry, _ = _scenario()
-        with patch.object(builtins, "open", side_effect=AssertionError("unexpected file access")):
+        with patch.object(
+            builtins, "open", side_effect=AssertionError("unexpected file access")
+        ):
             filtered = _filtered(battle, registry)
         self.assertEqual(1, filtered.candidate_count)
 
     def test_60_filtering_performs_no_network_activity(self):
         battle, registry, _ = _scenario()
-        with patch.object(socket, "create_connection", side_effect=AssertionError("unexpected network access")):
+        with patch.object(
+            socket,
+            "create_connection",
+            side_effect=AssertionError("unexpected network access"),
+        ):
             filtered = _filtered(battle, registry)
         self.assertEqual(1, filtered.candidate_count)
 
@@ -921,15 +1090,34 @@ class TestMutationAndScopeBoundaries(unittest.TestCase):
         _process(battle, "|move|p1a: Weedle|Iron Head|p2a: Pikachu")
         active = battle.user.active
         reserve = tuple(battle.user.reserve)
-        snapshot = (active.item, active.ability, tuple(active.moves), active.nature, tuple(active.evs))
+        snapshot = (
+            active.item,
+            active.ability,
+            tuple(active.moves),
+            active.nature,
+            tuple(active.evs),
+        )
         _filtered(battle, registry)
         self.assertIs(active, battle.user.active)
         self.assertEqual(reserve, tuple(battle.user.reserve))
-        self.assertEqual(snapshot, (active.item, active.ability, tuple(active.moves), active.nature, tuple(active.evs)))
+        self.assertEqual(
+            snapshot,
+            (
+                active.item,
+                active.ability,
+                tuple(active.moves),
+                active.nature,
+                tuple(active.evs),
+            ),
+        )
 
     def test_67_no_search_source_contains_team_pool_resolution(self):
         root = Path(__file__).resolve().parents[1]
-        for relative in ("fp/search/main.py", "fp/search/standard_battles.py", "fp/search/helpers.py"):
+        for relative in (
+            "fp/search/main.py",
+            "fp/search/standard_battles.py",
+            "fp/search/helpers.py",
+        ):
             source = (root / relative).read_text(encoding="utf-8")
             self.assertNotIn("TeamPoolRegistry", source)
             self.assertNotIn("filter_team_candidates", source)
@@ -947,7 +1135,9 @@ class TestMutationAndScopeBoundaries(unittest.TestCase):
         battle.pokemon_format = "gen9tugs"
         battle.generation = "gen9"
         battle.user.active = _pokemon("weedle")
-        battle.initialize_team_preview([f"{species}, L100" for species in DEFAULT_SPECIES], "gen9tugs")
+        battle.initialize_team_preview(
+            [f"{species}, L100" for species in DEFAULT_SPECIES], "gen9tugs"
+        )
         StandardBattleMode.match_team_preview(battle, None)
         self.assertEqual(6, len(battle.opponent.reserve))
         self.assertEqual(6, len(battle.team_inference.observation_ledger.members))
@@ -988,7 +1178,10 @@ class TestExistingTugsRegressions(unittest.TestCase):
         battle.user.active = _pokemon("lapras")
         battle.user.active.ability = "persistent"
         battle.opponent.active = _pokemon("pikachu")
-        fieldstart(battle, ["", "-fieldstart", "move: Trick Room", "[of] p1a: Lapras", "[persistent]"])
+        fieldstart(
+            battle,
+            ["", "-fieldstart", "move: Trick Room", "[of] p1a: Lapras", "[persistent]"],
+        )
         self.assertEqual(8, battle.trick_room_turns_remaining)
 
     def test_74_ancient_shell_serialization_remains_passing(self):
@@ -1004,7 +1197,10 @@ class TestExistingTugsRegressions(unittest.TestCase):
         battle.user.active = _pokemon("pikachu")
         battle.opponent.active = _pokemon("dustox")
         battle.opponent.active.item = "leftovers"
-        remove_item(battle, ["", "-enditem", "p2a: Dustox", "Leftovers", "[from] move: Corrosive Gas"])
+        remove_item(
+            battle,
+            ["", "-enditem", "p2a: Dustox", "Leftovers", "[from] move: Corrosive Gas"],
+        )
         self.assertIsNone(battle.opponent.active.item)
         self.assertEqual("leftovers", battle.opponent.active.removed_item)
 
@@ -1023,11 +1219,16 @@ class TestAdditionalIsolationCases(unittest.TestCase):
     def test_tugs_pool_does_not_affect_ordinary_gen9(self):
         battle, registry, _ = _scenario(format_id="gen9ou")
         self.assertIs(TeamPoolMatchState.NO_POOL, battle.team_inference.match_state)
-        self.assertIs(CandidateFilterState.NOT_APPLICABLE, _filtered(battle, registry).filter_state)
+        self.assertIs(
+            CandidateFilterState.NOT_APPLICABLE,
+            _filtered(battle, registry).filter_state,
+        )
 
     def test_different_registries_do_not_contaminate_filtering(self):
         battle, first_registry, _ = _scenario((_variant("left", item="leftovers"),))
-        other_pool = _pool("otherpool", records=(_variant("scarf", item="choicescarf"),))
+        other_pool = _pool(
+            "otherpool", records=(_variant("scarf", item="choicescarf"),)
+        )
         other_registry = TeamPoolRegistry((other_pool,))
         _process(battle, "|-item|p2a: Pikachu|Leftovers")
         self.assertEqual(1, _filtered(battle, first_registry).candidate_count)
@@ -1041,7 +1242,10 @@ class TestAdditionalIsolationCases(unittest.TestCase):
         self.assertIsNone(_evidence(second).initial_item_id)
 
     def test_transformed_runtime_move_is_not_submitted_move_evidence(self):
-        records = (_variant("one"), _variant("two", moves=("ironhead", "protect", "rest", "sleeptalk")))
+        records = (
+            _variant("one"),
+            _variant("two", moves=("ironhead", "protect", "rest", "sleeptalk")),
+        )
         battle, registry, _ = _scenario(records)
         battle.opponent.active.volatile_statuses.append(constants.TRANSFORM)
         _process(battle, "|move|p2a: Pikachu|Iron Head|p1a: Weedle")
@@ -1051,7 +1255,12 @@ class TestAdditionalIsolationCases(unittest.TestCase):
     def test_context_contains_no_raw_pool_or_record_objects(self):
         battle, _, _ = _scenario()
         forbidden = (TeamPoolRegistry, TeamPool, TeamRecord, PokemonRecord)
-        self.assertFalse(any(isinstance(getattr(battle.team_inference, slot), forbidden) for slot in battle.team_inference.__slots__))
+        self.assertFalse(
+            any(
+                isinstance(getattr(battle.team_inference, slot), forbidden)
+                for slot in battle.team_inference.__slots__
+            )
+        )
 
 
 if __name__ == "__main__":

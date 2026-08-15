@@ -124,9 +124,15 @@ def _materialize(value: Any, path: str, issues: list[ValidationIssue]) -> Any:
             result[key] = _materialize(item, key_path, issues)
         return result
     if isinstance(value, dict):
-        return {key: _materialize(item, f"{path}.{key}", issues) for key, item in value.items()}
+        return {
+            key: _materialize(item, f"{path}.{key}", issues)
+            for key, item in value.items()
+        }
     if isinstance(value, list):
-        return [_materialize(item, f"{path}[{index}]", issues) for index, item in enumerate(value)]
+        return [
+            _materialize(item, f"{path}[{index}]", issues)
+            for index, item in enumerate(value)
+        ]
     return value
 
 
@@ -229,7 +235,10 @@ def _string(
 
 
 def _metadata(
-    obj: dict[str, Any], path: str, issues: list[ValidationIssue], context: Mapping[str, Any]
+    obj: dict[str, Any],
+    path: str,
+    issues: list[ValidationIssue],
+    context: Mapping[str, Any],
 ) -> dict[str, Any]:
     value = obj.get("metadata", {})
     if not isinstance(value, dict):
@@ -391,7 +400,11 @@ def _stat_values(
             )
         else:
             values[name] = value_for_stat
-    if total_maximum is not None and len(values) == 6 and sum(values.values()) > total_maximum:
+    if (
+        total_maximum is not None
+        and len(values) == 6
+        and sum(values.values()) > total_maximum
+    ):
         _issue(
             issues,
             path,
@@ -421,7 +434,9 @@ def _pokemon_record(
     obj = _require_object(value, path, issues, context=pool_context)
     if obj is None:
         return None, None
-    provisional_slot = obj.get("slot_id") if isinstance(obj.get("slot_id"), str) else None
+    provisional_slot = (
+        obj.get("slot_id") if isinstance(obj.get("slot_id"), str) else None
+    )
     context = dict(pool_context, slot_id=provisional_slot)
     start_count = len(issues)
     _check_fields(
@@ -446,7 +461,9 @@ def _pokemon_record(
     slot_id = _string(obj, "slot_id", path, issues, context, canonical=True)
     species_id = _string(obj, "species_id", path, issues, context, canonical=True)
     item_id = _string(obj, "item_id", path, issues, context, canonical=True)
-    base_ability_id = _string(obj, "base_ability_id", path, issues, context, canonical=True)
+    base_ability_id = _string(
+        obj, "base_ability_id", path, issues, context, canonical=True
+    )
     current_ability_id = _string(
         obj, "current_ability_id", path, issues, context, canonical=True
     )
@@ -484,7 +501,9 @@ def _pokemon_record(
         total_maximum=None,
     )
     level = obj.get("level", _MISSING)
-    if level is not _MISSING and (isinstance(level, bool) or not isinstance(level, int)):
+    if level is not _MISSING and (
+        isinstance(level, bool) or not isinstance(level, int)
+    ):
         _issue(
             issues,
             f"{path}.level",
@@ -551,7 +570,11 @@ def _pokemon_record(
                     field_name="base_species_id",
                     invalid_value=raw_base,
                 )
-    if explicit_base is not None and derived_base is not None and explicit_base != derived_base:
+    if (
+        explicit_base is not None
+        and derived_base is not None
+        and explicit_base != derived_base
+    ):
         _issue(
             issues,
             f"{path}.base_species_id",
@@ -588,7 +611,9 @@ def _pokemon_record(
                 invalid_value=current_ability_id,
             )
     if move_ids is not None:
-        duplicates = sorted(move for move, count in Counter(move_ids).items() if count > 1)
+        duplicates = sorted(
+            move for move, count in Counter(move_ids).items() if count > 1
+        )
         for move_id in duplicates:
             _issue(
                 issues,
@@ -696,7 +721,9 @@ def _team_record(
     if obj is None:
         return None, None, None
     team_id_hint = obj.get("team_id") if isinstance(obj.get("team_id"), str) else None
-    variant_id_hint = obj.get("variant_id") if isinstance(obj.get("variant_id"), str) else None
+    variant_id_hint = (
+        obj.get("variant_id") if isinstance(obj.get("variant_id"), str) else None
+    )
     context = dict(pool_context, team_id=team_id_hint, variant_id=variant_id_hint)
     start_count = len(issues)
     _check_fields(
@@ -808,7 +835,10 @@ def _team_record(
                     field_name="roster_key",
                     invalid_value=supplied_roster_key,
                 )
-            elif computed_roster_key is not None and supplied_roster_key != computed_roster_key:
+            elif (
+                computed_roster_key is not None
+                and supplied_roster_key != computed_roster_key
+            ):
                 _issue(
                     issues,
                     f"{path}.roster_key",
@@ -835,7 +865,9 @@ def _team_record(
     )
 
 
-def validate_team_pool_document(document: Any, source_path: str = "<memory>") -> TeamPool:
+def validate_team_pool_document(
+    document: Any, source_path: str = "<memory>"
+) -> TeamPool:
     """Validate one parsed JSON value and return an immutable v1 pool.
 
     All independently detectable source problems are raised together as one
@@ -880,11 +912,17 @@ def validate_team_pool_document(document: Any, source_path: str = "<memory>") ->
         "$.pool",
         issues,
     )
-    pool_id_hint = pool_obj.get("pool_id") if isinstance(pool_obj.get("pool_id"), str) else None
+    pool_id_hint = (
+        pool_obj.get("pool_id") if isinstance(pool_obj.get("pool_id"), str) else None
+    )
     pool_context = {"pool_id": pool_id_hint}
-    pool_id = _string(pool_obj, "pool_id", "$.pool", issues, pool_context, canonical=True)
+    pool_id = _string(
+        pool_obj, "pool_id", "$.pool", issues, pool_context, canonical=True
+    )
     pool_version = _string(pool_obj, "pool_version", "$.pool", issues, pool_context)
-    format_id = _string(pool_obj, "format_id", "$.pool", issues, pool_context, canonical=True)
+    format_id = _string(
+        pool_obj, "format_id", "$.pool", issues, pool_context, canonical=True
+    )
     patch_version = _string(
         pool_obj,
         "patch_version",
@@ -918,7 +956,9 @@ def validate_team_pool_document(document: Any, source_path: str = "<memory>") ->
     )
     if source_documents is not None:
         duplicates = sorted(
-            source_id for source_id, count in Counter(source_documents).items() if count > 1
+            source_id
+            for source_id, count in Counter(source_documents).items()
+            if count > 1
         )
         for source_id in duplicates:
             _issue(
@@ -952,7 +992,9 @@ def validate_team_pool_document(document: Any, source_path: str = "<memory>") ->
             if record_id is not None:
                 record_ids.append(record_id)
                 if variant_of is not None:
-                    references.append((f"$.teams[{index}].variant_of", record_id, variant_of))
+                    references.append(
+                        (f"$.teams[{index}].variant_of", record_id, variant_of)
+                    )
 
     known_record_ids = set(record_ids)
     for record_id, count in sorted(Counter(record_ids).items()):

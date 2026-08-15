@@ -55,8 +55,7 @@ ROOT = Path(__file__).resolve().parents[1]
 POOLS = ROOT / "fp" / "data" / "public_priors" / "pools"
 VERSIONS = ("1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0", "1.5.0")
 VERSION_PATHS = {
-    version: POOLS / f"tugspublicarchetypes-{version}.json"
-    for version in VERSIONS
+    version: POOLS / f"tugspublicarchetypes-{version}.json" for version in VERSIONS
 }
 RAW_SHA256 = {
     "1.0.0": "690c943f0ae554f68423f988f6a61d43f4310f25a2db8e65f98238d8c92c2a91",
@@ -98,10 +97,16 @@ NEW_SPECIES_VARIANTS = {
     "slurpuff": ("sashwebs", "bellydrum", "redcardcalmmind"),
     "taurospaldeaaqua": ("choiceband", "lifeorb", "choicescarf"),
     "toxtricity": (
-        "scarfsludgebomb", "scarfpsychicnoise", "choicespecs", "throatspray",
+        "scarfsludgebomb",
+        "scarfpsychicnoise",
+        "choicespecs",
+        "throatspray",
     ),
     "toxtricitylowkey": (
-        "scarfsludgebomb", "scarfpsychicnoise", "choicespecs", "throatspray",
+        "scarfsludgebomb",
+        "scarfpsychicnoise",
+        "choicespecs",
+        "throatspray",
     ),
     "vileplume": ("effectsporephysical", "chlorophyllspdef"),
     "weezing": ("levitatephysical", "neutralizinggasphysical"),
@@ -111,7 +116,10 @@ REPLACEMENT_VARIANTS = {
     "starmie": ("lifeorbanalytic", "bootsnaturalcure", "choicespecs"),
     "swampert": ("spdefrocks", "offensiveyawn", "chestorest"),
     "sylveon": (
-        "spdefwish", "defensivecalmmind", "toxicwish", "bootscleric",
+        "spdefwish",
+        "defensivecalmmind",
+        "toxicwish",
+        "bootscleric",
     ),
     "tinkaton": ("defensiveutility", "sashsetup"),
     "torkoal": ("heatrockwillowisp", "heatrockrest", "bootsutility"),
@@ -119,15 +127,46 @@ REPLACEMENT_VARIANTS = {
 }
 TOUCHED_VARIANT_IDS = {**NEW_SPECIES_VARIANTS, **REPLACEMENT_VARIANTS}
 UNCHANGED_SPECIES = {
-    "aerodactyl", "altaria", "arcaninehisui", "bastiodon", "bombirdier",
-    "chesnaught", "claydol", "cursola", "dhelmise", "drapion", "druddigon",
-    "dudunsparce", "dudunsparcethreesegment", "dugtrioalola", "dustox",
-    "eelektross", "flygon", "forretress", "froslass", "heracross",
-    "hitmontop", "houndoom", "jellicent", "jynx", "kabutops", "kangaskhan",
-    "lapras", "leavanny", "lilligant", "mawile", "mismagius", "mukalola",
-    "obstagoon", "porygon2", "raichu", "reuniclus",
+    "aerodactyl",
+    "altaria",
+    "arcaninehisui",
+    "bastiodon",
+    "bombirdier",
+    "chesnaught",
+    "claydol",
+    "cursola",
+    "dhelmise",
+    "drapion",
+    "druddigon",
+    "dudunsparce",
+    "dudunsparcethreesegment",
+    "dugtrioalola",
+    "dustox",
+    "eelektross",
+    "flygon",
+    "forretress",
+    "froslass",
+    "heracross",
+    "hitmontop",
+    "houndoom",
+    "jellicent",
+    "jynx",
+    "kabutops",
+    "kangaskhan",
+    "lapras",
+    "leavanny",
+    "lilligant",
+    "mawile",
+    "mismagius",
+    "mukalola",
+    "obstagoon",
+    "porygon2",
+    "raichu",
+    "reuniclus",
 }
-EXPECTED_ROSTER_IDS = UNCHANGED_SPECIES | set(NEW_SPECIES_VARIANTS) | set(REPLACEMENT_VARIANTS)
+EXPECTED_ROSTER_IDS = (
+    UNCHANGED_SPECIES | set(NEW_SPECIES_VARIANTS) | set(REPLACEMENT_VARIANTS)
+)
 REMOVED_VARIANT_IDS = {
     ("starmie", "analyticbreaker"),
     ("starmie", "rapidspinutility"),
@@ -149,44 +188,424 @@ REMOVED_VARIANT_IDS = {
 }
 
 EXPECTED_HUMAN_SETS = {
-    ('slurpuff', 'sashwebs'): (4, 'established', 'focussash', 'unburden', 'naive', (0, 0, 0, 252, 0, 252), (0, 0, 0, 31, 0, 31), ('stickyweb', 'magiccoat', 'mistyexplosion', 'yawn'), 'maximum-fragility Focus Sash Sticky Web disruption lead'),
-    ('slurpuff', 'bellydrum'): (3, 'plausible', 'sitrusberry', 'unburden', 'jolly', (4, 252, 0, 0, 0, 252), (31, 31, 31, 31, 31, 31), ('bellydrum', 'playrough', 'drainpunch', 'facade'), 'Sitrus Berry Belly Drum physical sweeper'),
-    ('slurpuff', 'redcardcalmmind'): (2, 'experimental', 'redcard', 'unburden', 'modest', (4, 0, 0, 252, 0, 252), (31, 0, 31, 31, 31, 31), ('calmmind', 'flamethrower', 'drainingkiss', 'energyball'), 'Red Card Calm Mind special attacker with potential Unburden activation'),
-    ('starmie', 'lifeorbanalytic'): (4, 'established', 'lifeorb', 'analytic', 'timid', (0, 0, 0, 252, 4, 252), (31, 31, 31, 31, 31, 31), ('hydropump', 'icebeam', 'thunderbolt', 'rapidspin'), 'Life Orb Analytic attacker with emergency removal'),
-    ('starmie', 'bootsnaturalcure'): (4, 'established', 'heavydutyboots', 'naturalcure', 'timid', (252, 0, 0, 4, 0, 252), (31, 31, 31, 31, 31, 31), ('scald', 'recover', 'teleport', 'rapidspin'), 'fast bulky Natural Cure removal and pivot utility'),
-    ('starmie', 'choicespecs'): (3, 'plausible', 'choicespecs', 'analytic', 'timid', (4, 0, 0, 252, 0, 252), (31, 0, 31, 31, 31, 31), ('thunderbolt', 'icebeam', 'psyshock', 'hydropump'), 'Choice Specs Analytic wallbreaker'),
-    ('swampert', 'spdefrocks'): (4, 'established', 'leftovers', 'torrent', 'careful', (252, 4, 0, 0, 252, 0), (31, 31, 31, 31, 31, 31), ('stealthrock', 'earthquake', 'flipturn', 'knockoff'), 'specially defensive hazard setter and pivot'),
-    ('swampert', 'offensiveyawn'): (3, 'plausible', 'leftovers', 'torrent', 'adamant', (252, 252, 0, 0, 4, 0), (31, 31, 31, 31, 31, 31), ('yawn', 'flipturn', 'stealthrock', 'earthquake'), 'offensive hazard setter using Yawn and Flip Turn to force progress'),
-    ('swampert', 'chestorest'): (2, 'experimental', 'chestoberry', 'torrent', 'careful', (252, 4, 0, 0, 252, 0), (31, 31, 31, 31, 31, 31), ('rest', 'knockoff', 'toxic', 'earthquake'), 'specially defensive ChestoRest utility'),
-    ('sylveon', 'spdefwish'): (4, 'established', 'leftovers', 'pixilate', 'calm', (252, 0, 0, 4, 252, 0), (31, 0, 31, 31, 31, 31), ('mysticalfire', 'hypervoice', 'wish', 'protect'), 'specially defensive Wish and Protect support'),
-    ('sylveon', 'defensivecalmmind'): (3, 'plausible', 'leftovers', 'pixilate', 'bold', (252, 0, 252, 4, 0, 0), (31, 0, 31, 31, 31, 31), ('mysticalfire', 'hypervoice', 'wish', 'calmmind'), 'physically defensive Calm Mind win condition with Wish'),
-    ('sylveon', 'toxicwish'): (3, 'plausible', 'leftovers', 'pixilate', 'calm', (252, 0, 0, 4, 252, 0), (31, 0, 31, 31, 31, 31), ('toxic', 'hypervoice', 'wish', 'protect'), 'specially defensive Toxic and Wish support'),
-    ('sylveon', 'bootscleric'): (3, 'plausible', 'heavydutyboots', 'pixilate', 'calm', (252, 0, 0, 4, 252, 0), (31, 0, 31, 31, 31, 31), ('healbell', 'hypervoice', 'wish', 'protect'), 'Heavy-Duty Boots cleric and Wish support'),
-    ('taurospaldeaaqua', 'choiceband'): (4, 'established', 'choiceband', 'intimidate', 'jolly', (4, 252, 0, 0, 0, 252), (31, 31, 31, 31, 31, 31), ('closecombat', 'wavecrash', 'earthquake', 'lashout'), 'immediate physical wallbreaker'),
-    ('taurospaldeaaqua', 'lifeorb'): (3, 'plausible', 'lifeorb', 'intimidate', 'jolly', (4, 252, 0, 0, 0, 252), (31, 31, 31, 31, 31, 31), ('closecombat', 'wavecrash', 'earthquake', 'aquajet'), 'flexible Life Orb attacker with priority'),
-    ('taurospaldeaaqua', 'choicescarf'): (3, 'plausible', 'choicescarf', 'intimidate', 'jolly', (4, 252, 0, 0, 0, 252), (31, 31, 31, 31, 31, 31), ('closecombat', 'wavecrash', 'earthquake', 'stoneedge'), 'Choice Scarf revenge killer'),
-    ('tinkaton', 'defensiveutility'): (4, 'established', 'leftovers', 'moldbreaker', 'careful', (248, 0, 184, 0, 76, 0), (31, 31, 31, 31, 31, 31), ('stealthrock', 'gigatonhammer', 'knockoff', 'encore'), 'bulky Mold Breaker hazard and disruption utility'),
-    ('tinkaton', 'sashsetup'): (2, 'experimental', 'focussash', 'moldbreaker', 'jolly', (0, 252, 0, 0, 4, 252), (31, 31, 31, 31, 31, 31), ('gigatonhammer', 'knockoff', 'swordsdance', 'playrough'), 'fast Focus Sash Swords Dance attacker'),
-    ('torkoal', 'heatrockwillowisp'): (4, 'established', 'heatrock', 'drought', 'bold', (248, 0, 252, 0, 8, 0), (31, 31, 31, 31, 31, 31), ('lavaplume', 'rapidspin', 'stealthrock', 'willowisp'), 'physical wall, extended-sun setter, hazards, removal, and burn utility'),
-    ('torkoal', 'heatrockrest'): (3, 'plausible', 'heatrock', 'drought', 'bold', (248, 0, 252, 0, 8, 0), (31, 31, 31, 31, 31, 31), ('lavaplume', 'rapidspin', 'stealthrock', 'rest'), 'extended-sun setter using Rest for recovery'),
-    ('torkoal', 'bootsutility'): (4, 'established', 'heavydutyboots', 'drought', 'bold', (248, 0, 252, 8, 0, 0), (31, 31, 31, 31, 31, 31), ('stealthrock', 'rapidspin', 'lavaplume', 'bodypress'), 'Heavy-Duty Boots hazard, removal, and physical-pressure utility'),
-    ('toxtricity', 'scarfsludgebomb'): (4, 'established', 'choicescarf', 'punkrock', 'timid', (4, 0, 0, 252, 0, 252), (31, 0, 31, 31, 31, 31), ('voltswitch', 'boomburst', 'overdrive', 'sludgebomb'), 'Choice Scarf special pivot and revenge killer'),
-    ('toxtricity', 'scarfpsychicnoise'): (3, 'plausible', 'choicescarf', 'punkrock', 'timid', (4, 0, 0, 252, 0, 252), (31, 0, 31, 31, 31, 31), ('voltswitch', 'boomburst', 'psychicnoise', 'sludgebomb'), 'Choice Scarf pivot using Psychic Noise for recovery denial and coverage'),
-    ('toxtricity', 'choicespecs'): (4, 'established', 'choicespecs', 'punkrock', 'modest', (0, 0, 0, 252, 4, 252), (31, 0, 31, 31, 31, 31), ('boomburst', 'overdrive', 'sludgewave', 'voltswitch'), 'Choice Specs Punk Rock wallbreaker'),
-    ('toxtricity', 'throatspray'): (3, 'plausible', 'throatspray', 'punkrock', 'modest', (0, 0, 0, 252, 4, 252), (31, 0, 31, 31, 31, 31), ('shiftgear', 'boomburst', 'overdrive', 'sludgewave'), 'Shift Gear and Throat Spray special setup attacker'),
-    ('toxtricitylowkey', 'scarfsludgebomb'): (4, 'established', 'choicescarf', 'punkrock', 'timid', (4, 0, 0, 252, 0, 252), (31, 0, 31, 31, 31, 31), ('voltswitch', 'boomburst', 'overdrive', 'sludgebomb'), 'Choice Scarf special pivot and revenge killer'),
-    ('toxtricitylowkey', 'scarfpsychicnoise'): (3, 'plausible', 'choicescarf', 'punkrock', 'timid', (4, 0, 0, 252, 0, 252), (31, 0, 31, 31, 31, 31), ('voltswitch', 'boomburst', 'psychicnoise', 'sludgebomb'), 'Choice Scarf pivot using Psychic Noise for recovery denial and coverage'),
-    ('toxtricitylowkey', 'choicespecs'): (4, 'established', 'choicespecs', 'punkrock', 'modest', (0, 0, 0, 252, 4, 252), (31, 0, 31, 31, 31, 31), ('boomburst', 'overdrive', 'sludgewave', 'voltswitch'), 'Choice Specs Punk Rock wallbreaker'),
-    ('toxtricitylowkey', 'throatspray'): (3, 'plausible', 'throatspray', 'punkrock', 'modest', (0, 0, 0, 252, 4, 252), (31, 0, 31, 31, 31, 31), ('shiftgear', 'boomburst', 'overdrive', 'sludgewave'), 'Shift Gear and Throat Spray special setup attacker'),
-    ('vikavolt', 'sashwebs'): (3, 'plausible', 'focussash', 'levitate', 'modest', (0, 0, 4, 252, 0, 252), (31, 0, 31, 31, 31, 31), ('stickyweb', 'voltswitch', 'bugbuzz', 'energyball'), 'Focus Sash Sticky Web lead with strong special pressure'),
-    ('vikavolt', 'bulkyboots'): (3, 'plausible', 'heavydutyboots', 'levitate', 'bold', (252, 0, 252, 4, 0, 0), (31, 0, 31, 31, 31, 31), ('voltswitch', 'bugbuzz', 'roost', 'stickyweb'), 'physically bulky Boots Web setter and pivot'),
-    ('vileplume', 'effectsporephysical'): (4, 'established', 'rockyhelmet', 'effectspore', 'bold', (252, 0, 252, 0, 4, 0), (31, 0, 31, 31, 31, 31), ('strengthsap', 'sludgebomb', 'gigadrain', 'leechseed'), 'physically defensive contact punisher and sustain utility'),
-    ('vileplume', 'chlorophyllspdef'): (3, 'plausible', 'blacksludge', 'chlorophyll', 'calm', (252, 0, 0, 4, 252, 0), (31, 0, 31, 31, 31, 31), ('aromatherapy', 'synthesis', 'sleeppowder', 'sludgebomb'), 'specially defensive cleric and sleep utility with Chlorophyll'),
-    ('weezing', 'levitatephysical'): (4, 'established', 'rockyhelmet', 'levitate', 'bold', (252, 0, 252, 0, 0, 4), (31, 0, 31, 31, 31, 31), ('sludgebomb', 'willowisp', 'painsplit', 'haze'), 'physically defensive Levitate contact punishment and setup control'),
-    ('weezing', 'neutralizinggasphysical'): (3, 'plausible', 'blacksludge', 'neutralizinggas', 'bold', (252, 0, 252, 0, 0, 4), (31, 0, 31, 31, 31, 31), ('sludgebomb', 'flamethrower', 'painsplit', 'taunt'), 'physically defensive Neutralizing Gas disruption utility'),
-    ('xatu', 'helmetphysical'): (4, 'established', 'rockyhelmet', 'magicbounce', 'bold', (252, 0, 252, 0, 0, 4), (31, 0, 31, 31, 31, 31), ('psychic', 'heatwave', 'roost', 'teleport'), 'physically defensive Magic Bounce pivot and contact punisher'),
-    ('xatu', 'leftoversutility'): (3, 'plausible', 'leftovers', 'magicbounce', 'bold', (252, 0, 252, 0, 4, 0), (31, 0, 31, 31, 31, 31), ('roost', 'thunderwave', 'teleport', 'nightshade'), 'physically defensive paralysis and fixed-damage utility'),
-    ('xatu', 'bootsutility'): (3, 'plausible', 'heavydutyboots', 'magicbounce', 'timid', (252, 0, 0, 4, 0, 252), (31, 31, 31, 31, 31, 31), ('defog', 'uturn', 'thunderwave', 'heatwave'), 'fast Boots removal, pivoting, and paralysis utility'),
+    ("slurpuff", "sashwebs"): (
+        4,
+        "established",
+        "focussash",
+        "unburden",
+        "naive",
+        (0, 0, 0, 252, 0, 252),
+        (0, 0, 0, 31, 0, 31),
+        ("stickyweb", "magiccoat", "mistyexplosion", "yawn"),
+        "maximum-fragility Focus Sash Sticky Web disruption lead",
+    ),
+    ("slurpuff", "bellydrum"): (
+        3,
+        "plausible",
+        "sitrusberry",
+        "unburden",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        (31, 31, 31, 31, 31, 31),
+        ("bellydrum", "playrough", "drainpunch", "facade"),
+        "Sitrus Berry Belly Drum physical sweeper",
+    ),
+    ("slurpuff", "redcardcalmmind"): (
+        2,
+        "experimental",
+        "redcard",
+        "unburden",
+        "modest",
+        (4, 0, 0, 252, 0, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("calmmind", "flamethrower", "drainingkiss", "energyball"),
+        "Red Card Calm Mind special attacker with potential Unburden activation",
+    ),
+    ("starmie", "lifeorbanalytic"): (
+        4,
+        "established",
+        "lifeorb",
+        "analytic",
+        "timid",
+        (0, 0, 0, 252, 4, 252),
+        (31, 31, 31, 31, 31, 31),
+        ("hydropump", "icebeam", "thunderbolt", "rapidspin"),
+        "Life Orb Analytic attacker with emergency removal",
+    ),
+    ("starmie", "bootsnaturalcure"): (
+        4,
+        "established",
+        "heavydutyboots",
+        "naturalcure",
+        "timid",
+        (252, 0, 0, 4, 0, 252),
+        (31, 31, 31, 31, 31, 31),
+        ("scald", "recover", "teleport", "rapidspin"),
+        "fast bulky Natural Cure removal and pivot utility",
+    ),
+    ("starmie", "choicespecs"): (
+        3,
+        "plausible",
+        "choicespecs",
+        "analytic",
+        "timid",
+        (4, 0, 0, 252, 0, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("thunderbolt", "icebeam", "psyshock", "hydropump"),
+        "Choice Specs Analytic wallbreaker",
+    ),
+    ("swampert", "spdefrocks"): (
+        4,
+        "established",
+        "leftovers",
+        "torrent",
+        "careful",
+        (252, 4, 0, 0, 252, 0),
+        (31, 31, 31, 31, 31, 31),
+        ("stealthrock", "earthquake", "flipturn", "knockoff"),
+        "specially defensive hazard setter and pivot",
+    ),
+    ("swampert", "offensiveyawn"): (
+        3,
+        "plausible",
+        "leftovers",
+        "torrent",
+        "adamant",
+        (252, 252, 0, 0, 4, 0),
+        (31, 31, 31, 31, 31, 31),
+        ("yawn", "flipturn", "stealthrock", "earthquake"),
+        "offensive hazard setter using Yawn and Flip Turn to force progress",
+    ),
+    ("swampert", "chestorest"): (
+        2,
+        "experimental",
+        "chestoberry",
+        "torrent",
+        "careful",
+        (252, 4, 0, 0, 252, 0),
+        (31, 31, 31, 31, 31, 31),
+        ("rest", "knockoff", "toxic", "earthquake"),
+        "specially defensive ChestoRest utility",
+    ),
+    ("sylveon", "spdefwish"): (
+        4,
+        "established",
+        "leftovers",
+        "pixilate",
+        "calm",
+        (252, 0, 0, 4, 252, 0),
+        (31, 0, 31, 31, 31, 31),
+        ("mysticalfire", "hypervoice", "wish", "protect"),
+        "specially defensive Wish and Protect support",
+    ),
+    ("sylveon", "defensivecalmmind"): (
+        3,
+        "plausible",
+        "leftovers",
+        "pixilate",
+        "bold",
+        (252, 0, 252, 4, 0, 0),
+        (31, 0, 31, 31, 31, 31),
+        ("mysticalfire", "hypervoice", "wish", "calmmind"),
+        "physically defensive Calm Mind win condition with Wish",
+    ),
+    ("sylveon", "toxicwish"): (
+        3,
+        "plausible",
+        "leftovers",
+        "pixilate",
+        "calm",
+        (252, 0, 0, 4, 252, 0),
+        (31, 0, 31, 31, 31, 31),
+        ("toxic", "hypervoice", "wish", "protect"),
+        "specially defensive Toxic and Wish support",
+    ),
+    ("sylveon", "bootscleric"): (
+        3,
+        "plausible",
+        "heavydutyboots",
+        "pixilate",
+        "calm",
+        (252, 0, 0, 4, 252, 0),
+        (31, 0, 31, 31, 31, 31),
+        ("healbell", "hypervoice", "wish", "protect"),
+        "Heavy-Duty Boots cleric and Wish support",
+    ),
+    ("taurospaldeaaqua", "choiceband"): (
+        4,
+        "established",
+        "choiceband",
+        "intimidate",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        (31, 31, 31, 31, 31, 31),
+        ("closecombat", "wavecrash", "earthquake", "lashout"),
+        "immediate physical wallbreaker",
+    ),
+    ("taurospaldeaaqua", "lifeorb"): (
+        3,
+        "plausible",
+        "lifeorb",
+        "intimidate",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        (31, 31, 31, 31, 31, 31),
+        ("closecombat", "wavecrash", "earthquake", "aquajet"),
+        "flexible Life Orb attacker with priority",
+    ),
+    ("taurospaldeaaqua", "choicescarf"): (
+        3,
+        "plausible",
+        "choicescarf",
+        "intimidate",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        (31, 31, 31, 31, 31, 31),
+        ("closecombat", "wavecrash", "earthquake", "stoneedge"),
+        "Choice Scarf revenge killer",
+    ),
+    ("tinkaton", "defensiveutility"): (
+        4,
+        "established",
+        "leftovers",
+        "moldbreaker",
+        "careful",
+        (248, 0, 184, 0, 76, 0),
+        (31, 31, 31, 31, 31, 31),
+        ("stealthrock", "gigatonhammer", "knockoff", "encore"),
+        "bulky Mold Breaker hazard and disruption utility",
+    ),
+    ("tinkaton", "sashsetup"): (
+        2,
+        "experimental",
+        "focussash",
+        "moldbreaker",
+        "jolly",
+        (0, 252, 0, 0, 4, 252),
+        (31, 31, 31, 31, 31, 31),
+        ("gigatonhammer", "knockoff", "swordsdance", "playrough"),
+        "fast Focus Sash Swords Dance attacker",
+    ),
+    ("torkoal", "heatrockwillowisp"): (
+        4,
+        "established",
+        "heatrock",
+        "drought",
+        "bold",
+        (248, 0, 252, 0, 8, 0),
+        (31, 31, 31, 31, 31, 31),
+        ("lavaplume", "rapidspin", "stealthrock", "willowisp"),
+        "physical wall, extended-sun setter, hazards, removal, and burn utility",
+    ),
+    ("torkoal", "heatrockrest"): (
+        3,
+        "plausible",
+        "heatrock",
+        "drought",
+        "bold",
+        (248, 0, 252, 0, 8, 0),
+        (31, 31, 31, 31, 31, 31),
+        ("lavaplume", "rapidspin", "stealthrock", "rest"),
+        "extended-sun setter using Rest for recovery",
+    ),
+    ("torkoal", "bootsutility"): (
+        4,
+        "established",
+        "heavydutyboots",
+        "drought",
+        "bold",
+        (248, 0, 252, 8, 0, 0),
+        (31, 31, 31, 31, 31, 31),
+        ("stealthrock", "rapidspin", "lavaplume", "bodypress"),
+        "Heavy-Duty Boots hazard, removal, and physical-pressure utility",
+    ),
+    ("toxtricity", "scarfsludgebomb"): (
+        4,
+        "established",
+        "choicescarf",
+        "punkrock",
+        "timid",
+        (4, 0, 0, 252, 0, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("voltswitch", "boomburst", "overdrive", "sludgebomb"),
+        "Choice Scarf special pivot and revenge killer",
+    ),
+    ("toxtricity", "scarfpsychicnoise"): (
+        3,
+        "plausible",
+        "choicescarf",
+        "punkrock",
+        "timid",
+        (4, 0, 0, 252, 0, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("voltswitch", "boomburst", "psychicnoise", "sludgebomb"),
+        "Choice Scarf pivot using Psychic Noise for recovery denial and coverage",
+    ),
+    ("toxtricity", "choicespecs"): (
+        4,
+        "established",
+        "choicespecs",
+        "punkrock",
+        "modest",
+        (0, 0, 0, 252, 4, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("boomburst", "overdrive", "sludgewave", "voltswitch"),
+        "Choice Specs Punk Rock wallbreaker",
+    ),
+    ("toxtricity", "throatspray"): (
+        3,
+        "plausible",
+        "throatspray",
+        "punkrock",
+        "modest",
+        (0, 0, 0, 252, 4, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("shiftgear", "boomburst", "overdrive", "sludgewave"),
+        "Shift Gear and Throat Spray special setup attacker",
+    ),
+    ("toxtricitylowkey", "scarfsludgebomb"): (
+        4,
+        "established",
+        "choicescarf",
+        "punkrock",
+        "timid",
+        (4, 0, 0, 252, 0, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("voltswitch", "boomburst", "overdrive", "sludgebomb"),
+        "Choice Scarf special pivot and revenge killer",
+    ),
+    ("toxtricitylowkey", "scarfpsychicnoise"): (
+        3,
+        "plausible",
+        "choicescarf",
+        "punkrock",
+        "timid",
+        (4, 0, 0, 252, 0, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("voltswitch", "boomburst", "psychicnoise", "sludgebomb"),
+        "Choice Scarf pivot using Psychic Noise for recovery denial and coverage",
+    ),
+    ("toxtricitylowkey", "choicespecs"): (
+        4,
+        "established",
+        "choicespecs",
+        "punkrock",
+        "modest",
+        (0, 0, 0, 252, 4, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("boomburst", "overdrive", "sludgewave", "voltswitch"),
+        "Choice Specs Punk Rock wallbreaker",
+    ),
+    ("toxtricitylowkey", "throatspray"): (
+        3,
+        "plausible",
+        "throatspray",
+        "punkrock",
+        "modest",
+        (0, 0, 0, 252, 4, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("shiftgear", "boomburst", "overdrive", "sludgewave"),
+        "Shift Gear and Throat Spray special setup attacker",
+    ),
+    ("vikavolt", "sashwebs"): (
+        3,
+        "plausible",
+        "focussash",
+        "levitate",
+        "modest",
+        (0, 0, 4, 252, 0, 252),
+        (31, 0, 31, 31, 31, 31),
+        ("stickyweb", "voltswitch", "bugbuzz", "energyball"),
+        "Focus Sash Sticky Web lead with strong special pressure",
+    ),
+    ("vikavolt", "bulkyboots"): (
+        3,
+        "plausible",
+        "heavydutyboots",
+        "levitate",
+        "bold",
+        (252, 0, 252, 4, 0, 0),
+        (31, 0, 31, 31, 31, 31),
+        ("voltswitch", "bugbuzz", "roost", "stickyweb"),
+        "physically bulky Boots Web setter and pivot",
+    ),
+    ("vileplume", "effectsporephysical"): (
+        4,
+        "established",
+        "rockyhelmet",
+        "effectspore",
+        "bold",
+        (252, 0, 252, 0, 4, 0),
+        (31, 0, 31, 31, 31, 31),
+        ("strengthsap", "sludgebomb", "gigadrain", "leechseed"),
+        "physically defensive contact punisher and sustain utility",
+    ),
+    ("vileplume", "chlorophyllspdef"): (
+        3,
+        "plausible",
+        "blacksludge",
+        "chlorophyll",
+        "calm",
+        (252, 0, 0, 4, 252, 0),
+        (31, 0, 31, 31, 31, 31),
+        ("aromatherapy", "synthesis", "sleeppowder", "sludgebomb"),
+        "specially defensive cleric and sleep utility with Chlorophyll",
+    ),
+    ("weezing", "levitatephysical"): (
+        4,
+        "established",
+        "rockyhelmet",
+        "levitate",
+        "bold",
+        (252, 0, 252, 0, 0, 4),
+        (31, 0, 31, 31, 31, 31),
+        ("sludgebomb", "willowisp", "painsplit", "haze"),
+        "physically defensive Levitate contact punishment and setup control",
+    ),
+    ("weezing", "neutralizinggasphysical"): (
+        3,
+        "plausible",
+        "blacksludge",
+        "neutralizinggas",
+        "bold",
+        (252, 0, 252, 0, 0, 4),
+        (31, 0, 31, 31, 31, 31),
+        ("sludgebomb", "flamethrower", "painsplit", "taunt"),
+        "physically defensive Neutralizing Gas disruption utility",
+    ),
+    ("xatu", "helmetphysical"): (
+        4,
+        "established",
+        "rockyhelmet",
+        "magicbounce",
+        "bold",
+        (252, 0, 252, 0, 0, 4),
+        (31, 0, 31, 31, 31, 31),
+        ("psychic", "heatwave", "roost", "teleport"),
+        "physically defensive Magic Bounce pivot and contact punisher",
+    ),
+    ("xatu", "leftoversutility"): (
+        3,
+        "plausible",
+        "leftovers",
+        "magicbounce",
+        "bold",
+        (252, 0, 252, 0, 4, 0),
+        (31, 0, 31, 31, 31, 31),
+        ("roost", "thunderwave", "teleport", "nightshade"),
+        "physically defensive paralysis and fixed-damage utility",
+    ),
+    ("xatu", "bootsutility"): (
+        3,
+        "plausible",
+        "heavydutyboots",
+        "magicbounce",
+        "timid",
+        (252, 0, 0, 4, 0, 252),
+        (31, 31, 31, 31, 31, 31),
+        ("defog", "uturn", "thunderwave", "heatwave"),
+        "fast Boots removal, pivoting, and paralysis utility",
+    ),
 }
 
 
@@ -212,7 +631,9 @@ def tearDownModule():
 
 
 def _document(version):
-    return json.loads(VERSION_PATHS[version].read_text(encoding="utf-8", errors="strict"))
+    return json.loads(
+        VERSION_PATHS[version].read_text(encoding="utf-8", errors="strict")
+    )
 
 
 def _canonical_bytes(document):
@@ -258,8 +679,12 @@ console.log('parent:' + String(parent.shiftgear));
 console.log('forms:' + Dex.mod('tugs').species.get('Toxtricity').id + '/' + Dex.mod('tugs').species.get('Toxtricity-Low-Key').id);
 """
     return subprocess.run(
-        ["node", "-e", script], cwd=_server_root(), capture_output=True,
-        text=True, timeout=30, check=False,
+        ["node", "-e", script],
+        cwd=_server_root(),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
     )
 
 
@@ -268,8 +693,7 @@ class TestBatchFiveDocument(unittest.TestCase):
     def setUpClass(cls):
         cls.documents = {version: _document(version) for version in VERSIONS}
         cls.datasets = {
-            version: load_public_prior(VERSION_PATHS[version])
-            for version in VERSIONS
+            version: load_public_prior(VERSION_PATHS[version]) for version in VERSIONS
         }
 
     def test_01_encoding_hash_identity_and_inventories_are_exact(self):
@@ -289,7 +713,9 @@ class TestBatchFiveDocument(unittest.TestCase):
                 self.assertEqual(RAW_SHA256[version], hashlib.sha256(raw).hexdigest())
                 self.assertEqual(
                     CANONICAL_SHA256[version],
-                    hashlib.sha256(_canonical_bytes(self.documents[version])).hexdigest(),
+                    hashlib.sha256(
+                        _canonical_bytes(self.documents[version])
+                    ).hexdigest(),
                 )
                 self.assertEqual("public", dataset.visibility)
                 self.assertEqual("gen9tugs", dataset.identity.format_id)
@@ -310,8 +736,13 @@ class TestBatchFiveDocument(unittest.TestCase):
         old = self.documents["1.4.0"]
         new = self.documents["1.5.0"]
         for key in (
-            "schema_version", "visibility", "dataset_id", "format_id",
-            "patch_version", "metadata", "sources",
+            "schema_version",
+            "visibility",
+            "dataset_id",
+            "format_id",
+            "patch_version",
+            "metadata",
+            "sources",
         ):
             self.assertEqual(old[key], new[key], key)
         self.assertEqual("1.5.0", new["dataset_version"])
@@ -321,7 +752,8 @@ class TestBatchFiveDocument(unittest.TestCase):
         self.assertEqual(set(NEW_SPECIES_VARIANTS), set(new_records) - set(old_records))
         self.assertEqual(set(), set(old_records) - set(new_records))
         changed = {
-            species_id for species_id in old_records
+            species_id
+            for species_id in old_records
             if old_records[species_id] != new_records[species_id]
         }
         self.assertEqual(set(REPLACEMENT_VARIANTS), changed)
@@ -367,7 +799,13 @@ class TestBatchFiveDocument(unittest.TestCase):
                 self.assertEqual(role, variant.metadata["role"])
                 self.assertEqual(confidence, variant.metadata["confidence"])
                 self.assertEqual(
-                    {"role", "rationale", "distinguishing_evidence", "weight_reason", "confidence"},
+                    {
+                        "role",
+                        "rationale",
+                        "distinguishing_evidence",
+                        "weight_reason",
+                        "confidence",
+                    },
                     set(variant.metadata),
                 )
                 self.assertTrue(all(variant.metadata.values()))
@@ -375,13 +813,23 @@ class TestBatchFiveDocument(unittest.TestCase):
         slurpuff = dataset.get_species("slurpuff").get_variant("sashwebs")
         self.assertEqual((0, 0, 0, 31, 0, 31), slurpuff.ivs.as_tuple())
         source = VERSION_PATHS["1.5.0"].read_text(encoding="utf-8").casefold()
-        for token in ('"tera_type"', '"tera"', "terablast", "terastallization", '"gender"'):
+        for token in (
+            '"tera_type"',
+            '"tera"',
+            "terablast",
+            "terastallization",
+            '"gender"',
+        ):
             self.assertNotIn(token, source)
 
     def test_04_server_head_roster_equality_and_all_six_loaders_are_exact(self):
         completed = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"], cwd=_server_root(),
-            capture_output=True, text=True, timeout=10, check=False,
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=_server_root(),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
         )
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertEqual(SERVER_HEAD, completed.stdout.strip())
@@ -403,31 +851,92 @@ class TestBatchFiveDocument(unittest.TestCase):
                     sum(len(record.variants) for record in dataset.species),
                 )
 
-    def test_05_trusted_teamvalidator_accepts_all_required_groups_and_isolates_low_key(self):
+    def test_05_trusted_teamvalidator_accepts_all_required_groups_and_isolates_low_key(
+        self,
+    ):
         docs = self.documents
-        groups = [{"label": version, "entries": _entries(docs[version])} for version in VERSIONS]
-        groups.extend([
-            {"label": "batch5-new", "entries": _entries(docs["1.5.0"], lambda species, variant: species["species_id"] in NEW_SPECIES_VARIANTS)},
-            {"label": "batch5-replacements", "entries": _entries(docs["1.5.0"], lambda species, variant: species["species_id"] in REPLACEMENT_VARIANTS)},
-            {"label": "toxtricity-forms", "entries": _entries(docs["1.5.0"], lambda species, variant: species["species_id"] in {"toxtricity", "toxtricitylowkey"})},
-            {"label": "slurpuff", "entries": _entries(docs["1.5.0"], lambda species, variant: species["species_id"] == "slurpuff")},
-            {"label": "low-key-throatspray", "entries": _entries(docs["1.5.0"], lambda species, variant: (species["species_id"], variant["variant_id"]) == ("toxtricitylowkey", "throatspray"))},
-        ])
+        groups = [
+            {"label": version, "entries": _entries(docs[version])}
+            for version in VERSIONS
+        ]
+        groups.extend(
+            [
+                {
+                    "label": "batch5-new",
+                    "entries": _entries(
+                        docs["1.5.0"],
+                        lambda species, variant: species["species_id"]
+                        in NEW_SPECIES_VARIANTS,
+                    ),
+                },
+                {
+                    "label": "batch5-replacements",
+                    "entries": _entries(
+                        docs["1.5.0"],
+                        lambda species, variant: species["species_id"]
+                        in REPLACEMENT_VARIANTS,
+                    ),
+                },
+                {
+                    "label": "toxtricity-forms",
+                    "entries": _entries(
+                        docs["1.5.0"],
+                        lambda species, variant: species["species_id"]
+                        in {"toxtricity", "toxtricitylowkey"},
+                    ),
+                },
+                {
+                    "label": "slurpuff",
+                    "entries": _entries(
+                        docs["1.5.0"],
+                        lambda species, variant: species["species_id"] == "slurpuff",
+                    ),
+                },
+                {
+                    "label": "low-key-throatspray",
+                    "entries": _entries(
+                        docs["1.5.0"],
+                        lambda species, variant: (
+                            species["species_id"],
+                            variant["variant_id"],
+                        )
+                        == ("toxtricitylowkey", "throatspray"),
+                    ),
+                },
+            ]
+        )
         completed = _run_teamvalidator(groups)
         self.assertEqual(0, completed.returncode, completed.stderr)
-        self.assertEqual([
-            "1.0.0:23/23", "1.1.0:52/52", "1.2.0:80/80",
-            "1.3.0:102/102", "1.4.0:132/132", "1.5.0:153/153",
-            "batch5-new:21/21", "batch5-replacements:17/17",
-            "toxtricity-forms:8/8", "slurpuff:3/3", "low-key-throatspray:1/1",
-        ], completed.stdout.splitlines())
+        self.assertEqual(
+            [
+                "1.0.0:23/23",
+                "1.1.0:52/52",
+                "1.2.0:80/80",
+                "1.3.0:102/102",
+                "1.4.0:132/132",
+                "1.5.0:153/153",
+                "batch5-new:21/21",
+                "batch5-replacements:17/17",
+                "toxtricity-forms:8/8",
+                "slurpuff:3/3",
+                "low-key-throatspray:1/1",
+            ],
+            completed.stdout.splitlines(),
+        )
         isolation = _run_low_key_isolation_validator()
         self.assertEqual(0, isolation.returncode, isolation.stderr)
-        self.assertEqual([
-            "low-key:valid", "amped:valid", "acid:valid", "national:rejected",
-            'source:["9L52","8L52"]', "parent:undefined",
-            "forms:toxtricity/toxtricitylowkey",
-        ], isolation.stdout.splitlines())
+        self.assertEqual(
+            [
+                "low-key:valid",
+                "amped:valid",
+                "acid:valid",
+                "national:rejected",
+                'source:["9L52","8L52"]',
+                "parent:undefined",
+                "forms:toxtricity/toxtricitylowkey",
+            ],
+            isolation.stdout.splitlines(),
+        )
 
     def test_06_trick_room_hidden_power_and_prior_deliberate_structures_are_exact(self):
         dataset = self.datasets["1.5.0"]
@@ -437,11 +946,14 @@ class TestBatchFiveDocument(unittest.TestCase):
             for variant in record.variants
             if "trickroom" in variant.move_ids
         }
-        self.assertEqual({
-            ("claydol", "regeneratortrickroom"),
-            ("porygon2", "trickroom"),
-            ("reuniclus", "regeneratortrickroom"),
-        }, set(trick_room))
+        self.assertEqual(
+            {
+                ("claydol", "regeneratortrickroom"),
+                ("porygon2", "trickroom"),
+                ("reuniclus", "regeneratortrickroom"),
+            },
+            set(trick_room),
+        )
         for key, variant in trick_room.items():
             with self.subTest(trick_room=key):
                 self.assertEqual("sassy", variant.nature_id)
@@ -449,8 +961,14 @@ class TestBatchFiveDocument(unittest.TestCase):
                 self.assertEqual(0, variant.ivs.spe)
         raichu = dataset.get_species("raichu").get_variant("choiceband")
         self.assertIn("voltswitch", raichu.move_ids)
-        self.assertIn("fireblast", dataset.get_species("mukalola").get_variant("assaultvest").move_ids)
-        self.assertIn("destinybond", dataset.get_species("mismagius").get_variant("choicespecs").move_ids)
+        self.assertIn(
+            "fireblast",
+            dataset.get_species("mukalola").get_variant("assaultvest").move_ids,
+        )
+        self.assertIn(
+            "destinybond",
+            dataset.get_species("mismagius").get_variant("choicespecs").move_ids,
+        )
         hidden_power = {
             ("houndoom", "nastyplotlifeorb"): "hiddenpowergrass60",
             ("lapras", "choicespecs"): "hiddenpowerfire60",
@@ -458,7 +976,9 @@ class TestBatchFiveDocument(unittest.TestCase):
             ("raichu", "sashnastyplot"): "hiddenpowerice60",
         }
         for key, move_id in hidden_power.items():
-            self.assertIn(move_id, dataset.get_species(key[0]).get_variant(key[1]).move_ids)
+            self.assertIn(
+                move_id, dataset.get_species(key[0]).get_variant(key[1]).move_ids
+            )
         low_key = dataset.get_species("toxtricitylowkey").get_variant("throatspray")
         self.assertEqual(
             ("shiftgear", "boomburst", "overdrive", "sludgewave"),
@@ -500,13 +1020,24 @@ class TestBatchFiveDocument(unittest.TestCase):
         nonpublic["visibility"] = "private"
         unsupported_source = copy.deepcopy(document)
         unsupported_source["sources"][0]["kind"] = "private"
-        for label, invalid in (("visibility", nonpublic), ("source_kind", unsupported_source)):
-            with self.subTest(schema=label), self.assertRaises(PublicPriorValidationError):
+        for label, invalid in (
+            ("visibility", nonpublic),
+            ("source_kind", unsupported_source),
+        ):
+            with self.subTest(schema=label), self.assertRaises(
+                PublicPriorValidationError
+            ):
                 validate_public_prior_document(invalid)
         illegal = copy.deepcopy(document)
-        low_key = next(record for record in illegal["species"] if record["species_id"] == "toxtricitylowkey")
+        low_key = next(
+            record
+            for record in illegal["species"]
+            if record["species_id"] == "toxtricitylowkey"
+        )
         low_key["variants"][0]["move_ids"][0] = "spectralthief"
-        completed = _run_teamvalidator([{"label": "illegal", "entries": _entries(illegal)}])
+        completed = _run_teamvalidator(
+            [{"label": "illegal", "entries": _entries(illegal)}]
+        )
         self.assertNotEqual(0, completed.returncode)
         self.assertIn("toxtricitylowkey/", completed.stderr)
 
@@ -531,27 +1062,23 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             ("raichu", "sashnastyplot"): "hiddenpowerice60",
         }
         for (species_id, variant_id), move_id in expected.items():
-            evidence = _evidence(
-                context, species_id, moves=("hiddenpower",)
-            )
-            compatible_ids = _compatible_ids(
-                self.dataset, species_id, evidence
-            )
+            evidence = _evidence(context, species_id, moves=("hiddenpower",))
+            compatible_ids = _compatible_ids(self.dataset, species_id, evidence)
             with self.subTest(species=species_id, variant=variant_id):
                 self.assertIn(variant_id, compatible_ids)
                 self.assertIn(
                     move_id,
-                    self.dataset.get_species(species_id).get_variant(
-                        variant_id
-                    ).move_ids,
+                    self.dataset.get_species(species_id)
+                    .get_variant(variant_id)
+                    .move_ids,
                 )
                 self.assertTrue(
                     all(
                         any(
                             candidate_move.startswith("hiddenpower")
-                            for candidate_move in self.dataset.get_species(
-                                species_id
-                            ).get_variant(candidate_id).move_ids
+                            for candidate_move in self.dataset.get_species(species_id)
+                            .get_variant(candidate_id)
+                            .move_ids
                         )
                         for candidate_id in compatible_ids
                     )
@@ -596,9 +1123,7 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             sampled = prepare_battles(battle, 1)[0][0]
         generic.assert_not_called()
         sampled_pokemon = sampled.opponent.active
-        variant = self.dataset.get_species("lilligant").get_variant(
-            "sashquiverdance"
-        )
+        variant = self.dataset.get_species("lilligant").get_variant("sashquiverdance")
         self.assertEqual("lilligant", sampled_pokemon.name)
         self.assertEqual(variant.item_id, sampled_pokemon.item)
         self.assertEqual(variant.base_ability_id, sampled_pokemon.ability)
@@ -612,9 +1137,7 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         self.assertIn(
             "hiddenpowerfire60", {move.name for move in sampled_pokemon.moves}
         )
-        self.assertIsInstance(
-            battle_to_poke_engine_state(sampled).to_string(), str
-        )
+        self.assertIsInstance(battle_to_poke_engine_state(sampled).to_string(), str)
         self.assertEqual(canonical_before, _pokemon_snapshot(battle.opponent.active))
         self.assertIs(ledger_before, battle.team_inference.observation_ledger)
         self.assertEqual(
@@ -628,8 +1151,12 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         context = self.none_configuration.create_battle_context("gen9tugs")
         for species_id in NEW_SPECIES_VARIANTS:
             result = select_public_prior_variant(
-                context, battle_format="gen9tugs", species_id=species_id,
-                level=100, evidence=None, rng=_FixedRng(0.5),
+                context,
+                battle_format="gen9tugs",
+                species_id=species_id,
+                level=100,
+                evidence=None,
+                rng=_FixedRng(0.5),
             )
             self.assertIs(PublicPriorSelectionStatus.SELECTED, result.status)
         selected = set()
@@ -640,8 +1167,12 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             for variant in record.variants:
                 rng_value = (cumulative + variant.weight / 2) / total
                 result = select_public_prior_variant(
-                    context, battle_format="gen9tugs", species_id=species_id,
-                    level=100, evidence=None, rng=_FixedRng(rng_value),
+                    context,
+                    battle_format="gen9tugs",
+                    species_id=species_id,
+                    level=100,
+                    evidence=None,
+                    rng=_FixedRng(rng_value),
                 )
                 with self.subTest(species=species_id, variant=variant.variant_id):
                     self.assertIs(PublicPriorSelectionStatus.SELECTED, result.status)
@@ -663,12 +1194,20 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         for species_id in UNCHANGED_SPECIES:
             for rng_value in (0.0, 0.25, 0.5, 0.75, 0.999999):
                 old = select_public_prior_variant(
-                    old_context, battle_format="gen9tugs", species_id=species_id,
-                    level=100, evidence=None, rng=_FixedRng(rng_value),
+                    old_context,
+                    battle_format="gen9tugs",
+                    species_id=species_id,
+                    level=100,
+                    evidence=None,
+                    rng=_FixedRng(rng_value),
                 )
                 new = select_public_prior_variant(
-                    new_context, battle_format="gen9tugs", species_id=species_id,
-                    level=100, evidence=None, rng=_FixedRng(rng_value),
+                    new_context,
+                    battle_format="gen9tugs",
+                    species_id=species_id,
+                    level=100,
+                    evidence=None,
+                    rng=_FixedRng(rng_value),
                 )
                 with self.subTest(species=species_id, rng=rng_value):
                     self.assertIs(old.status, new.status)
@@ -698,8 +1237,13 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
                     self.assertEqual(species_id, sampled_pokemon.name)
                     self.assertEqual(variant.item_id, sampled_pokemon.item)
                     self.assertEqual(variant.base_ability_id, sampled_pokemon.ability)
-                    self.assertEqual(variant.base_ability_id, sampled_pokemon.original_ability)
-                    self.assertEqual(variant.move_ids, tuple(move.name for move in sampled_pokemon.moves))
+                    self.assertEqual(
+                        variant.base_ability_id, sampled_pokemon.original_ability
+                    )
+                    self.assertEqual(
+                        variant.move_ids,
+                        tuple(move.name for move in sampled_pokemon.moves),
+                    )
                     self.assertEqual(variant.nature_id, sampled_pokemon.nature)
                     self.assertEqual(variant.evs.as_tuple(), tuple(sampled_pokemon.evs))
                     self.assertEqual(variant.ivs.as_tuple(), tuple(sampled_pokemon.ivs))
@@ -708,16 +1252,26 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         self.assertEqual(38, len(populated))
         self.assertEqual(
             set(),
-            {name for name in set(sys.modules) - modules_before if name.startswith("fp.data.team_pools")},
+            {
+                name
+                for name in set(sys.modules) - modules_before
+                if name.startswith("fp.data.team_pools")
+            },
         )
 
-    def test_11_every_legal_exact_id_selects_without_evidence_and_bypasses_generic(self):
+    def test_11_every_legal_exact_id_selects_without_evidence_and_bypasses_generic(
+        self,
+    ):
         context = self.none_configuration.create_battle_context("gen9tugs")
         selected = set()
         for species_id in EXPECTED_ROSTER_IDS:
             result = select_public_prior_variant(
-                context, battle_format="gen9tugs", species_id=species_id,
-                level=100, evidence=None, rng=_FixedRng(0.5),
+                context,
+                battle_format="gen9tugs",
+                species_id=species_id,
+                level=100,
+                evidence=None,
+                rng=_FixedRng(0.5),
             )
             self.assertIs(PublicPriorSelectionStatus.SELECTED, result.status)
             selected.add(species_id)
@@ -727,7 +1281,9 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
                 sampled = prepare_battles(battle, 1)[0][0]
             generic.assert_not_called()
             self.assertEqual(species_id, sampled.opponent.active.name)
-            self.assertEqual(canonical_before, _pokemon_snapshot(battle.opponent.active))
+            self.assertEqual(
+                canonical_before, _pokemon_snapshot(battle.opponent.active)
+            )
         self.assertEqual(EXPECTED_ROSTER_IDS, selected)
         self.assertEqual(49, len(selected))
 
@@ -736,7 +1292,8 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
 
         def compatible(species_id, *, moves=(), item=None, ability=None):
             return _compatible_ids(
-                self.dataset, species_id,
+                self.dataset,
+                species_id,
                 _evidence(context, species_id, moves=moves, item=item, ability=ability),
             )
 
@@ -745,27 +1302,58 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             ("slurpuff", {"sashwebs"}, {"moves": ("magiccoat",)}),
             ("slurpuff", {"bellydrum"}, {"moves": ("bellydrum",)}),
             ("slurpuff", {"redcardcalmmind"}, {"item": "redcard"}),
-            ("slurpuff", set(NEW_SPECIES_VARIANTS["slurpuff"]), {"ability": "unburden"}),
+            (
+                "slurpuff",
+                set(NEW_SPECIES_VARIANTS["slurpuff"]),
+                {"ability": "unburden"},
+            ),
             ("taurospaldeaaqua", {"choiceband"}, {"moves": ("lashout",)}),
             ("taurospaldeaaqua", {"lifeorb"}, {"moves": ("aquajet",)}),
             ("taurospaldeaaqua", {"choicescarf"}, {"item": "choicescarf"}),
-            ("taurospaldeaaqua", set(NEW_SPECIES_VARIANTS["taurospaldeaaqua"]), {"moves": ("closecombat", "wavecrash", "earthquake"), "ability": "intimidate"}),
+            (
+                "taurospaldeaaqua",
+                set(NEW_SPECIES_VARIANTS["taurospaldeaaqua"]),
+                {
+                    "moves": ("closecombat", "wavecrash", "earthquake"),
+                    "ability": "intimidate",
+                },
+            ),
             ("toxtricity", {"scarfsludgebomb"}, {"moves": ("sludgebomb", "overdrive")}),
             ("toxtricity", {"scarfpsychicnoise"}, {"moves": ("psychicnoise",)}),
             ("toxtricity", {"choicespecs"}, {"item": "choicespecs"}),
             ("toxtricity", {"throatspray"}, {"moves": ("shiftgear",)}),
-            ("toxtricity", {"scarfsludgebomb", "scarfpsychicnoise"}, {"item": "choicescarf"}),
-            ("toxtricitylowkey", {"scarfsludgebomb"}, {"moves": ("sludgebomb", "overdrive")}),
+            (
+                "toxtricity",
+                {"scarfsludgebomb", "scarfpsychicnoise"},
+                {"item": "choicescarf"},
+            ),
+            (
+                "toxtricitylowkey",
+                {"scarfsludgebomb"},
+                {"moves": ("sludgebomb", "overdrive")},
+            ),
             ("toxtricitylowkey", {"scarfpsychicnoise"}, {"moves": ("psychicnoise",)}),
             ("toxtricitylowkey", {"choicespecs"}, {"item": "choicespecs"}),
             ("toxtricitylowkey", {"throatspray"}, {"item": "throatspray"}),
-            ("toxtricitylowkey", {"scarfsludgebomb", "scarfpsychicnoise"}, {"item": "choicescarf"}),
+            (
+                "toxtricitylowkey",
+                {"scarfsludgebomb", "scarfpsychicnoise"},
+                {"item": "choicescarf"},
+            ),
             ("vileplume", {"effectsporephysical"}, {"moves": ("strengthsap",)}),
             ("vileplume", {"chlorophyllspdef"}, {"ability": "chlorophyll"}),
-            ("vileplume", set(NEW_SPECIES_VARIANTS["vileplume"]), {"moves": ("sludgebomb",)}),
+            (
+                "vileplume",
+                set(NEW_SPECIES_VARIANTS["vileplume"]),
+                {"moves": ("sludgebomb",)},
+            ),
             ("weezing", {"levitatephysical"}, {"ability": "levitate"}),
             ("weezing", {"neutralizinggasphysical"}, {"moves": ("taunt",)}),
-            ("weezing", set(NEW_SPECIES_VARIANTS["weezing"]), {"moves": ("sludgebomb", "painsplit")}),
+            (
+                "weezing",
+                set(NEW_SPECIES_VARIANTS["weezing"]),
+                {"moves": ("sludgebomb", "painsplit")},
+            ),
             ("xatu", {"helmetphysical"}, {"moves": ("psychic",)}),
             ("xatu", {"leftoversutility"}, {"moves": ("nightshade",)}),
             ("xatu", {"bootsutility"}, {"moves": ("defog",)}),
@@ -781,19 +1369,47 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             ("sylveon", {"defensivecalmmind"}, {"moves": ("calmmind",)}),
             ("sylveon", {"toxicwish"}, {"moves": ("toxic",)}),
             ("sylveon", {"bootscleric"}, {"item": "heavydutyboots"}),
-            ("sylveon", set(REPLACEMENT_VARIANTS["sylveon"]), {"moves": ("wish", "hypervoice")}),
+            (
+                "sylveon",
+                set(REPLACEMENT_VARIANTS["sylveon"]),
+                {"moves": ("wish", "hypervoice")},
+            ),
             ("tinkaton", {"defensiveutility"}, {"moves": ("encore",)}),
             ("tinkaton", {"sashsetup"}, {"moves": ("swordsdance",)}),
-            ("tinkaton", set(REPLACEMENT_VARIANTS["tinkaton"]), {"moves": ("gigatonhammer", "knockoff"), "ability": "moldbreaker"}),
-            ("torkoal", {"heatrockwillowisp"}, {"item": "heatrock", "moves": ("willowisp",)}),
+            (
+                "tinkaton",
+                set(REPLACEMENT_VARIANTS["tinkaton"]),
+                {"moves": ("gigatonhammer", "knockoff"), "ability": "moldbreaker"},
+            ),
+            (
+                "torkoal",
+                {"heatrockwillowisp"},
+                {"item": "heatrock", "moves": ("willowisp",)},
+            ),
             ("torkoal", {"heatrockrest"}, {"item": "heatrock", "moves": ("rest",)}),
             ("torkoal", {"bootsutility"}, {"moves": ("bodypress",)}),
-            ("torkoal", set(REPLACEMENT_VARIANTS["torkoal"]), {"moves": ("lavaplume", "rapidspin", "stealthrock"), "ability": "drought"}),
+            (
+                "torkoal",
+                set(REPLACEMENT_VARIANTS["torkoal"]),
+                {
+                    "moves": ("lavaplume", "rapidspin", "stealthrock"),
+                    "ability": "drought",
+                },
+            ),
             ("vikavolt", {"sashwebs"}, {"moves": ("energyball",)}),
             ("vikavolt", {"bulkyboots"}, {"moves": ("roost",)}),
-            ("vikavolt", set(REPLACEMENT_VARIANTS["vikavolt"]), {"moves": ("stickyweb", "voltswitch", "bugbuzz"), "ability": "levitate"}),
+            (
+                "vikavolt",
+                set(REPLACEMENT_VARIANTS["vikavolt"]),
+                {
+                    "moves": ("stickyweb", "voltswitch", "bugbuzz"),
+                    "ability": "levitate",
+                },
+            ),
         )
-        self.assertEqual(set(TOUCHED_VARIANT_IDS), {species for species, _, _ in checks})
+        self.assertEqual(
+            set(TOUCHED_VARIANT_IDS), {species for species, _, _ in checks}
+        )
         for species_id, expected, kwargs in checks:
             with self.subTest(species=species_id, expected=expected, evidence=kwargs):
                 self.assertEqual(expected, compatible(species_id, **kwargs))
@@ -812,7 +1428,9 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         self.assertEqual(set(), old_ids & new_ids)
         self.assertEqual(REMOVED_VARIANT_IDS, old_ids - new_ids)
         for species_id, variant_id in REMOVED_VARIANT_IDS:
-            self.assertIsNone(self.dataset.get_species(species_id).get_variant(variant_id))
+            self.assertIsNone(
+                self.dataset.get_species(species_id).get_variant(variant_id)
+            )
             self.assertNotIn(variant_id, REPLACEMENT_VARIANTS[species_id])
         amped = self.dataset.get_species("toxtricity")
         low_key = self.dataset.get_species("toxtricitylowkey")
@@ -822,13 +1440,19 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         self.assertEqual(amped.variants, low_key.variants)
         context = self.none_configuration.create_battle_context("gen9tugs")
         amped_result = select_public_prior_variant(
-            context, battle_format="gen9tugs", species_id="toxtricity",
-            level=100, evidence=_evidence(context, "toxtricity", moves=("shiftgear",)),
+            context,
+            battle_format="gen9tugs",
+            species_id="toxtricity",
+            level=100,
+            evidence=_evidence(context, "toxtricity", moves=("shiftgear",)),
             rng=_FixedRng(0.5),
         )
         low_key_result = select_public_prior_variant(
-            context, battle_format="gen9tugs", species_id="toxtricitylowkey",
-            level=100, evidence=_evidence(context, "toxtricitylowkey", moves=("shiftgear",)),
+            context,
+            battle_format="gen9tugs",
+            species_id="toxtricitylowkey",
+            level=100,
+            evidence=_evidence(context, "toxtricitylowkey", moves=("shiftgear",)),
             rng=_FixedRng(0.5),
         )
         self.assertEqual("throatspray", amped_result.variant.variant_id)
@@ -841,8 +1465,12 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         for variant in self.dataset.get_species("forretress").variants:
             self.assertNotIn("toxicspikes", variant.move_ids)
         result = select_public_prior_variant(
-            context, battle_format="gen9tugs", species_id="forretress",
-            level=100, evidence=evidence, rng=_FixedRng(0.5),
+            context,
+            battle_format="gen9tugs",
+            species_id="forretress",
+            level=100,
+            evidence=evidence,
+            rng=_FixedRng(0.5),
         )
         self.assertIs(PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT, result.status)
         battle = _battle(context, "forretress")
@@ -860,7 +1488,9 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
     def _assert_dudunsparce_later_item_recomputes(self, *, disprove_boots=False):
         context = self.none_configuration.create_battle_context("gen9tugs")
         calm_mind = _evidence(context, "dudunsparce", moves=("calmmind",))
-        self.assertEqual({"calmmind"}, _compatible_ids(self.dataset, "dudunsparce", calm_mind))
+        self.assertEqual(
+            {"calmmind"}, _compatible_ids(self.dataset, "dudunsparce", calm_mind)
+        )
         battle = _battle(context, "dudunsparce")
         battle.msg_list = ["|move|p2a: Dudunsparce|Calm Mind|p1a: Weedle"]
         process_battle_updates(battle)
@@ -882,9 +1512,7 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
                 battle.opponent.active.impossible_items,
             )
 
-        battle.msg_list = [
-            "|-heal|p2a: Dudunsparce|100/100|[from] item: Leftovers"
-        ]
+        battle.msg_list = ["|-heal|p2a: Dudunsparce|100/100|[from] item: Leftovers"]
         process_battle_updates(battle)
         later = battle.team_inference.observation_ledger.member("dudunsparce")
         self.assertEqual("leftovers", later.initial_item_id)
@@ -905,17 +1533,27 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         generic.assert_not_called()
         self.assertEqual("leftovers", second.opponent.active.item)
         self.assertNotEqual("heavydutyboots", second.opponent.active.item)
-        self.assertIn("calmmind", tuple(move.name for move in second.opponent.active.moves))
-        self.assertNotIn("coil", tuple(move.name for move in second.opponent.active.moves))
-        self.assertEqual(canonical_before_second, _pokemon_snapshot(battle.opponent.active))
+        self.assertIn(
+            "calmmind", tuple(move.name for move in second.opponent.active.moves)
+        )
+        self.assertNotIn(
+            "coil", tuple(move.name for move in second.opponent.active.moves)
+        )
+        self.assertEqual(
+            canonical_before_second, _pokemon_snapshot(battle.opponent.active)
+        )
         self.assertIs(ledger_before_second, battle.team_inference.observation_ledger)
         self.assertIsInstance(battle_to_poke_engine_state(second).to_string(), str)
         json.dumps(second.request_json or {})
 
-    def test_15_dudunsparce_later_item_recomputes_and_none_fallback_queries_nothing(self):
+    def test_15_dudunsparce_later_item_recomputes_and_none_fallback_queries_nothing(
+        self,
+    ):
         self._assert_dudunsparce_later_item_recomputes()
 
-    def test_15b_dudunsparce_recomputes_after_rocks_disprove_boots_and_leftovers_heals(self):
+    def test_15b_dudunsparce_recomputes_after_rocks_disprove_boots_and_leftovers_heals(
+        self,
+    ):
         self._assert_dudunsparce_later_item_recomputes(disprove_boots=True)
 
     def test_15c_swamp_offensive_yawn_survives_user_water_absorb_heal(self):
@@ -932,9 +1570,7 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
         initial = battle.team_inference.observation_ledger.member("swampert")
         self.assertEqual("torrent", initial.base_ability_id)
         self.assertEqual("leftovers", initial.initial_item_id)
-        self.assertEqual(
-            ("earthquake", "flipturn", "yawn"), initial.selected_move_ids
-        )
+        self.assertEqual(("earthquake", "flipturn", "yawn"), initial.selected_move_ids)
         self.assertEqual(
             {"offensiveyawn"}, _compatible_ids(self.dataset, "swampert", initial)
         )
@@ -1015,9 +1651,7 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
     def test_15e_low_key_throat_spray_consumption_keeps_original_item_candidate(self):
         context = self.generic_configuration.create_battle_context("gen9tugs")
         battle = _battle(context, "toxtricitylowkey")
-        initial = battle.team_inference.observation_ledger.member(
-            "toxtricitylowkey"
-        )
+        initial = battle.team_inference.observation_ledger.member("toxtricitylowkey")
         self.assertEqual(
             {
                 "choicespecs",
@@ -1035,9 +1669,7 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             "|-boost|p2a: Toxtricity|spa|1|[from] item: Throat Spray",
         ]
         process_battle_updates(battle)
-        evidence = battle.team_inference.observation_ledger.member(
-            "toxtricitylowkey"
-        )
+        evidence = battle.team_inference.observation_ledger.member("toxtricitylowkey")
         self.assertEqual("throatspray", evidence.initial_item_id)
         self.assertIn(PublicObservationSource.ITEM_REMOVED, evidence.provenance)
         self.assertEqual(("boomburst", "sludgewave"), evidence.selected_move_ids)
@@ -1077,9 +1709,7 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             "|move|p2a: Toxtricity|Shift Gear|p1a: Weedle",
         ]
         process_battle_updates(battle)
-        later = battle.team_inference.observation_ledger.member(
-            "toxtricitylowkey"
-        )
+        later = battle.team_inference.observation_ledger.member("toxtricitylowkey")
         self.assertEqual("throatspray", later.initial_item_id)
         self.assertEqual(
             {"throatspray"},
@@ -1093,9 +1723,7 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             "|move|p2a: Toxtricity|Sludge Wave|p1a: Weedle",
         ]
         process_battle_updates(battle)
-        before = battle.team_inference.observation_ledger.member(
-            "toxtricitylowkey"
-        )
+        before = battle.team_inference.observation_ledger.member("toxtricitylowkey")
         self.assertEqual(
             {"choicespecs", "throatspray"},
             _compatible_ids(self.dataset, "toxtricitylowkey", before),
@@ -1107,9 +1735,7 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             "|-boost|p2a: Toxtricity|spa|1|[from] item: Throat Spray",
         ]
         process_battle_updates(battle)
-        after = battle.team_inference.observation_ledger.member(
-            "toxtricitylowkey"
-        )
+        after = battle.team_inference.observation_ledger.member("toxtricitylowkey")
         selected_ids = []
         for rng_value in (0.0, 0.25, 0.5, 0.75, 0.999):
             result = select_public_prior_variant(
@@ -1219,8 +1845,12 @@ class TestBatchFiveSelectionPopulationAndNarrowing(unittest.TestCase):
             ROOT / "fp" / "search" / "standard_battles.py",
         )
         forbidden = (
-            "fp.data.team_pools", "TeamPool", "TeamRecord", "PokemonRecord",
-            "baseline_candidate_ids", "active_candidate_ids",
+            "fp.data.team_pools",
+            "TeamPool",
+            "TeamRecord",
+            "PokemonRecord",
+            "baseline_candidate_ids",
+            "active_candidate_ids",
         )
         for path in paths:
             source = path.read_text(encoding="utf-8")

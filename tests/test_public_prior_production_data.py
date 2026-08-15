@@ -43,12 +43,7 @@ from fp.search.standard_battles import prepare_battles
 
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCTION_PATH = (
-    ROOT
-    / "fp"
-    / "data"
-    / "public_priors"
-    / "pools"
-    / "tugspublicarchetypes-1.0.0.json"
+    ROOT / "fp" / "data" / "public_priors" / "pools" / "tugspublicarchetypes-1.0.0.json"
 )
 CANONICAL_SHA256 = "ddb04702321aace7d7368938016a18d54841935d2bf5df194cfaf7af8d4a55ae"
 IDENTITY = PublicPriorIdentity("tugspublicarchetypes", "1.0.0", "gen9tugs")
@@ -100,119 +95,204 @@ def _approved(weight, item, ability, moves, nature, evs, ivs=(31,) * 6):
 EXPECTED_VARIANTS = MappingProxyType(
     {
         ("bastiodon", "defensivepivot"): _approved(
-            4, "leftovers", "soundproof",
+            4,
+            "leftovers",
+            "soundproof",
             ("stealthrock", "partingshot", "bodypress", "toxic"),
-            "careful", (252, 0, 4, 0, 252, 0),
+            "careful",
+            (252, 0, 4, 0, 252, 0),
         ),
         ("bastiodon", "irondefense"): _approved(
-            2, "chestoberry", "soundproof",
+            2,
+            "chestoberry",
+            "soundproof",
             ("irondefense", "bodypress", "rest", "rockblast"),
-            "impish", (252, 0, 252, 0, 4, 0),
+            "impish",
+            (252, 0, 252, 0, 4, 0),
         ),
         ("bastiodon", "sturdymetalburst"): _approved(
-            1, "custapberry", "sturdy",
+            1,
+            "custapberry",
+            "sturdy",
             ("metalburst", "stealthrock", "partingshot", "bodypress"),
-            "sassy", (252, 0, 4, 0, 252, 0), (31, 31, 31, 31, 31, 0),
+            "sassy",
+            (252, 0, 4, 0, 252, 0),
+            (31, 31, 31, 31, 31, 0),
         ),
         ("claydol", "levitateutility"): _approved(
-            3, "leftovers", "levitate",
+            3,
+            "leftovers",
+            "levitate",
             ("earthpower", "psychic", "rapidspin", "toxic"),
-            "calm", (252, 0, 4, 0, 252, 0), (31, 0, 31, 31, 31, 31),
+            "calm",
+            (252, 0, 4, 0, 252, 0),
+            (31, 0, 31, 31, 31, 31),
         ),
         ("claydol", "regeneratorpivot"): _approved(
-            4, "heavydutyboots", "regenerator",
+            4,
+            "heavydutyboots",
+            "regenerator",
             ("earthpower", "rapidspin", "stealthrock", "teleport"),
-            "bold", (252, 0, 252, 0, 4, 0), (31, 0, 31, 31, 31, 31),
+            "bold",
+            (252, 0, 252, 0, 4, 0),
+            (31, 0, 31, 31, 31, 31),
         ),
         ("claydol", "trickroomsetter"): _approved(
-            2, "mentalherb", "levitate",
+            2,
+            "mentalherb",
+            "levitate",
             ("trickroom", "teleport", "earthpower", "icebeam"),
-            "sassy", (252, 0, 4, 0, 252, 0), (31, 0, 31, 31, 31, 0),
+            "sassy",
+            (252, 0, 4, 0, 252, 0),
+            (31, 0, 31, 31, 31, 0),
         ),
         ("druddigon", "roughskinutility"): _approved(
-            4, "rockyhelmet", "roughskin",
+            4,
+            "rockyhelmet",
+            "roughskin",
             ("cragmend", "glare", "dragontail", "stealthrock"),
-            "impish", (252, 0, 252, 0, 4, 0),
+            "impish",
+            (252, 0, 252, 0, 4, 0),
         ),
         ("druddigon", "sheerforcebreaker"): _approved(
-            3, "lifeorb", "sheerforce",
+            3,
+            "lifeorb",
+            "sheerforce",
             ("dragonclaw", "gunkshot", "firepunch", "rockslide"),
-            "adamant", (4, 252, 0, 0, 0, 252),
+            "adamant",
+            (4, 252, 0, 0, 0, 252),
         ),
         ("druddigon", "slowbandbreaker"): _approved(
-            2, "choiceband", "moldbreaker",
+            2,
+            "choiceband",
+            "moldbreaker",
             ("outrage", "earthquake", "gunkshot", "suckerpunch"),
-            "brave", (252, 252, 0, 0, 4, 0), (31, 31, 31, 31, 31, 0),
+            "brave",
+            (252, 252, 0, 0, 4, 0),
+            (31, 31, 31, 31, 31, 0),
         ),
         ("dustox", "levitateutility"): _approved(
-            4, "heavydutyboots", "levitate",
+            4,
+            "heavydutyboots",
+            "levitate",
             ("roost", "defog", "uturn", "corrosivegas"),
-            "calm", (252, 0, 4, 0, 252, 0), (31, 0, 31, 31, 31, 31),
+            "calm",
+            (252, 0, 4, 0, 252, 0),
+            (31, 0, 31, 31, 31, 31),
         ),
         ("dustox", "shielddustphazer"): _approved(
-            3, "blacksludge", "shielddust",
+            3,
+            "blacksludge",
+            "shielddust",
             ("roost", "toxic", "whirlwind", "bugbuzz"),
-            "bold", (252, 0, 252, 0, 4, 0), (31, 0, 31, 31, 31, 31),
+            "bold",
+            (252, 0, 252, 0, 4, 0),
+            (31, 0, 31, 31, 31, 31),
         ),
         ("forretress", "hazardpivot"): _approved(
-            4, "heavydutyboots", "overcoat",
+            4,
+            "heavydutyboots",
+            "overcoat",
             ("spikes", "rapidspin", "voltswitch", "gyroball"),
-            "relaxed", (252, 0, 252, 0, 4, 0), (31, 31, 31, 31, 31, 0),
+            "relaxed",
+            (252, 0, 252, 0, 4, 0),
+            (31, 31, 31, 31, 31, 0),
         ),
         ("forretress", "sturdyrocks"): _approved(
-            3, "leftovers", "sturdy",
+            3,
+            "leftovers",
+            "sturdy",
             ("stealthrock", "rapidspin", "bodypress", "voltswitch"),
-            "impish", (252, 0, 252, 0, 4, 0),
+            "impish",
+            (252, 0, 252, 0, 4, 0),
         ),
         ("forretress", "toxicspikesboom"): _approved(
-            1, "custapberry", "sturdy",
+            1,
+            "custapberry",
+            "sturdy",
             ("toxicspikes", "explosion", "rapidspin", "gyroball"),
-            "brave", (252, 252, 4, 0, 0, 0), (31, 31, 31, 31, 31, 0),
+            "brave",
+            (252, 252, 4, 0, 0, 0),
+            (31, 31, 31, 31, 31, 0),
         ),
         ("lapras", "ancientshellperishtrap"): _approved(
-            2, "leftovers", "ancientshell",
+            2,
+            "leftovers",
+            "ancientshell",
             ("whirlpool", "perishsong", "protect", "freezedry"),
-            "bold", (252, 0, 252, 0, 4, 0), (31, 0, 31, 31, 31, 31),
+            "bold",
+            (252, 0, 252, 0, 4, 0),
+            (31, 0, 31, 31, 31, 31),
         ),
         ("lapras", "ancientshellpivot"): _approved(
-            4, "heavydutyboots", "ancientshell",
+            4,
+            "heavydutyboots",
+            "ancientshell",
             ("freezedry", "surf", "chillyreception", "healbell"),
-            "calm", (252, 0, 4, 0, 252, 0), (31, 0, 31, 31, 31, 31),
+            "calm",
+            (252, 0, 4, 0, 252, 0),
+            (31, 0, 31, 31, 31, 31),
         ),
         ("lapras", "waterabsorbtank"): _approved(
-            3, "leftovers", "waterabsorb",
+            3,
+            "leftovers",
+            "waterabsorb",
             ("freezedry", "surf", "rest", "sleeptalk"),
-            "calm", (252, 0, 4, 0, 252, 0), (31, 0, 31, 31, 31, 31),
+            "calm",
+            (252, 0, 4, 0, 252, 0),
+            (31, 0, 31, 31, 31, 31),
         ),
         ("mawile", "choicebandinterceptor"): _approved(
-            4, "choiceband", "closingjaws",
+            4,
+            "choiceband",
+            "closingjaws",
             ("playrough", "ironhead", "knockoff", "suckerpunch"),
-            "adamant", (252, 252, 0, 0, 4, 0),
+            "adamant",
+            (252, 252, 0, 0, 4, 0),
         ),
         ("mawile", "mixedcoverage"): _approved(
-            2, "expertbelt", "closingjaws",
+            2,
+            "expertbelt",
+            "closingjaws",
             ("playrough", "knockoff", "flamethrower", "suckerpunch"),
-            "brave", (4, 252, 0, 252, 0, 0), (31, 31, 31, 31, 31, 0),
+            "brave",
+            (4, 252, 0, 252, 0, 0),
+            (31, 31, 31, 31, 31, 0),
         ),
         ("mawile", "swordsdancebreaker"): _approved(
-            3, "lifeorb", "closingjaws",
+            3,
+            "lifeorb",
+            "closingjaws",
             ("swordsdance", "playrough", "knockoff", "suckerpunch"),
-            "adamant", (252, 252, 0, 0, 4, 0),
+            "adamant",
+            (252, 252, 0, 0, 4, 0),
         ),
         ("porygon2", "downloadattacker"): _approved(
-            3, "eviolite", "download",
+            3,
+            "eviolite",
+            "download",
             ("triattack", "icebeam", "thunderbolt", "recover"),
-            "modest", (252, 0, 0, 252, 4, 0), (31, 0, 31, 31, 31, 31),
+            "modest",
+            (252, 0, 0, 252, 4, 0),
+            (31, 0, 31, 31, 31, 31),
         ),
         ("porygon2", "traceutility"): _approved(
-            4, "eviolite", "trace",
+            4,
+            "eviolite",
+            "trace",
             ("foulplay", "discharge", "toxic", "recover"),
-            "calm", (252, 0, 4, 0, 252, 0), (31, 0, 31, 31, 31, 31),
+            "calm",
+            (252, 0, 4, 0, 252, 0),
+            (31, 0, 31, 31, 31, 31),
         ),
         ("porygon2", "trickroomsetter"): _approved(
-            2, "eviolite", "download",
+            2,
+            "eviolite",
+            "download",
             ("trickroom", "recover", "triattack", "icebeam"),
-            "quiet", (252, 0, 0, 252, 4, 0), (31, 0, 31, 31, 31, 0),
+            "quiet",
+            (252, 0, 0, 252, 4, 0),
+            (31, 0, 31, 31, 31, 0),
         ),
     }
 )
@@ -250,7 +330,9 @@ def _reject_nonstandard_constant(value):
 
 
 def _parse_production_bytes(source_bytes=None):
-    source_bytes = PRODUCTION_PATH.read_bytes() if source_bytes is None else source_bytes
+    source_bytes = (
+        PRODUCTION_PATH.read_bytes() if source_bytes is None else source_bytes
+    )
     text = source_bytes.decode("utf-8", errors="strict")
     return json.loads(
         text,
@@ -412,16 +494,23 @@ class TestProductionDocumentIntegrity(unittest.TestCase):
         self.assertEqual(2, len(dataset.sources))
         self.assertEqual(8, len(dataset.species))
         self.assertEqual(23, sum(len(record.variants) for record in dataset.species))
-        self.assertEqual(EXPECTED_SPECIES, tuple(record.species_id for record in dataset.species))
+        self.assertEqual(
+            EXPECTED_SPECIES, tuple(record.species_id for record in dataset.species)
+        )
 
     def test_05_source_declarations_are_exact_and_public_only(self):
         dataset = load_public_prior(PRODUCTION_PATH)
-        self.assertEqual(SOURCE_IDS, tuple(source.source_id for source in dataset.sources))
+        self.assertEqual(
+            SOURCE_IDS, tuple(source.source_id for source in dataset.sources)
+        )
         self.assertEqual(
             (PublicSourceKind.PUBLIC_FORMAT, PublicSourceKind.PUBLIC_MANUAL),
             tuple(source.kind for source in dataset.sources),
         )
-        self.assertNotIn(PublicSourceKind.PUBLIC_REPLAY, tuple(source.kind for source in dataset.sources))
+        self.assertNotIn(
+            PublicSourceKind.PUBLIC_REPLAY,
+            tuple(source.kind for source in dataset.sources),
+        )
 
     def test_06_exact_species_and_variant_ids(self):
         dataset = load_public_prior(PRODUCTION_PATH)
@@ -431,7 +520,9 @@ class TestProductionDocumentIntegrity(unittest.TestCase):
                 record = dataset.get_species(species_id)
                 self.assertIsNotNone(record)
                 self.assertEqual(expected_ids, tuple(record.variant_lookup))
-                self.assertEqual(expected_ids, tuple(v.variant_id for v in record.variants))
+                self.assertEqual(
+                    expected_ids, tuple(v.variant_id for v in record.variants)
+                )
 
     def test_07_every_approved_set_field_is_exact(self):
         dataset = load_public_prior(PRODUCTION_PATH)
@@ -450,7 +541,9 @@ class TestProductionDocumentIntegrity(unittest.TestCase):
                     level=variant.level,
                     sources=variant.source_ids,
                 )
-                self.assertEqual(expected, actual, "changed approved set: {}/{}".format(*key))
+                self.assertEqual(
+                    expected, actual, "changed approved set: {}/{}".format(*key)
+                )
 
     def test_08_every_variant_is_structurally_valid_after_tugs_overlay(self):
         dataset = load_public_prior(PRODUCTION_PATH)
@@ -460,23 +553,40 @@ class TestProductionDocumentIntegrity(unittest.TestCase):
                 for ability in pokedex[species.species_id]["abilities"].values()
             }
             for variant in species.variants:
-                with self.subTest(species=species.species_id, variant=variant.variant_id):
+                with self.subTest(
+                    species=species.species_id, variant=variant.variant_id
+                ):
                     self.assertNotIsInstance(variant.weight, bool)
-                    self.assertTrue(math.isfinite(variant.weight) and variant.weight > 0)
+                    self.assertTrue(
+                        math.isfinite(variant.weight) and variant.weight > 0
+                    )
                     self.assertEqual(4, len(variant.move_ids))
                     self.assertEqual(4, len(set(variant.move_ids)))
-                    self.assertTrue(all(normalize_name(move) == move for move in variant.move_ids))
-                    self.assertTrue(all(move in all_move_json for move in variant.move_ids))
+                    self.assertTrue(
+                        all(normalize_name(move) == move for move in variant.move_ids)
+                    )
+                    self.assertTrue(
+                        all(move in all_move_json for move in variant.move_ids)
+                    )
                     self.assertIn(variant.base_ability_id, known_abilities)
                     self.assertEqual(6, len(variant.evs.as_tuple()))
-                    self.assertTrue(all(0 <= value <= 252 for value in variant.evs.as_tuple()))
+                    self.assertTrue(
+                        all(0 <= value <= 252 for value in variant.evs.as_tuple())
+                    )
                     self.assertLessEqual(sum(variant.evs.as_tuple()), 510)
                     self.assertEqual(6, len(variant.ivs.as_tuple()))
-                    self.assertTrue(all(0 <= value <= 31 for value in variant.ivs.as_tuple()))
+                    self.assertTrue(
+                        all(0 <= value <= 31 for value in variant.ivs.as_tuple())
+                    )
                     self.assertIs(type(variant.level), int)
                     self.assertEqual(100, variant.level)
                     self.assertEqual(SOURCE_IDS, variant.source_ids)
-                    self.assertTrue(all(source in dataset.source_lookup for source in variant.source_ids))
+                    self.assertTrue(
+                        all(
+                            source in dataset.source_lookup
+                            for source in variant.source_ids
+                        )
+                    )
 
     def test_09_records_lookups_and_metadata_are_immutable(self):
         dataset = load_public_prior(PRODUCTION_PATH)
@@ -513,7 +623,9 @@ class TestProductionDocumentIntegrity(unittest.TestCase):
                     tuple(variant.weight / denominator for variant in variants),
                     tuple(entry.probability for entry in first),
                 )
-                self.assertTrue(math.isclose(1.0, sum(entry.probability for entry in first)))
+                self.assertTrue(
+                    math.isclose(1.0, sum(entry.probability for entry in first))
+                )
 
     def test_11_validation_does_not_modify_source_bytes(self):
         before = PRODUCTION_PATH.read_bytes()
@@ -583,7 +695,9 @@ class TestProductionStartupConfiguration(unittest.TestCase):
         self.assertEqual((IDENTITY,), configuration.selected_identities)
         self.assertEqual("gen9tugs", configuration.format_id)
         self.assertIs(PublicPriorFallback.GENERIC, configuration.fallback_policy)
-        self.assertIs(configuration.registry.get(IDENTITY), configuration.registry.datasets[0])
+        self.assertIs(
+            configuration.registry.get(IDENTITY), configuration.registry.datasets[0]
+        )
         first = configuration.create_battle_context("gen9tugs")
         second = configuration.create_battle_context("gen9tugs")
         self.assertIsNot(first, second)
@@ -615,7 +729,9 @@ class TestProductionStartupConfiguration(unittest.TestCase):
     def test_19_no_configuration_preserves_ordinary_formats_and_no_default(self):
         with mock.patch("fp.data.public_priors.runtime.load_public_prior") as loader:
             for format_id in ("gen9", "gen9ou", "gen9nationaldex", "gen9tugs"):
-                self.assertIsNone(load_public_prior_runtime_configuration(None, format_id))
+                self.assertIsNone(
+                    load_public_prior_runtime_configuration(None, format_id)
+                )
         loader.assert_not_called()
         production_sources = (
             ROOT / "fp" / "config.py",
@@ -627,9 +743,9 @@ class TestProductionStartupConfiguration(unittest.TestCase):
             self.assertNotIn(PRODUCTION_PATH.name, path.read_text(encoding="utf-8"))
 
     def test_20_startup_reads_only_explicit_public_file_and_no_private_models(self):
-        runtime_source = (ROOT / "fp" / "data" / "public_priors" / "runtime.py").read_text(
-            encoding="utf-8"
-        )
+        runtime_source = (
+            ROOT / "fp" / "data" / "public_priors" / "runtime.py"
+        ).read_text(encoding="utf-8")
         self.assertNotIn("fp.data.team_pools", runtime_source)
         self.assertNotIn("TeamRecord", runtime_source)
         self.assertNotIn("TeamPoolCandidate", runtime_source)
@@ -690,8 +806,13 @@ class TestProductionSamplingIntegration(unittest.TestCase):
                 generic.assert_not_called()
                 pokemon = sampled.opponent.active
                 self.assertEqual(expected.item, pokemon.item)
-                self.assertEqual((expected.ability, expected.ability), (pokemon.ability, pokemon.original_ability))
-                self.assertEqual(expected.moves, tuple(move.name for move in pokemon.moves))
+                self.assertEqual(
+                    (expected.ability, expected.ability),
+                    (pokemon.ability, pokemon.original_ability),
+                )
+                self.assertEqual(
+                    expected.moves, tuple(move.name for move in pokemon.moves)
+                )
                 self.assertEqual(expected.nature, pokemon.nature)
                 self.assertEqual(expected.evs, tuple(pokemon.evs))
                 self.assertEqual(expected.ivs, tuple(pokemon.ivs))
@@ -718,7 +839,9 @@ class TestProductionSamplingIntegration(unittest.TestCase):
             record = self.dataset.get_species(species_id)
             evidence_battle = _battle(context, species_id)
             _record_complete_public_evidence(evidence_battle, species_id, expected)
-            evidence = evidence_battle.team_inference.observation_ledger.member(species_id)
+            evidence = evidence_battle.team_inference.observation_ledger.member(
+                species_id
+            )
             result = select_public_prior_variant(
                 context,
                 battle_format="gen9tugs",
@@ -794,10 +917,14 @@ class TestProductionSamplingIntegration(unittest.TestCase):
         source_before = PRODUCTION_PATH.read_bytes()
         moves_before = copy.deepcopy(all_move_json)
         pokedex_before = copy.deepcopy(pokedex)
-        directory_before = tuple(sorted(path.name for path in PRODUCTION_PATH.parent.iterdir()))
+        directory_before = tuple(
+            sorted(path.name for path in PRODUCTION_PATH.parent.iterdir())
+        )
         writes = ("write_text", "write_bytes", "touch", "mkdir")
         patches = [
-            mock.patch.object(Path, method, side_effect=AssertionError("write attempted"))
+            mock.patch.object(
+                Path, method, side_effect=AssertionError("write attempted")
+            )
             for method in writes
         ]
         for patcher in patches:

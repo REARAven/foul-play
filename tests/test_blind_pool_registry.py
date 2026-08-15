@@ -442,9 +442,7 @@ class TestBlindPoolRegistryValidation(BlindPoolRegistryFixture):
                 return outside_file
             return original_resolve(path, strict=strict)
 
-        self.write_registry(
-            _document(entries=[_entry(team_file="teams/escape.team")])
-        )
+        self.write_registry(_document(entries=[_entry(team_file="teams/escape.team")]))
         with mock.patch.object(Path, "resolve", new=controlled_resolve):
             self.assert_error("team_path_escape")
 
@@ -469,9 +467,7 @@ class TestBlindPoolRegistryValidation(BlindPoolRegistryFixture):
         self.assertNotIn(str(self.team_file), rendered)
 
     def test_active_entries_cannot_alias_the_same_file(self):
-        self.write_registry(
-            _document(entries=[_entry(), _entry("BL-002-v1")])
-        )
+        self.write_registry(_document(entries=[_entry(), _entry("BL-002-v1")]))
         self.assert_error("duplicate_active_team_file")
 
     def test_unknown_lookup_id_validation_is_sanitized(self):

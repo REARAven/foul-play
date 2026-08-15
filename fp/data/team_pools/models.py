@@ -39,7 +39,9 @@ RosterKey = tuple[str, str, str, str, str, str]
 
 def _freeze_json(value: Any) -> Any:
     if isinstance(value, Mapping):
-        return MappingProxyType({key: _freeze_json(item) for key, item in value.items()})
+        return MappingProxyType(
+            {key: _freeze_json(item) for key, item in value.items()}
+        )
     if isinstance(value, (list, tuple)):
         return tuple(_freeze_json(item) for item in value)
     return value
@@ -136,7 +138,14 @@ class TeamRecord:
     record_id: TeamRecordId
     variant_of: TeamRecordId | None
     display_name: str | None
-    pokemon: tuple[PokemonRecord, PokemonRecord, PokemonRecord, PokemonRecord, PokemonRecord, PokemonRecord]
+    pokemon: tuple[
+        PokemonRecord,
+        PokemonRecord,
+        PokemonRecord,
+        PokemonRecord,
+        PokemonRecord,
+        PokemonRecord,
+    ]
     roster_key: RosterKey
     metadata: Mapping[str, Any]
     source_location: SourceLocation
@@ -175,7 +184,9 @@ class TeamPool:
             for key, record_ids in sorted(index_lists.items())
         }
         object.__setattr__(self, "source_documents", tuple(self.source_documents))
-        object.__setattr__(self, "default_public_fields", tuple(self.default_public_fields))
+        object.__setattr__(
+            self, "default_public_fields", tuple(self.default_public_fields)
+        )
         object.__setattr__(self, "metadata", _freeze_json(self.metadata))
         object.__setattr__(self, "teams", teams)
         object.__setattr__(self, "_team_lookup", MappingProxyType(lookup))

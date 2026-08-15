@@ -17,6 +17,7 @@ from fp.search.standard_battles import (
 )
 
 from poke_engine import MctsSideResult
+
 logger = logging.getLogger(__name__)
 
 

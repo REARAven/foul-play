@@ -2276,9 +2276,9 @@ class TestClosingJawsProtocol:
         )
 
         assert 4 == thunder_wave.current_pp
-        assert LastUsedMove(
-            "mawile", "thunderwave", 4
-        ) == self.battle.user.last_used_move
+        assert (
+            LastUsedMove("mawile", "thunderwave", 4) == self.battle.user.last_used_move
+        )
         assert self.battle.opponent.active is incoming
         assert incoming.status is None
         assert outgoing in self.battle.opponent.reserve
@@ -2342,9 +2342,9 @@ class TestClosingJawsProtocol:
         )
 
         assert 4 == sucker_punch.current_pp
-        assert LastUsedMove(
-            "mawile", "suckerpunch", 4
-        ) == self.battle.user.last_used_move
+        assert (
+            LastUsedMove("mawile", "suckerpunch", 4) == self.battle.user.last_used_move
+        )
         assert self.battle.opponent.active is incoming
         assert outgoing.max_hp == outgoing.hp
 
@@ -2421,10 +2421,13 @@ class TestClosingJawsProtocol:
         )
 
         assert 4 == iron_head.current_pp
-        assert LastUsedMove("mawile", "ironhead", 4) == self.battle.opponent.last_used_move
-        assert LastUsedMove(
-            "snorlax", "switch magikarp", 4
-        ) == self.battle.user.last_selected_move
+        assert (
+            LastUsedMove("mawile", "ironhead", 4) == self.battle.opponent.last_used_move
+        )
+        assert (
+            LastUsedMove("snorlax", "switch magikarp", 4)
+            == self.battle.user.last_selected_move
+        )
         assert self.battle.user.active is incoming
         assert 181 == incoming.hp
         assert outgoing in self.battle.user.reserve
@@ -2447,9 +2450,10 @@ class TestClosingJawsProtocol:
         assert self.battle.user.active is outgoing
         assert 0 == outgoing.hp
         assert [incoming] == self.battle.user.reserve
-        assert LastUsedMove(
-            "snorlax", "switch magikarp", 4
-        ) == self.battle.user.last_selected_move
+        assert (
+            LastUsedMove("snorlax", "switch magikarp", 4)
+            == self.battle.user.last_selected_move
+        )
         assert original_speed_range == self.battle.opponent.active.speed_range
 
     def test_switch_selection_skips_only_move_dependent_reverse_damage_inference(

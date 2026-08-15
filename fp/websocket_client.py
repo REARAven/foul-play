@@ -98,8 +98,7 @@ def _redact_received_message(message: str) -> str:
             room, event, _remainder = line.split("|", 2)
             line = "{}|{}|<redacted>".format(room, event)
         elif line.startswith(">") and any(
-            marker in line
-            for marker in ("|init|", "|player|", "|request|", "|title|")
+            marker in line for marker in ("|init|", "|player|", "|request|", "|title|")
         ):
             line = ">battle-<redacted>|event|<redacted>"
         elif line.startswith("|title|"):
@@ -135,18 +134,14 @@ class PSWebsocketClient:
     last_challenge_time = 0
 
     @classmethod
-    async def create(
-        cls, username, password, address, local_no_security_login=False
-    ):
+    async def create(cls, username, password, address, local_no_security_login=False):
         if local_no_security_login:
             if password is not None:
                 raise LocalLoginConfigurationError(
                     "Local no-security login cannot be combined with a password"
                 )
             hostname = validate_loopback_websocket_uri(address)
-            logger.info(
-                "Login mode: local no-security (host={})".format(hostname)
-            )
+            logger.info("Login mode: local no-security (host={})".format(hostname))
         else:
             logger.info("Login mode: public assertion")
         self = PSWebsocketClient()
@@ -216,8 +211,7 @@ class PSWebsocketClient:
         setup_lines = [
             line
             for line in event_lines
-            if not line.startswith("|request|")
-            and not line.startswith(opponent_prefix)
+            if not line.startswith("|request|") and not line.startswith(opponent_prefix)
         ]
         request_lines = [line for line in event_lines if line.startswith("|request|")]
         title = ">{}|init|battle|title|{} vs. {}".format(
@@ -239,9 +233,7 @@ class PSWebsocketClient:
 
     async def send_message(self, room, message_list):
         message = room + "|" + "|".join(message_list)
-        is_authentication = any(
-            item.startswith("/trn ") for item in message_list
-        )
+        is_authentication = any(item.startswith("/trn ") for item in message_list)
         is_team_upload = _contains_team_upload(message_list)
         is_challenge_acceptance = _contains_challenge_acceptance(message_list)
         if is_authentication:
@@ -317,9 +309,7 @@ class PSWebsocketClient:
                         return self.username
         except TimeoutError as error:
             logger.error("Local username claim confirmation timed out")
-            raise LoginError(
-                "Local username claim confirmation timed out"
-            ) from error
+            raise LoginError("Local username claim confirmation timed out") from error
         except ConnectionClosed as error:
             logger.error("Connection closed before local username confirmation")
             raise LoginError(
@@ -357,9 +347,7 @@ class PSWebsocketClient:
 
         if response.status_code != 200:
             logger.error(
-                "Could not get assertion (HTTP status {})".format(
-                    response.status_code
-                )
+                "Could not get assertion (HTTP status {})".format(response.status_code)
             )
             raise LoginError("Could not get assertion")
 

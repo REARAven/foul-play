@@ -113,143 +113,255 @@ def _expected(weight, item, ability, nature, evs, ivs, moves):
 
 EXPECTED_NEW_SETS = {
     ("altaria", "perishtrap"): _expected(
-        2, "heavydutyboots", "naturalcure", "calm",
-        (252, 0, 0, 4, 252, 0), IVS_0_ATK,
+        2,
+        "heavydutyboots",
+        "naturalcure",
+        "calm",
+        (252, 0, 0, 4, 252, 0),
+        IVS_0_ATK,
         ("perishsong", "firespin", "roost", "defog"),
     ),
     ("altaria", "physicalutility"): _expected(
-        4, "heavydutyboots", "naturalcure", "impish",
-        (252, 0, 240, 0, 0, 16), IVS_31,
+        4,
+        "heavydutyboots",
+        "naturalcure",
+        "impish",
+        (252, 0, 240, 0, 0, 16),
+        IVS_31,
         ("defog", "roost", "bravebird", "willowisp"),
     ),
     ("altaria", "choicespecs"): _expected(
-        3, "choicespecs", "naturalcure", "timid",
-        (0, 0, 0, 252, 4, 252), IVS_0_ATK,
+        3,
+        "choicespecs",
+        "naturalcure",
+        "timid",
+        (0, 0, 0, 252, 4, 252),
+        IVS_0_ATK,
         ("dracometeor", "flamethrower", "hurricane", "moonblast"),
     ),
     ("arcaninehisui", "bootsrocks"): _expected(
-        3, "heavydutyboots", "rockhead", "jolly",
-        (0, 252, 0, 0, 4, 252), IVS_31,
+        3,
+        "heavydutyboots",
+        "rockhead",
+        "jolly",
+        (0, 252, 0, 0, 4, 252),
+        IVS_31,
         ("headsmash", "flareblitz", "extremespeed", "stealthrock"),
     ),
     ("arcaninehisui", "choiceband"): _expected(
-        4, "choiceband", "rockhead", "jolly",
-        (0, 252, 0, 0, 4, 252), IVS_31,
+        4,
+        "choiceband",
+        "rockhead",
+        "jolly",
+        (0, 252, 0, 0, 4, 252),
+        IVS_31,
         ("headsmash", "flareblitz", "extremespeed", "closecombat"),
     ),
     ("arcaninehisui", "intimidateutility"): _expected(
-        3, "heavydutyboots", "intimidate", "jolly",
-        (0, 252, 0, 0, 4, 252), IVS_31,
+        3,
+        "heavydutyboots",
+        "intimidate",
+        "jolly",
+        (0, 252, 0, 0, 4, 252),
+        IVS_31,
         ("stealthrock", "morningsun", "flareblitz", "extremespeed"),
     ),
     ("bombirdier", "bootsutility"): _expected(
-        4, "heavydutyboots", "bigpecks", "jolly",
-        (4, 252, 0, 0, 0, 252), IVS_31,
+        4,
+        "heavydutyboots",
+        "bigpecks",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        IVS_31,
         ("uturn", "stealthrock", "knockoff", "memento"),
     ),
     ("bombirdier", "choicescarf"): _expected(
-        3, "choicescarf", "rockypayload", "jolly",
-        (4, 252, 0, 0, 0, 252), IVS_31,
+        3,
+        "choicescarf",
+        "rockypayload",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        IVS_31,
         ("uturn", "knockoff", "stoneedge", "bravebird"),
     ),
     ("bombirdier", "choiceband"): _expected(
-        3, "choiceband", "bigpecks", "jolly",
-        (4, 252, 0, 0, 0, 252), IVS_31,
+        3,
+        "choiceband",
+        "bigpecks",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        IVS_31,
         ("suckerpunch", "uturn", "knockoff", "bravebird"),
     ),
     ("chesnaught", "helmetspikes"): _expected(
-        4, "rockyhelmet", "bulletproof", "impish",
-        (252, 4, 252, 0, 0, 0), IVS_31,
+        4,
+        "rockyhelmet",
+        "bulletproof",
+        "impish",
+        (252, 4, 252, 0, 0, 0),
+        IVS_31,
         ("bodypress", "knockoff", "spikes", "synthesis"),
     ),
     ("chesnaught", "leftoversutility"): _expected(
-        3, "leftovers", "bulletproof", "impish",
-        (252, 4, 252, 0, 0, 0), IVS_31,
+        3,
+        "leftovers",
+        "bulletproof",
+        "impish",
+        (252, 4, 252, 0, 0, 0),
+        IVS_31,
         ("spikyshield", "toxic", "knockoff", "drainpunch"),
     ),
     ("cursola", "specialutility"): _expected(
-        4, "leftovers", "perishbody", "calm",
-        (252, 0, 0, 4, 252, 0), IVS_0_ATK,
+        4,
+        "leftovers",
+        "perishbody",
+        "calm",
+        (252, 0, 0, 4, 252, 0),
+        IVS_0_ATK,
         ("hex", "scald", "stealthrock", "willowisp"),
     ),
     ("cursola", "perishbodyspecs"): _expected(
-        3, "choicespecs", "perishbody", "modest",
-        (252, 0, 0, 252, 4, 0), IVS_0_ATK,
+        3,
+        "choicespecs",
+        "perishbody",
+        "modest",
+        (252, 0, 0, 252, 4, 0),
+        IVS_0_ATK,
         ("shadowball", "surf", "earthpower", "icebeam"),
     ),
     ("cursola", "weakarmorspecs"): _expected(
-        2, "choicespecs", "weakarmor", "modest",
-        (0, 0, 4, 252, 0, 252), IVS_0_ATK,
+        2,
+        "choicespecs",
+        "weakarmor",
+        "modest",
+        (0, 0, 4, 252, 0, 252),
+        IVS_0_ATK,
         ("shadowball", "surf", "earthpower", "icebeam"),
     ),
     ("dhelmise", "swordsdance"): _expected(
-        4, "heavydutyboots", "steelworker", "adamant",
-        (248, 252, 0, 0, 8, 0), IVS_31,
+        4,
+        "heavydutyboots",
+        "steelworker",
+        "adamant",
+        (248, 252, 0, 0, 8, 0),
+        IVS_31,
         ("anchorshot", "swordsdance", "powerwhip", "knockoff"),
     ),
     ("dhelmise", "choiceband"): _expected(
-        3, "choiceband", "steelworker", "adamant",
-        (248, 252, 0, 0, 8, 0), IVS_31,
+        3,
+        "choiceband",
+        "steelworker",
+        "adamant",
+        (248, 252, 0, 0, 8, 0),
+        IVS_31,
         ("powerwhip", "knockoff", "anchorshot", "poltergeist"),
     ),
     ("drapion", "swordsdance"): _expected(
-        4, "heavydutyboots", "battlearmor", "jolly",
-        (4, 252, 0, 0, 0, 252), IVS_31,
+        4,
+        "heavydutyboots",
+        "battlearmor",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        IVS_31,
         ("knockoff", "poisonjab", "earthquake", "swordsdance"),
     ),
     ("drapion", "toxicspikes"): _expected(
-        3, "heavydutyboots", "battlearmor", "jolly",
-        (4, 252, 0, 0, 0, 252), IVS_31,
+        3,
+        "heavydutyboots",
+        "battlearmor",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        IVS_31,
         ("earthquake", "knockoff", "toxicspikes", "taunt"),
     ),
     ("dudunsparce", "calmmind"): _expected(
-        4, "heavydutyboots", "thickfat", "bold",
-        (252, 0, 252, 4, 0, 0), IVS_0_ATK,
+        4,
+        "heavydutyboots",
+        "thickfat",
+        "bold",
+        (252, 0, 252, 4, 0, 0),
+        IVS_0_ATK,
         ("calmmind", "boomburst", "shadowball", "roost"),
     ),
     ("dudunsparce", "glareutility"): _expected(
-        2, "chopleberry", "thickfat", "modest",
-        (116, 0, 0, 252, 0, 140), IVS_0_ATK,
+        2,
+        "chopleberry",
+        "thickfat",
+        "modest",
+        (116, 0, 0, 252, 0, 140),
+        IVS_0_ATK,
         ("glare", "boomburst", "hex", "stealthrock"),
     ),
     ("dudunsparce", "coil"): _expected(
-        3, "leftovers", "serenegrace", "careful",
-        (252, 4, 0, 0, 252, 0), IVS_31,
+        3,
+        "leftovers",
+        "serenegrace",
+        "careful",
+        (252, 4, 0, 0, 252, 0),
+        IVS_31,
         ("coil", "bodyslam", "dragontail", "roost"),
     ),
     ("dudunsparcethreesegment", "calmmind"): _expected(
-        4, "heavydutyboots", "thickfat", "bold",
-        (252, 0, 252, 4, 0, 0), IVS_0_ATK,
+        4,
+        "heavydutyboots",
+        "thickfat",
+        "bold",
+        (252, 0, 252, 4, 0, 0),
+        IVS_0_ATK,
         ("calmmind", "boomburst", "shadowball", "roost"),
     ),
     ("dudunsparcethreesegment", "glareutility"): _expected(
-        2, "chopleberry", "thickfat", "modest",
-        (116, 0, 0, 252, 0, 140), IVS_0_ATK,
+        2,
+        "chopleberry",
+        "thickfat",
+        "modest",
+        (116, 0, 0, 252, 0, 140),
+        IVS_0_ATK,
         ("glare", "boomburst", "hex", "stealthrock"),
     ),
     ("dudunsparcethreesegment", "coil"): _expected(
-        3, "leftovers", "serenegrace", "careful",
-        (252, 4, 0, 0, 252, 0), IVS_31,
+        3,
+        "leftovers",
+        "serenegrace",
+        "careful",
+        (252, 4, 0, 0, 252, 0),
+        IVS_31,
         ("coil", "bodyslam", "dragontail", "roost"),
     ),
     ("dugtrioalola", "sashsetup"): _expected(
-        3, "focussash", "tanglinghair", "jolly",
-        (4, 252, 0, 0, 0, 252), IVS_31,
+        3,
+        "focussash",
+        "tanglinghair",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        IVS_31,
         ("suckerpunch", "swordsdance", "earthquake", "ironhead"),
     ),
     ("dugtrioalola", "sashlead"): _expected(
-        4, "focussash", "tanglinghair", "jolly",
-        (4, 252, 0, 0, 0, 252), IVS_31,
+        4,
+        "focussash",
+        "tanglinghair",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        IVS_31,
         ("stealthrock", "earthquake", "ironhead", "memento"),
     ),
     ("dugtrioalola", "choicescarf"): _expected(
-        2, "choicescarf", "tanglinghair", "jolly",
-        (4, 252, 0, 0, 0, 252), IVS_31,
+        2,
+        "choicescarf",
+        "tanglinghair",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        IVS_31,
         ("earthquake", "ironhead", "stoneedge", "pursuit"),
     ),
     ("dugtrioalola", "choiceband"): _expected(
-        3, "choiceband", "tanglinghair", "jolly",
-        (4, 252, 0, 0, 0, 252), IVS_31,
+        3,
+        "choiceband",
+        "tanglinghair",
+        "jolly",
+        (4, 252, 0, 0, 0, 252),
+        IVS_31,
         ("earthquake", "ironhead", "stoneedge", "suckerpunch"),
     ),
 }
@@ -311,9 +423,7 @@ def _assert_public_data_firewall(document):
         if isinstance(value, dict):
             for key, item in value.items():
                 if key.casefold() in FORBIDDEN_STRUCTURAL_KEYS:
-                    raise AssertionError(
-                        f"forbidden structural key {key!r} at {path}"
-                    )
+                    raise AssertionError(f"forbidden structural key {key!r} at {path}")
                 check_string(key, f"{path}.<key:{key}>", is_key=True)
                 walk(item, f"{path}.{key}")
         elif isinstance(value, list):
@@ -483,8 +593,7 @@ class TestBatchTwoDocument(unittest.TestCase):
     def setUpClass(cls):
         cls.documents = {version: _document(version) for version in VERSION_PATHS}
         cls.datasets = {
-            version: load_public_prior(path)
-            for version, path in VERSION_PATHS.items()
+            version: load_public_prior(path) for version, path in VERSION_PATHS.items()
         }
 
     def test_01_encoding_hash_identity_and_inventories_are_exact(self):
@@ -542,12 +651,10 @@ class TestBatchTwoDocument(unittest.TestCase):
                 self.assertEqual(old_record, new_record, species_id)
                 continue
             old_variants = {
-                variant["variant_id"]: variant
-                for variant in old_record["variants"]
+                variant["variant_id"]: variant for variant in old_record["variants"]
             }
             new_variants = {
-                variant["variant_id"]: variant
-                for variant in new_record["variants"]
+                variant["variant_id"]: variant for variant in new_record["variants"]
             }
             self.assertEqual(old_variants.keys(), new_variants.keys())
             for variant_id in old_variants:
@@ -623,9 +730,7 @@ class TestBatchTwoDocument(unittest.TestCase):
 
     def test_05_real_teamvalidator_accepts_all_required_groups(self):
         docs = self.documents
-        old_species = {
-            species["species_id"] for species in docs["1.1.0"]["species"]
-        }
+        old_species = {species["species_id"] for species in docs["1.1.0"]["species"]}
         groups = [
             {"label": "1.0.0", "entries": _entries(docs["1.0.0"])},
             {"label": "1.1.0", "entries": _entries(docs["1.1.0"])},
@@ -664,9 +769,7 @@ class TestBatchTwoDocument(unittest.TestCase):
     def test_06_authorization_firewall_and_negative_validators_are_exact(self):
         document = self.documents["1.2.0"]
         _assert_public_data_firewall(document)
-        self.assertEqual(
-            AUTHORIZATION_VALUE, document["metadata"]["authorization"]
-        )
+        self.assertEqual(AUTHORIZATION_VALUE, document["metadata"]["authorization"])
 
         wrong_path = copy.deepcopy(document)
         wrong_path["metadata"]["note"] = AUTHORIZATION_VALUE
@@ -706,7 +809,8 @@ class TestBatchTwoDocument(unittest.TestCase):
 
         illegal = copy.deepcopy(document)
         altaria = next(
-            species for species in illegal["species"]
+            species
+            for species in illegal["species"]
             if species["species_id"] == "altaria"
         )
         altaria["variants"][0]["move_ids"][0] = "spectralthief"
@@ -834,9 +938,7 @@ class TestBatchTwoSelectionPopulationAndNarrowing(unittest.TestCase):
             return _compatible_ids(
                 self.dataset,
                 species_id,
-                _evidence(
-                    context, species_id, moves=moves, item=item, ability=ability
-                ),
+                _evidence(context, species_id, moves=moves, item=item, ability=ability),
             )
 
         checks = (
@@ -844,7 +946,11 @@ class TestBatchTwoSelectionPopulationAndNarrowing(unittest.TestCase):
             ("altaria", {"physicalutility"}, {"moves": ("bravebird",)}),
             ("altaria", {"choicespecs"}, {"moves": ("dracometeor",)}),
             ("arcaninehisui", {"intimidateutility"}, {"ability": "intimidate"}),
-            ("arcaninehisui", {"bootsrocks", "intimidateutility"}, {"moves": ("stealthrock",)}),
+            (
+                "arcaninehisui",
+                {"bootsrocks", "intimidateutility"},
+                {"moves": ("stealthrock",)},
+            ),
             ("arcaninehisui", {"choiceband"}, {"moves": ("closecombat",)}),
             ("arcaninehisui", {"bootsrocks", "choiceband"}, {"ability": "rockhead"}),
             ("bombirdier", {"choicescarf"}, {"ability": "rockypayload"}),
@@ -855,7 +961,11 @@ class TestBatchTwoSelectionPopulationAndNarrowing(unittest.TestCase):
             ("chesnaught", {"helmetspikes"}, {"moves": ("spikes",)}),
             ("chesnaught", {"leftoversutility"}, {"moves": ("spikyshield",)}),
             ("cursola", {"weakarmorspecs"}, {"ability": "weakarmor"}),
-            ("cursola", {"perishbodyspecs", "specialutility"}, {"ability": "perishbody"}),
+            (
+                "cursola",
+                {"perishbodyspecs", "specialutility"},
+                {"ability": "perishbody"},
+            ),
             ("cursola", {"specialutility"}, {"moves": ("willowisp",)}),
             ("cursola", {"perishbodyspecs", "weakarmorspecs"}, {"item": "choicespecs"}),
             ("dhelmise", {"swordsdance"}, {"moves": ("swordsdance",)}),
@@ -869,7 +979,11 @@ class TestBatchTwoSelectionPopulationAndNarrowing(unittest.TestCase):
             ("dudunsparcethreesegment", {"calmmind"}, {"moves": ("calmmind",)}),
             ("dudunsparcethreesegment", {"glareutility"}, {"moves": ("stealthrock",)}),
             ("dudunsparcethreesegment", {"coil"}, {"moves": ("coil",)}),
-            ("dudunsparcethreesegment", {"calmmind", "glareutility"}, {"ability": "thickfat"}),
+            (
+                "dudunsparcethreesegment",
+                {"calmmind", "glareutility"},
+                {"ability": "thickfat"},
+            ),
             ("dugtrioalola", {"sashsetup"}, {"moves": ("swordsdance",)}),
             ("dugtrioalola", {"sashlead"}, {"moves": ("memento",)}),
             ("dugtrioalola", {"choicescarf"}, {"moves": ("pursuit",)}),
@@ -886,8 +1000,7 @@ class TestBatchTwoSelectionPopulationAndNarrowing(unittest.TestCase):
         self.assertEqual({"dragondance"}, aero)
         self.assertEqual(
             "lifeorb",
-            self.dataset.get_species("aerodactyl")
-            .get_variant("dragondance").item_id,
+            self.dataset.get_species("aerodactyl").get_variant("dragondance").item_id,
         )
 
     def test_10_exact_forms_conflicts_and_compatible_variants_are_isolated(self):
@@ -898,9 +1011,7 @@ class TestBatchTwoSelectionPopulationAndNarrowing(unittest.TestCase):
         )
         self.assertEqual(
             set(),
-            _compatible_ids(
-                self.dataset, "dudunsparcethreesegment", base_evidence
-            ),
+            _compatible_ids(self.dataset, "dudunsparcethreesegment", base_evidence),
         )
         self.assertEqual(
             set(), _compatible_ids(self.dataset, "dudunsparce", form_evidence)
@@ -911,14 +1022,10 @@ class TestBatchTwoSelectionPopulationAndNarrowing(unittest.TestCase):
             "cursola",
             _evidence(context, "cursola", item="choicespecs"),
         )
-        self.assertEqual(
-            {"perishbodyspecs", "weakarmorspecs"}, compatible_specs
-        )
+        self.assertEqual({"perishbodyspecs", "weakarmorspecs"}, compatible_specs)
 
         conflict_battle = _battle(context, "dudunsparce")
-        conflict_battle.team_inference.record_selected_move(
-            "dudunsparce", "calmmind"
-        )
+        conflict_battle.team_inference.record_selected_move("dudunsparce", "calmmind")
         conflict_battle.team_inference.record_initial_item(
             "dudunsparce",
             "chopleberry",
@@ -934,9 +1041,7 @@ class TestBatchTwoSelectionPopulationAndNarrowing(unittest.TestCase):
             ),
             rng=_FixedRng(0.5),
         )
-        self.assertIs(
-            PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT, result.status
-        )
+        self.assertIs(PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT, result.status)
 
     def test_11_public_sampling_has_no_private_pool_or_candidate_dependency(self):
         paths = (
@@ -963,9 +1068,7 @@ class TestBatchTwoSelectionPopulationAndNarrowing(unittest.TestCase):
         self.assertNotIn("candidate_ids", parameters)
 
     def test_12_still_uncovered_species_obeys_explicit_fallback_policy(self):
-        generic_context = self.generic_configuration.create_battle_context(
-            "gen9tugs"
-        )
+        generic_context = self.generic_configuration.create_battle_context("gen9tugs")
         generic_battle = _battle(generic_context, "xatu")
         with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
             sampled = prepare_battles(generic_battle, 1)[0][0]

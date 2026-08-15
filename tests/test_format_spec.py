@@ -1,8 +1,12 @@
 from fp.constants import BattleType
+from fp.config import FoulPlayConfig
 from fp.format_spec import FormatSpec
 
 
 class TestFormatSpecParsing:
+    def test_default_test_format_is_gen9ou(self):
+        assert "gen9ou" == FoulPlayConfig.pokemon_format
+
     def test_gen9randombattle(self):
         spec = FormatSpec.from_format_string("gen9randombattle")
         assert 9 == spec.gen_number

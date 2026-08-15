@@ -48,7 +48,7 @@ from fp.search.poke_engine_helpers import (
     pokemon_to_poke_engine_pkmn,
 )
 
-from test_team_pool_inference import (
+from .test_team_pool_inference import (
     ALTERNATE_SPECIES,
     DEFAULT_SPECIES,
     _battle,

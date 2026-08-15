@@ -748,7 +748,8 @@ class TestSamplePokemonCascade:
         with caplog.at_level(logging.WARNING):
             _sample_pokemon(pkmn, self.mode)
 
-        assert "Could not sample snorlax" in caplog.text
+        assert "Could not sample a compatible Pokemon set" in caplog.text
+        assert "snorlax" not in caplog.text
         assert pkmn.moves == []
         assert pkmn.item == constants.UNKNOWN_ITEM
         assert pkmn.ability is None

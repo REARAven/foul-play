@@ -1,3 +1,1 @@
-import logging
-
-logging.disable(logging.CRITICAL)
+"""Foul Play test package."""

@@ -29,7 +29,7 @@ from fp.search.public_prior_sampling import (
     select_public_prior_variant,
 )
 from fp.search.standard_battles import prepare_battles
-from test_public_prior_production_batch3_data import (
+from .test_public_prior_production_batch3_data import (
     AUTHORIZATION_PATH,
     AUTHORIZATION_VALUE,
     _FixedRng,

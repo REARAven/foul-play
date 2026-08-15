@@ -8,6 +8,10 @@ from fp.config import FoulPlayConfig
 # it (or battle.generation / battle.pokemon_format) for gen-specific cases
 @pytest.fixture(autouse=True)
 def default_pokemon_format():
-    FoulPlayConfig.pokemon_format = "gen9ou"
-    yield
-    FoulPlayConfig.pokemon_format = ""
+    original_format = FoulPlayConfig.pokemon_format
+    if not original_format:
+        FoulPlayConfig.pokemon_format = "gen9ou"
+    try:
+        yield
+    finally:
+        FoulPlayConfig.pokemon_format = original_format

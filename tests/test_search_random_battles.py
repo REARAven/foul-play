@@ -417,9 +417,10 @@ class TestPopulatePkmnFromSet:
 
         assert "flying" == self.pkmn.tera_type
 
-    def test_source_is_included_in_the_logged_set(self, caplog):
+    def test_source_details_are_redacted_from_the_logged_set(self, caplog):
         caplog.set_level(logging.INFO, logger="fp.search.helpers")
 
         populate_pkmn_from_set(self.pkmn, self.set, source="team_datasets")
 
-        assert "source=team_datasets" in caplog.text
+        assert "source=configured" in caplog.text
+        assert "source=team_datasets" not in caplog.text

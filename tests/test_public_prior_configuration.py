@@ -819,7 +819,7 @@ class TestGenericDatasetPolicy(unittest.TestCase):
         )
 
     def test_53_none_public_miss_leaves_pokemon_unsampled(self):
-        from test_public_prior_sampling import _battle, _context, _dataset
+        from .test_public_prior_sampling import _battle, _context, _dataset
 
         context = _context(_dataset(species_id="raichu"), fallback=PublicPriorFallback.NONE)
         battle = _battle(context)
@@ -829,7 +829,7 @@ class TestGenericDatasetPolicy(unittest.TestCase):
         self.assertEqual(0, len(sampled.opponent.active.moves))
 
     def test_54_generic_public_miss_invokes_existing_generic_sampler(self):
-        from test_public_prior_sampling import _battle, _context, _dataset
+        from .test_public_prior_sampling import _battle, _context, _dataset
 
         context = _context(_dataset(species_id="raichu"), fallback=PublicPriorFallback.GENERIC)
         with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
@@ -837,7 +837,7 @@ class TestGenericDatasetPolicy(unittest.TestCase):
         generic.assert_called_once()
 
     def test_55_public_success_bypasses_generic_sampling(self):
-        from test_public_prior_sampling import _battle, _context, _dataset
+        from .test_public_prior_sampling import _battle, _context, _dataset
 
         context = _context(_dataset(), fallback=PublicPriorFallback.GENERIC)
         with mock.patch("fp.search.standard_battles.sample_pokemon") as generic:
@@ -918,7 +918,9 @@ class TestFirewallRegressionsAndMechanics(unittest.TestCase):
             self.assertNotIn(name, source)
 
     def _focused_count(self, pattern):
-        suite = unittest.TestLoader().discover(str(ROOT / "tests"), pattern=pattern)
+        suite = unittest.TestLoader().discover(
+            str(ROOT / "tests"), pattern=pattern, top_level_dir=str(ROOT)
+        )
         return suite.countTestCases()
 
     def test_64_existing_phase_one_tests_remain_present(self):

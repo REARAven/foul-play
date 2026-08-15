@@ -1,8 +1,6 @@
 import builtins
 import copy
-import inspect
 import socket
-import sys
 import unittest
 from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
@@ -21,10 +19,8 @@ from fp.battle.state import Battle, LastUsedMove
 from fp.battle.team_inference import (
     CandidateAccess,
     CandidateFilterState,
-    OpponentMemberEvidence,
     OpponentObservationLedger,
     PublicObservationSource,
-    TeamInferenceContext,
     TeamPoolMatchState,
     TeamSheetPolicy,
     filter_team_candidates,
@@ -39,7 +35,6 @@ from fp.data.team_pools import (
     TeamPool,
     TeamPoolRegistry,
     TeamRecord,
-    TeamRecordId,
 )
 from fp.format_spec import FormatSpec
 from fp.modes.standard_battle import StandardBattleMode
@@ -55,7 +50,6 @@ from .test_team_pool_inference import (
     _match,
     _pokemon,
     _pool,
-    _preview,
     _team_record,
 )
 

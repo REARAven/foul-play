@@ -25,7 +25,6 @@ from fp.data import all_move_json, pokedex
 from fp.data.mods.apply_mods import apply_mods
 from fp.data.public_priors.runtime import (
     PublicPriorConfigurationError,
-    PublicPriorRuntimeConfiguration,
     PublicPriorStartupOptions,
     load_public_prior_runtime_configuration,
 )

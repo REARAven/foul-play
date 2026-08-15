@@ -14,13 +14,10 @@ from unittest import mock
 from fp.config import FoulPlayConfig
 from fp.data import all_move_json, pokedex
 from fp.data.public_priors import (
-    PublicPriorDataset,
     PublicPriorIdentity,
     PublicPriorRegistry,
     PublicPriorRegistryError,
     PublicPriorValidationError,
-    PublicSetVariant,
-    PublicSourceKind,
     PublicVariantReference,
     SpeciesPrior,
     load_public_prior,

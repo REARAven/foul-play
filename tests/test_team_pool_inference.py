@@ -9,7 +9,6 @@ from fp.battle.protocol import activate, fieldstart, remove_item, unlikely_to_ha
 from fp.battle.state import Battle, Pokemon
 from fp.battle.team_inference import (
     ObservationFilterState,
-    TeamInferenceContext,
     TeamInferenceSummary,
     TeamPoolCandidateId,
     TeamPoolMatchState,

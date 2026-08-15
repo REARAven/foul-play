@@ -8,7 +8,7 @@ candidate ID, battle object, or runtime state.
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from types import MappingProxyType

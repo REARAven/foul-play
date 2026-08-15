@@ -1,6 +1,5 @@
 import builtins
 import copy
-import inspect
 import socket
 import unittest
 from dataclasses import FrozenInstanceError, replace

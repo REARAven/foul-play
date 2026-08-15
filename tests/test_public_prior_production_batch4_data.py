@@ -30,7 +30,6 @@ from fp.search.public_prior_sampling import (
 )
 from fp.search.standard_battles import prepare_battles
 from .test_public_prior_production_batch3_data import (
-    AUTHORIZATION_PATH,
     AUTHORIZATION_VALUE,
     _FixedRng,
     _assert_public_data_firewall,

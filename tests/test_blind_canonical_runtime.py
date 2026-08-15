@@ -232,6 +232,44 @@ class CanonicalRuntimeSuccessTests(RuntimeFixture):
             submitted,
         )
         self.assertFalse(runtime.retains_selection)
+        self.assertEqual(["enable", "enable"], runtime._coordinator._transport.controls)
+
+    async def test_post_battle_enable_replays_offer_consumed_during_battle(self):
+        transport = FakeTransport((EXACT_CHALLENGE, exact_room_message()))
+        pending_replay = False
+        original_enable = transport.enable_challenge_tokens
+
+        async def enable_with_replay():
+            nonlocal pending_replay
+            await original_enable()
+            if pending_replay:
+                transport.messages.extend(
+                    (
+                        SECOND_EXACT_CHALLENGE,
+                        exact_room_message(
+                            "battle-gen9tugs-402",
+                            SECOND_EXACT_TOKEN,
+                        ),
+                    )
+                )
+                pending_replay = False
+
+        transport.enable_challenge_tokens = enable_with_replay
+
+        async def initialize(room, _projection):
+            nonlocal pending_replay
+            if room.room_id == "battle-gen9tugs-401":
+                pending_replay = True
+            return room
+
+        runtime = self.runtime(transport, mock.AsyncMock(), initialize)
+        first = await runtime.run_once()
+        second = await runtime.run_once()
+        self.assertEqual("battle-gen9tugs-401", first.room_id)
+        self.assertEqual("battle-gen9tugs-402", second.room_id)
+        self.assertEqual(["enable", "enable"], transport.controls)
+        self.assertIsNone(self.state_document()["reservation"])
+        self.assertEqual(2, self.state_document()["next_index"])
 
     async def test_durable_order_uses_real_lifecycle_boundaries(self):
         events = []
@@ -431,7 +469,10 @@ class CanonicalRuntimeFailureTests(RuntimeFixture):
         runtime = self.runtime(transport, submit_team, self.successful_initializer)
         with self.assertRaises(BlindPoolLifecycleError) as caught:
             await runtime.run_once()
-        self.assert_safe_error(caught.exception, "team_preparation_failed")
+        self.assert_safe_error(
+            caught.exception,
+            "team_artifact_verification_failed",
+        )
         self.assertEqual([], transport.sent)
         self.assertFalse(runtime.retains_selection)
         state = self.state_document()
@@ -479,7 +520,7 @@ class CanonicalRuntimeFailureTests(RuntimeFixture):
         runtime = self.runtime(transport, submit_team, self.successful_initializer)
         with self.assertRaises(BlindPoolLifecycleError) as caught:
             await runtime.run_once()
-        self.assert_safe_error(caught.exception, "team_preparation_failed")
+        self.assert_safe_error(caught.exception, "team_submission_failed")
         self.assertEqual([], transport.sent)
         self.assertIsNone(self.state_document()["reservation"])
         self.assertFalse(runtime.retains_selection)

@@ -2,7 +2,13 @@ import json
 import logging
 from copy import deepcopy
 
-from fp.config import FoulPlayConfig, init_logging, BotModes
+from fp.config import (
+    BotModes,
+    FoulPlayConfig,
+    TEAM_SOURCE_BLIND_CANONICAL,
+    TEAM_SOURCE_LEGACY,
+    init_logging,
+)
 
 from fp.modes import battle_mode
 from fp.teams import load_team, TeamListIterator
@@ -14,6 +20,10 @@ from fp.data import pokedex
 from fp.data.mods.apply_mods import apply_mods
 from fp.data.public_priors.runtime import (
     load_public_prior_runtime_configuration,
+)
+from fp.data.blind_pool.activation import run_blind_canonical_activation
+from fp.data.blind_pool.startup import (
+    BlindCanonicalActivationError,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,30 +53,27 @@ def check_dictionaries_are_unmodified(original_pokedex, original_move_json):
         logger.debug("Pokedex JSON unmodified!")
 
 
-async def run_foul_play():
-    public_prior_options = FoulPlayConfig.configure()
-    init_logging(FoulPlayConfig.log_level, FoulPlayConfig.log_to_file)
-    apply_mods(FoulPlayConfig.format_spec)
-    public_prior_configuration = load_public_prior_runtime_configuration(
-        public_prior_options,
-        FoulPlayConfig.pokemon_format,
-    )
-
-    original_pokedex = deepcopy(pokedex)
-    original_move_json = deepcopy(all_move_json)
-
-    ps_websocket_client = await PSWebsocketClient.create(
+async def _create_websocket(websocket_factory):
+    return await websocket_factory(
         FoulPlayConfig.username,
         FoulPlayConfig.password,
         FoulPlayConfig.websocket_uri,
         FoulPlayConfig.local_no_security_login,
     )
 
-    FoulPlayConfig.user_id = await ps_websocket_client.login()
 
+async def _initialize_connection(ps_websocket_client):
+    FoulPlayConfig.user_id = await ps_websocket_client.login()
     if FoulPlayConfig.avatar is not None:
         await ps_websocket_client.avatar(FoulPlayConfig.avatar)
 
+
+async def _run_legacy_battles(
+    ps_websocket_client,
+    public_prior_configuration,
+    original_pokedex,
+    original_move_json,
+):
     team_iterator = (
         None
         if FoulPlayConfig.team_list is None
@@ -123,3 +130,53 @@ async def run_foul_play():
         if battles_run >= FoulPlayConfig.run_count:
             break
     await ps_websocket_client.close()
+
+
+async def run_foul_play(*, websocket_factory=None, environ=None):
+    public_prior_options = FoulPlayConfig.configure()
+    init_logging(FoulPlayConfig.log_level, FoulPlayConfig.log_to_file)
+    apply_mods(FoulPlayConfig.format_spec)
+    public_prior_configuration = load_public_prior_runtime_configuration(
+        public_prior_options,
+        FoulPlayConfig.pokemon_format,
+    )
+
+    original_pokedex = deepcopy(pokedex)
+    original_move_json = deepcopy(all_move_json)
+    websocket_factory = websocket_factory or PSWebsocketClient.create
+    team_source = getattr(FoulPlayConfig, "team_source", TEAM_SOURCE_LEGACY)
+    if team_source == TEAM_SOURCE_LEGACY:
+        ps_websocket_client = await _create_websocket(websocket_factory)
+        await _initialize_connection(ps_websocket_client)
+        await _run_legacy_battles(
+            ps_websocket_client,
+            public_prior_configuration,
+            original_pokedex,
+            original_move_json,
+        )
+        return
+    if team_source != TEAM_SOURCE_BLIND_CANONICAL:
+        raise ValueError("Invalid team source")
+
+    activation_error = None
+    try:
+        await run_blind_canonical_activation(
+            FoulPlayConfig,
+            public_prior_configuration,
+            original_pokedex,
+            original_move_json,
+            websocket_factory=websocket_factory,
+            environ=environ,
+            battle_runner=pokemon_battle,
+            integrity_checker=check_dictionaries_are_unmodified,
+        )
+    except BlindCanonicalActivationError as error:
+        activation_error = error
+    if activation_error is not None:
+        logger.error(
+            "Blind canonical startup failed [{}:{}]".format(
+                activation_error.category.value,
+                activation_error.code,
+            )
+        )
+        raise SystemExit(1) from None

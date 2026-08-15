@@ -281,7 +281,7 @@ class CanonicalBlindRuntimeSession:
 
 
 class CanonicalBlindRuntime:
-    """Explicit dormant assembly of canonical selection and Phase 4 lifecycle."""
+    """Explicit assembly of canonical selection and Phase 4 lifecycle."""
 
     def __init__(
         self,
@@ -292,6 +292,7 @@ class CanonicalBlindRuntime:
         initialize_battle: CanonicalBattleInitializer,
         *,
         exact_protocol: BlindExactChallengeProtocol,
+        prepared_store: BlindPoolBagStore | None = None,
         random_source: ShuffleSource | None = None,
         reservation_id_factory: Callable[[], str] | None = None,
         lock_timeout_seconds: float = 5.0,
@@ -307,13 +308,26 @@ class CanonicalBlindRuntime:
                 "Canonical Blind Ladder runtime requires exact challenge protocol",
             ) from None
         selection = create_canonical_selection_snapshot(canonical_registry)
-        self._store = BlindPoolBagStore.from_selection_snapshot(
-            state_config,
-            selection,
-            random_source=random_source,
-            reservation_id_factory=reservation_id_factory,
-            lock_timeout_seconds=lock_timeout_seconds,
-        )
+        if prepared_store is None:
+            self._store = BlindPoolBagStore.from_selection_snapshot(
+                state_config,
+                selection,
+                random_source=random_source,
+                reservation_id_factory=reservation_id_factory,
+                lock_timeout_seconds=lock_timeout_seconds,
+            )
+        elif (
+            not isinstance(prepared_store, BlindPoolBagStore)
+            or prepared_store._config != state_config
+            or prepared_store._fingerprint != selection.registry_fingerprint
+            or prepared_store._active_ids != selection.active_ids
+        ):
+            raise _runtime_error(
+                "canonical_prepared_store_invalid",
+                "Canonical Blind Ladder prepared store is invalid",
+            ) from None
+        else:
+            self._store = prepared_store
         self._session = CanonicalBlindRuntimeSession(
             canonical_registry,
             submit_team,
@@ -399,6 +413,8 @@ class CanonicalBlindRuntime:
             messages = {
                 "team_preparation_failed",
                 "team_preparation_cleanup_failed",
+                "team_artifact_verification_failed",
+                "team_submission_failed",
                 "battle_initialization_failed",
             }
             if error.code in messages:
@@ -407,6 +423,10 @@ class CanonicalBlindRuntime:
                     "team_preparation_cleanup_failed": (
                         "Blind Ladder team preparation cleanup failed"
                     ),
+                    "team_artifact_verification_failed": (
+                        "Blind Ladder artifact verification failed"
+                    ),
+                    "team_submission_failed": "Blind Ladder team submission failed",
                     "battle_initialization_failed": (
                         "Blind Ladder battle initialization failed"
                     ),

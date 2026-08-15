@@ -70,6 +70,11 @@ class BotModes(Enum):
     search_ladder = auto()
 
 
+TEAM_SOURCE_LEGACY = "legacy"
+TEAM_SOURCE_BLIND_CANONICAL = "blind-canonical"
+TEAM_SOURCES = (TEAM_SOURCE_LEGACY, TEAM_SOURCE_BLIND_CANONICAL)
+
+
 class _FoulPlayConfig:
     websocket_uri: str
     username: str
@@ -87,8 +92,9 @@ class _FoulPlayConfig:
     team_preview_search_parallelism: int | None
     search_threads: int
     run_count: int
-    team_name: str
-    team_list: str = None
+    team_name: str | None
+    team_list: str | None = None
+    team_source: str = TEAM_SOURCE_LEGACY
     user_to_challenge: str
     save_replay: SaveReplay
     room_name: str
@@ -191,6 +197,15 @@ class _FoulPlayConfig:
             help="Number of PokemonShowdown battles to run",
         )
         parser.add_argument(
+            "--team-source",
+            choices=TEAM_SOURCES,
+            default=TEAM_SOURCE_LEGACY,
+            help=(
+                "Select legacy manual teams or the explicit Blind Ladder "
+                "canonical deployment. (default: legacy)"
+            ),
+        )
+        parser.add_argument(
             "--team-name",
             default=None,
             help="Which team to use. Can be a filename or a foldername relative to ./fp/teams/teams/. "
@@ -229,6 +244,37 @@ class _FoulPlayConfig:
             parser.error(
                 "--public-prior-fallback requires at least one --public-prior-file"
             )
+        if args.team_source == TEAM_SOURCE_BLIND_CANONICAL:
+            if args.bot_mode != BotModes.accept_challenge.name:
+                parser.error(
+                    "--team-source blind-canonical requires "
+                    "--bot-mode accept_challenge"
+                )
+            if args.pokemon_format != "gen9tugs":
+                parser.error(
+                    "--team-source blind-canonical requires "
+                    "--pokemon-format gen9tugs"
+                )
+            if args.team_name is not None:
+                parser.error(
+                    "--team-name cannot be combined with "
+                    "--team-source blind-canonical"
+                )
+            if args.team_list is not None:
+                parser.error(
+                    "--team-list cannot be combined with "
+                    "--team-source blind-canonical"
+                )
+            if args.room_name is not None:
+                parser.error(
+                    "--room-name cannot be combined with "
+                    "--team-source blind-canonical"
+                )
+            if args.user_to_challenge is not None:
+                parser.error(
+                    "--user-to-challenge cannot be combined with "
+                    "--team-source blind-canonical"
+                )
         if args.local_no_security_login:
             if args.ps_password is not None:
                 parser.error(
@@ -260,7 +306,12 @@ class _FoulPlayConfig:
         )
         self.search_threads = args.search_threads
         self.run_count = args.run_count
-        self.team_name = args.team_name or self.pokemon_format
+        self.team_source = args.team_source
+        self.team_name = (
+            None
+            if self.team_source == TEAM_SOURCE_BLIND_CANONICAL
+            else args.team_name or self.pokemon_format
+        )
         self.team_list = args.team_list
         self.user_to_challenge = args.user_to_challenge
         self.save_replay = SaveReplay[args.save_replay]

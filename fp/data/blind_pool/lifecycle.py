@@ -690,8 +690,7 @@ class BlindPoolLifecycleCoordinator:
                     raise
             logger.info(
                 "Released pre-accept Blind Ladder reservation during startup "
-                "team_id={} cycle={} position={}".format(
-                    reservation.team_id,
+                "cycle={} position={}".format(
                     reservation.cycle_number,
                     reservation.position,
                 )
@@ -888,8 +887,6 @@ class BlindPoolLifecycleCoordinator:
         return None
 
     async def _enable_exact_protocol(self) -> None:
-        if self._exact_capability_enabled:
-            return
         assert self._exact_protocol is not None
         failed = False
         try:
@@ -1367,7 +1364,10 @@ class BlindPoolLifecycleCoordinator:
                         "Blind Ladder cancellation left reserved state for startup recovery"
                     )
                 raise
-            except Exception:
+            except Exception as error:
+                preparation_code = (
+                    error.code if isinstance(error, BlindPoolLifecycleError) else None
+                )
                 try:
                     self._release_pre_accept(reservation)
                 except BlindPoolReconciliationRequired:
@@ -1376,6 +1376,16 @@ class BlindPoolLifecycleCoordinator:
                     raise BlindPoolLifecycleError(
                         "team_preparation_cleanup_failed",
                         "Blind Ladder team preparation failed and cleanup could not be proven",
+                    ) from None
+                if preparation_code == "canonical_runtime_artifact_rejected":
+                    raise BlindPoolLifecycleError(
+                        "team_artifact_verification_failed",
+                        "Blind Ladder artifact verification failed",
+                    ) from None
+                if preparation_code == "canonical_runtime_submission_failed":
+                    raise BlindPoolLifecycleError(
+                        "team_submission_failed",
+                        "Blind Ladder team submission failed",
                     ) from None
                 raise BlindPoolLifecycleError(
                     "team_preparation_failed",

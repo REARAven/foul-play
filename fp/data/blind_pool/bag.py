@@ -315,8 +315,7 @@ class BlindPoolBagStore:
             updated = replace(state, reservation=reservation)
             write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
-                "Reserved Blind Ladder team_id={} cycle={} position={}".format(
-                    reservation.team_id,
+                "Reserved Blind Ladder selection cycle={} position={}".format(
                     reservation.cycle_number,
                     reservation.position,
                 )
@@ -387,9 +386,7 @@ class BlindPoolBagStore:
             )
             write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
-                "Marked Blind Ladder acceptance pending team_id={} cycle={} "
-                "position={}".format(
-                    reservation.team_id,
+                "Marked Blind Ladder acceptance pending cycle={} position={}".format(
                     reservation.cycle_number,
                     reservation.position,
                 )
@@ -416,8 +413,7 @@ class BlindPoolBagStore:
             )
             write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
-                "Committed Blind Ladder team_id={} cycle={} position={}".format(
-                    reservation.team_id,
+                "Committed Blind Ladder selection cycle={} position={}".format(
                     reservation.cycle_number,
                     reservation.position,
                 )
@@ -464,8 +460,7 @@ class BlindPoolBagStore:
             updated = replace(state, reservation=None)
             write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
-                "Released Blind Ladder team_id={} cycle={} position={}".format(
-                    reservation.team_id,
+                "Released Blind Ladder selection cycle={} position={}".format(
                     reservation.cycle_number,
                     reservation.position,
                 )
@@ -488,9 +483,7 @@ class BlindPoolBagStore:
             updated = replace(state, reservation=None)
             write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
-                "Reconciled Blind Ladder no-room outcome team_id={} cycle={} "
-                "position={}".format(
-                    reservation.team_id,
+                "Reconciled Blind Ladder no-room outcome cycle={} position={}".format(
                     reservation.cycle_number,
                     reservation.position,
                 )

@@ -14,7 +14,7 @@ import re
 import time
 from collections import OrderedDict, deque
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Protocol
+from typing import Any, Awaitable, Callable, NoReturn, Protocol
 
 from .bag import BlindPoolBagStore
 from .errors import (
@@ -23,6 +23,9 @@ from .errors import (
     BlindPoolValidationError,
 )
 from .models import (
+    BlindChallengeEndEvent,
+    BlindChallengeRoomBinding,
+    BlindChallengeToken,
     BlindPoolBagState,
     BlindPoolBattleRoom,
     BlindPoolChallenge,
@@ -36,8 +39,16 @@ logger = logging.getLogger(__name__)
 BLIND_LADDER_FORMAT = "gen9tugs"
 BLIND_LADDER_MODE = "accept_challenge"
 _CHALLENGE_SOURCE = "pm"
+_EXACT_CHALLENGE_SOURCE = "tugs_exact"
 _ROOM_ID_PATTERN = re.compile(
     r"^battle-(?P<format_id>[a-z0-9]+)-(?P<number>[1-9][0-9]*)$"
+)
+_SERVER_USER_ID_PATTERN = re.compile(r"^[a-z0-9]{1,18}$")
+_FORMAT_ID_PATTERN = re.compile(r"^[a-z0-9]{1,64}$")
+_PRIVATE_CHALLENGE_EVENT_PREFIXES = (
+    "|tugschallenge|",
+    "|tugschallengeend|",
+    "|tugschallengeroom|",
 )
 _MAX_ROOM_MESSAGES = 16
 _MAX_ROOM_EVENTS = 256
@@ -49,7 +60,89 @@ _GLOBAL_EVENT_PREFIXES = (
     "|pm|",
     "|queryresponse|",
     "|updateuser|",
+    *_PRIVATE_CHALLENGE_EVENT_PREFIXES,
 )
+
+
+def _private_protocol_error() -> NoReturn:
+    raise BlindPoolLifecycleError(
+        "private_challenge_event_invalid",
+        "Blind Ladder private challenge event is malformed",
+    ) from None
+
+
+def parse_exact_challenge_offer(message: str) -> BlindPoolChallenge:
+    """Parse one exact private TUGS challenge offer without normalization."""
+
+    if not isinstance(message, str) or "\n" in message or "\r" in message:
+        _private_protocol_error()
+    fields = message.split("|")
+    if (
+        len(fields) != 5
+        or fields[:2] != ["", "tugschallenge"]
+        or _SERVER_USER_ID_PATTERN.fullmatch(fields[2]) is None
+        or _FORMAT_ID_PATTERN.fullmatch(fields[3]) is None
+    ):
+        _private_protocol_error()
+    try:
+        token = BlindChallengeToken(fields[4])
+    except BlindPoolValidationError:
+        _private_protocol_error()
+    return BlindPoolChallenge(
+        challenger_id=fields[2],
+        challenger_name=fields[2],
+        format_id=fields[3],
+        source=_EXACT_CHALLENGE_SOURCE,
+        challenge_token=token,
+    )
+
+
+def parse_challenge_end(message: str) -> BlindChallengeEndEvent:
+    """Parse one exact private challenge invalidation."""
+
+    if not isinstance(message, str) or "\n" in message or "\r" in message:
+        _private_protocol_error()
+    fields = message.split("|")
+    if len(fields) != 3 or fields[:2] != ["", "tugschallengeend"]:
+        _private_protocol_error()
+    try:
+        token = BlindChallengeToken(fields[2])
+    except BlindPoolValidationError:
+        _private_protocol_error()
+    return BlindChallengeEndEvent(token)
+
+
+def parse_challenge_room_binding(message: str) -> BlindChallengeRoomBinding:
+    """Parse one exact private token-to-battle-room binding."""
+
+    if not isinstance(message, str) or "\n" in message or "\r" in message:
+        _private_protocol_error()
+    fields = message.split("|")
+    if (
+        len(fields) != 4
+        or fields[:2] != ["", "tugschallengeroom"]
+        or _ROOM_ID_PATTERN.fullmatch(fields[3]) is None
+    ):
+        _private_protocol_error()
+    try:
+        token = BlindChallengeToken(fields[2])
+    except BlindPoolValidationError:
+        _private_protocol_error()
+    return BlindChallengeRoomBinding(token, fields[3])
+
+
+def parse_private_challenge_event(
+    message: str,
+) -> BlindPoolChallenge | BlindChallengeEndEvent | BlindChallengeRoomBinding:
+    """Dispatch one exact private event to its strict parser."""
+
+    if isinstance(message, str) and message.startswith("|tugschallenge|"):
+        return parse_exact_challenge_offer(message)
+    if isinstance(message, str) and message.startswith("|tugschallengeend|"):
+        return parse_challenge_end(message)
+    if isinstance(message, str) and message.startswith("|tugschallengeroom|"):
+        return parse_challenge_room_binding(message)
+    _private_protocol_error()
 
 
 def normalize_showdown_identity(value: str) -> str:
@@ -124,6 +217,38 @@ class BlindChallengeTransport(Protocol):
         room: BlindPoolBattleRoom,
         event_lines: tuple[str, ...],
     ) -> None: ...
+
+
+@dataclass(frozen=True, repr=False)
+class BlindExactChallengeProtocol:
+    """Required exact-token control-plane operations grouped as one mode."""
+
+    enable_tokens: Callable[[], Awaitable[None]]
+    send_acceptance: Callable[[BlindPoolChallenge], Awaitable[None]]
+
+    def __post_init__(self) -> None:
+        if not callable(self.enable_tokens) or not callable(self.send_acceptance):
+            raise BlindPoolLifecycleError(
+                "exact_protocol_invalid",
+                "Blind Ladder exact challenge protocol is invalid",
+            ) from None
+
+    @classmethod
+    def from_transport(cls, transport: object) -> BlindExactChallengeProtocol:
+        return cls(
+            enable_tokens=getattr(transport, "enable_challenge_tokens", None),
+            send_acceptance=getattr(
+                transport,
+                "send_exact_challenge_acceptance",
+                None,
+            ),
+        )
+
+    def __repr__(self) -> str:
+        return "BlindExactChallengeProtocol(configured=True)"
+
+    def __reduce__(self) -> NoReturn:
+        raise TypeError("BlindExactChallengeProtocol serialization is disabled")
 
 
 class BlindTeamPreparer(Protocol):
@@ -226,6 +351,56 @@ class BlindRoomCorrelator:
             ) from None
         return tuple(candidate.event_lines)
 
+    def status_for(
+        self,
+        room_id: str,
+    ) -> tuple[str, BlindPoolBattleRoom | None]:
+        """Classify one exact room ID after buffered structural observation."""
+
+        room_match = _ROOM_ID_PATTERN.fullmatch(room_id)
+        if (
+            self._failed_closed
+            or room_match is None
+            or room_match.group("format_id") != self._challenge.format_id
+            or room_id in self._excluded
+        ):
+            return "invalid", None
+        candidate = self._candidates.get(room_id)
+        if candidate is None:
+            return "pending", None
+        if candidate.rejected:
+            return "invalid", None
+        if not candidate.initialized or set(candidate.players) != {"p1", "p2"}:
+            return "pending", None
+        bot_slots = [
+            slot
+            for slot, (player_id, _name) in candidate.players.items()
+            if player_id == self._bot_id
+        ]
+        opponent_slots = [
+            slot
+            for slot, (player_id, _name) in candidate.players.items()
+            if player_id == self._challenge.challenger_id
+        ]
+        if (
+            len(bot_slots) != 1
+            or len(opponent_slots) != 1
+            or bot_slots[0] == opponent_slots[0]
+        ):
+            return "invalid", None
+        opponent_id, opponent_name = candidate.players[opponent_slots[0]]
+        return (
+            "ready",
+            BlindPoolBattleRoom(
+                room_id=room_id,
+                format_id=candidate.format_id,
+                opponent_id=opponent_id,
+                opponent_name=opponent_name,
+                bot_slot=bot_slots[0],
+                opponent_slot=opponent_slots[0],
+            ),
+        )
+
     def feed(self, message: str) -> BlindPoolBattleRoom | None:
         if self._failed_closed:
             return None
@@ -326,6 +501,46 @@ class BlindRoomCorrelator:
         return None
 
 
+class BlindExactRoomCorrelator:
+    """Bounded room-first buffer whose only selector is an exact token binding."""
+
+    def __init__(
+        self,
+        *,
+        challenge: BlindPoolChallenge,
+        bot_username: str,
+        max_candidates: int = 8,
+    ) -> None:
+        self._rooms = BlindRoomCorrelator(
+            challenge=challenge,
+            bot_username=bot_username,
+            max_candidates=max_candidates,
+        )
+
+    def __repr__(self) -> str:
+        return "BlindExactRoomCorrelator(candidate_count={!r})".format(
+            self._rooms.candidate_count
+        )
+
+    def buffer(self, message: str) -> None:
+        """Retain each structurally valid room frame without selecting any room."""
+
+        for room_id, events in _room_frames(message):
+            payload = ">" + room_id
+            if events:
+                payload += "\n" + "\n".join(events)
+            self._rooms.feed(payload)
+
+    def status_for(
+        self,
+        room_id: str,
+    ) -> tuple[str, BlindPoolBattleRoom | None]:
+        return self._rooms.status_for(room_id)
+
+    def event_lines_for(self, room_id: str) -> tuple[str, ...]:
+        return self._rooms.event_lines_for(room_id)
+
+
 class BlindPoolLifecycleCoordinator:
     """One-at-a-time synthetic-safe challenge lifecycle coordinator."""
 
@@ -341,6 +556,7 @@ class BlindPoolLifecycleCoordinator:
         room_timeout_seconds: float = 30.0,
         monotonic: Callable[[], float] = time.monotonic,
         max_room_candidates: int = 8,
+        exact_protocol: BlindExactChallengeProtocol | None = None,
     ) -> None:
         if format_id != BLIND_LADDER_FORMAT or mode != BLIND_LADDER_MODE:
             raise BlindPoolLifecycleError(
@@ -356,6 +572,13 @@ class BlindPoolLifecycleCoordinator:
             raise BlindPoolLifecycleError(
                 "room_timeout_invalid",
                 "Blind Ladder room timeout must be finite and positive",
+            ) from None
+        if exact_protocol is not None and not isinstance(
+            exact_protocol, BlindExactChallengeProtocol
+        ):
+            raise BlindPoolLifecycleError(
+                "exact_protocol_invalid",
+                "Blind Ladder exact challenge protocol is invalid",
             ) from None
         if (
             isinstance(max_room_candidates, bool)
@@ -391,7 +614,11 @@ class BlindPoolLifecycleCoordinator:
         self._room_timeout = float(room_timeout_seconds)
         self._monotonic = monotonic
         self._max_room_candidates = max_room_candidates
-        self._active_challenge_identity: tuple[str, str] | None = None
+        self._exact_protocol = exact_protocol
+        self._exact_capability_enabled = False
+        self._active_challenge_identity: (
+            BlindChallengeToken | tuple[str, str] | None
+        ) = None
         self._active_challenge: BlindPoolChallenge | None = None
         self._startup_checked = False
         self._reconciliation_pending = False
@@ -400,6 +627,14 @@ class BlindPoolLifecycleCoordinator:
         self._execution_task: asyncio.Task[Any] | None = None
         self._resolved_room_ids: deque[str] = deque(maxlen=32)
         self._preaccept_room_ids: deque[str] = deque(maxlen=32)
+        # These bounded connection-local records suppress delayed duplicate
+        # delivery. Correctness primarily relies on the server's 128-bit token
+        # uniqueness, not indefinite client-side history.
+        self._exact_offer_metadata: deque[
+            tuple[BlindChallengeToken, tuple[str, str]]
+        ] = deque(maxlen=96)
+        self._pending_exact_challenges: deque[BlindPoolChallenge] = deque(maxlen=32)
+        self._resolved_challenge_tokens: deque[BlindChallengeToken] = deque(maxlen=64)
 
     def __repr__(self) -> str:
         return (
@@ -409,6 +644,10 @@ class BlindPoolLifecycleCoordinator:
             self._mode,
             self._active_challenge_identity is not None,
         )
+
+    @property
+    def exact_mode(self) -> bool:
+        return self._exact_protocol is not None
 
     async def startup(self) -> None:
         """Recover only unambiguous pre-accept state; quarantine accept_sent."""
@@ -571,6 +810,145 @@ class BlindPoolLifecycleCoordinator:
             raise cancellation
         return state
 
+    def _private_events(
+        self,
+        message: str,
+    ) -> tuple[
+        BlindPoolChallenge | BlindChallengeEndEvent | BlindChallengeRoomBinding,
+        ...,
+    ]:
+        events = []
+        if not isinstance(message, str):
+            return ()
+        for line in message.splitlines():
+            if not line.startswith(_PRIVATE_CHALLENGE_EVENT_PREFIXES):
+                continue
+            try:
+                event = parse_private_challenge_event(line)
+            except BlindPoolLifecycleError:
+                logger.warning("Ignored malformed Blind Ladder private event")
+                continue
+            events.append(event)
+        return tuple(events)
+
+    def _token_is_resolved(self, token: BlindChallengeToken) -> bool:
+        return any(known.matches(token) for known in self._resolved_challenge_tokens)
+
+    def _remember_resolved_token(self, token: BlindChallengeToken) -> None:
+        if not self._token_is_resolved(token):
+            self._resolved_challenge_tokens.append(token)
+        self._pending_exact_challenges = deque(
+            (
+                challenge
+                for challenge in self._pending_exact_challenges
+                if challenge.challenge_token is None
+                or not challenge.challenge_token.matches(token)
+            ),
+            maxlen=32,
+        )
+
+    def _record_exact_offer(self, challenge: BlindPoolChallenge) -> bool:
+        token = challenge.challenge_token
+        if token is None or challenge.source != _EXACT_CHALLENGE_SOURCE:
+            raise BlindPoolLifecycleError(
+                "exact_challenge_invalid",
+                "Blind Ladder exact challenge identity is invalid",
+            ) from None
+        if self._token_is_resolved(token):
+            logger.info("Ignored resolved Blind Ladder exact challenge event")
+            return False
+        metadata = (challenge.challenger_id, challenge.format_id)
+        for known_token, known_metadata in self._exact_offer_metadata:
+            if not known_token.matches(token):
+                continue
+            if known_metadata != metadata:
+                raise BlindPoolLifecycleError(
+                    "exact_challenge_metadata_conflict",
+                    "Blind Ladder exact challenge metadata conflicts",
+                ) from None
+            logger.info("Ignored duplicate Blind Ladder exact challenge offer")
+            return False
+        self._exact_offer_metadata.append((token, metadata))
+        return True
+
+    def _queue_exact_challenge(self, challenge: BlindPoolChallenge) -> None:
+        if len(self._pending_exact_challenges) >= 32:
+            raise BlindPoolLifecycleError(
+                "exact_challenge_queue_full",
+                "Blind Ladder exact challenge queue exceeded its safe bound",
+            ) from None
+        self._pending_exact_challenges.append(challenge)
+
+    def _next_pending_exact_challenge(self) -> BlindPoolChallenge | None:
+        while self._pending_exact_challenges:
+            challenge = self._pending_exact_challenges.popleft()
+            token = challenge.challenge_token
+            if token is not None and not self._token_is_resolved(token):
+                return challenge
+        return None
+
+    async def _enable_exact_protocol(self) -> None:
+        if self._exact_capability_enabled:
+            return
+        assert self._exact_protocol is not None
+        failed = False
+        try:
+            await self._exact_protocol.enable_tokens()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            failed = True
+        if failed:
+            raise BlindPoolLifecycleError(
+                "exact_protocol_enable_failed",
+                "Blind Ladder exact challenge protocol could not be enabled",
+            ) from None
+        self._exact_capability_enabled = True
+
+    async def _wait_for_exact_challenge(self) -> BlindPoolChallenge:
+        pending = self._next_pending_exact_challenge()
+        if pending is not None:
+            self._active_challenge_identity = pending.deduplication_identity
+            self._active_challenge = pending
+            return pending
+
+        while True:
+            receive_failed = False
+            try:
+                message = await self._transport.receive_message()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                receive_failed = True
+                message = ""
+            if receive_failed:
+                raise BlindPoolLifecycleError(
+                    "exact_challenge_receive_failed",
+                    "Blind Ladder exact challenge receive failed",
+                ) from None
+            for room_id in room_ids_in_message(message):
+                if room_id not in self._preaccept_room_ids:
+                    self._preaccept_room_ids.append(room_id)
+            for event in self._private_events(message):
+                if isinstance(event, BlindPoolChallenge):
+                    if not self._record_exact_offer(event):
+                        continue
+                    if event.format_id != self._format_id:
+                        assert event.challenge_token is not None
+                        self._remember_resolved_token(event.challenge_token)
+                        continue
+                    self._queue_exact_challenge(event)
+                elif isinstance(event, BlindChallengeEndEvent):
+                    self._remember_resolved_token(event.challenge_token)
+                # A room binding has no authority before an accepted attempt.
+            pending = self._next_pending_exact_challenge()
+            if pending is None:
+                continue
+            self._active_challenge_identity = pending.deduplication_identity
+            self._active_challenge = pending
+            logger.info("Received matching Blind Ladder exact challenge")
+            return pending
+
     async def _wait_for_challenge(self) -> BlindPoolChallenge:
         while True:
             message = await self._transport.receive_message()
@@ -596,6 +974,11 @@ class BlindPoolLifecycleCoordinator:
             return challenge
 
     def _clear_active_challenge(self) -> None:
+        if (
+            self._active_challenge is not None
+            and self._active_challenge.challenge_token is not None
+        ):
+            self._remember_resolved_token(self._active_challenge.challenge_token)
         self._active_challenge_identity = None
         self._active_challenge = None
 
@@ -624,6 +1007,16 @@ class BlindPoolLifecycleCoordinator:
         expected: BlindPoolReservation,
         phase: str,
     ) -> bool:
+        token_matches = (
+            actual is not None
+            and actual.challenge_token is None
+            and expected.challenge_token is None
+        ) or (
+            actual is not None
+            and actual.challenge_token is not None
+            and expected.challenge_token is not None
+            and actual.challenge_token.matches(expected.challenge_token)
+        )
         return (
             actual is not None
             and actual.reservation_id == expected.reservation_id
@@ -631,6 +1024,7 @@ class BlindPoolLifecycleCoordinator:
             and actual.cycle_number == expected.cycle_number
             and actual.position == expected.position
             and actual.phase == phase
+            and token_matches
         )
 
     @classmethod
@@ -771,6 +1165,109 @@ class BlindPoolLifecycleCoordinator:
             if room is not None:
                 return room, correlator.event_lines_for(room.room_id)
 
+    async def _wait_for_exact_matching_room(
+        self,
+        challenge: BlindPoolChallenge,
+    ) -> tuple[BlindPoolBattleRoom, tuple[str, ...]]:
+        token = challenge.challenge_token
+        if token is None:
+            raise BlindPoolReconciliationRequired(
+                "exact_challenge_identity_missing",
+                "Blind Ladder exact challenge identity is unavailable",
+            ) from None
+        correlator = BlindExactRoomCorrelator(
+            challenge=challenge,
+            bot_username=self._transport.username,
+            max_candidates=self._max_room_candidates,
+        )
+        preaccept_rooms = frozenset(
+            (*self._resolved_room_ids, *self._preaccept_room_ids)
+        )
+        bound_room_id: str | None = None
+        deadline = self._monotonic() + self._room_timeout
+        while True:
+            remaining = deadline - self._monotonic()
+            if remaining <= 0:
+                raise BlindPoolReconciliationRequired(
+                    "exact_room_binding_timed_out",
+                    "Blind Ladder exact room binding timed out; reconciliation is required",
+                ) from None
+            receive_outcome = "ok"
+            try:
+                message = await asyncio.wait_for(
+                    self._transport.receive_message(),
+                    timeout=remaining,
+                )
+            except asyncio.CancelledError:
+                raise
+            except TimeoutError:
+                receive_outcome = "timeout"
+                message = ""
+            except Exception:
+                receive_outcome = "failed"
+                message = ""
+            if receive_outcome == "timeout":
+                raise BlindPoolReconciliationRequired(
+                    "exact_room_binding_timed_out",
+                    "Blind Ladder exact room binding timed out; reconciliation is required",
+                ) from None
+            if receive_outcome == "failed":
+                raise BlindPoolReconciliationRequired(
+                    "exact_room_correlation_failed",
+                    "Blind Ladder exact room correlation is ambiguous",
+                ) from None
+
+            correlator.buffer(message)
+            for event in self._private_events(message):
+                if isinstance(event, BlindPoolChallenge):
+                    try:
+                        is_new = self._record_exact_offer(event)
+                    except BlindPoolLifecycleError:
+                        raise BlindPoolReconciliationRequired(
+                            "exact_challenge_metadata_conflict",
+                            "Blind Ladder exact challenge metadata conflicts",
+                        ) from None
+                    event_token = event.challenge_token
+                    assert event_token is not None
+                    if is_new:
+                        if event.format_id == self._format_id:
+                            self._queue_exact_challenge(event)
+                        else:
+                            self._remember_resolved_token(event_token)
+                elif isinstance(event, BlindChallengeEndEvent):
+                    if event.challenge_token.matches(token):
+                        self._remember_resolved_token(event.challenge_token)
+                        raise BlindPoolReconciliationRequired(
+                            "exact_challenge_ended_after_accept",
+                            "Blind Ladder exact challenge ended after acceptance; reconciliation is required",
+                        ) from None
+                    self._remember_resolved_token(event.challenge_token)
+                elif event.challenge_token.matches(token):
+                    if bound_room_id is None:
+                        bound_room_id = event.room_id
+                    elif bound_room_id != event.room_id:
+                        raise BlindPoolReconciliationRequired(
+                            "exact_room_binding_conflict",
+                            "Blind Ladder exact room binding conflicts; reconciliation is required",
+                        ) from None
+
+            if bound_room_id is None:
+                continue
+            if bound_room_id in preaccept_rooms:
+                raise BlindPoolReconciliationRequired(
+                    "exact_bound_room_preaccept",
+                    "Blind Ladder exact room binding references a pre-accept room",
+                ) from None
+            status, room = correlator.status_for(bound_room_id)
+            if status == "pending":
+                continue
+            if status != "ready" or room is None:
+                raise BlindPoolReconciliationRequired(
+                    "exact_bound_room_invalid",
+                    "Blind Ladder exact bound room failed validation",
+                ) from None
+            return room, correlator.event_lines_for(bound_room_id)
+
     async def run_once(self) -> Any:
         """Resolve one synthetic lifecycle and initialize only after commit."""
 
@@ -807,9 +1304,17 @@ class BlindPoolLifecycleCoordinator:
                 ) from None
             if not self._startup_checked:
                 await self.startup()
-            challenge = await self._wait_for_challenge()
+            if self._exact_protocol is None:
+                challenge = await self._wait_for_challenge()
+            else:
+                await self._enable_exact_protocol()
+                challenge = await self._wait_for_exact_challenge()
             try:
-                reservation = self._store.reserve_next()
+                if self._exact_protocol is None:
+                    reservation = self._store.reserve_next()
+                else:
+                    assert challenge.challenge_token is not None
+                    reservation = self._store.reserve_next(challenge.challenge_token)
             except (BlindPoolValidationError, asyncio.CancelledError) as error:
                 after = self._authoritative_snapshot()
                 if after.reservation is None:
@@ -836,6 +1341,18 @@ class BlindPoolLifecycleCoordinator:
                     raise BlindPoolLifecycleError(
                         "reservation_outcome_ambiguous",
                         "Blind Ladder reservation outcome requires startup recovery",
+                    ) from None
+
+            if self._exact_protocol is not None:
+                durable = self._authoritative_snapshot()
+                if not self._reservation_is(
+                    durable.reservation,
+                    reservation,
+                    RESERVATION_PHASE,
+                ):
+                    raise BlindPoolLifecycleError(
+                        "exact_reservation_not_durable",
+                        "Blind Ladder exact challenge reservation is not durable",
                     ) from None
 
             try:
@@ -872,7 +1389,14 @@ class BlindPoolLifecycleCoordinator:
                 raise asyncio.CancelledError
 
             try:
-                self._store.mark_accept_sent(reservation.reservation_id)
+                if self._exact_protocol is None:
+                    self._store.mark_accept_sent(reservation.reservation_id)
+                else:
+                    assert challenge.challenge_token is not None
+                    self._store.mark_accept_sent(
+                        reservation.reservation_id,
+                        challenge.challenge_token,
+                    )
             except (BlindPoolValidationError, asyncio.CancelledError) as error:
                 after = self._authoritative_snapshot()
                 if self._reservation_is(
@@ -920,11 +1444,17 @@ class BlindPoolLifecycleCoordinator:
                 await asyncio.sleep(0)
                 raise asyncio.CancelledError
 
+            acceptance_failed = False
             try:
-                await self._transport.send_challenge_acceptance(challenge)
+                if self._exact_protocol is None:
+                    await self._transport.send_challenge_acceptance(challenge)
+                else:
+                    await self._exact_protocol.send_acceptance(challenge)
             except asyncio.CancelledError:
                 raise
             except Exception:
+                acceptance_failed = True
+            if acceptance_failed:
                 logger.error(
                     "Blind Ladder acceptance is ambiguous; reconciliation required"
                 )
@@ -933,7 +1463,10 @@ class BlindPoolLifecycleCoordinator:
                     "Blind Ladder acceptance transmission is ambiguous",
                 ) from None
 
-            room, event_lines = await self._wait_for_matching_room(challenge)
+            if self._exact_protocol is None:
+                room, event_lines = await self._wait_for_matching_room(challenge)
+            else:
+                room, event_lines = await self._wait_for_exact_matching_room(challenge)
             try:
                 self._store.commit_room_created(reservation.reservation_id)
             except (BlindPoolValidationError, asyncio.CancelledError) as error:

@@ -75,7 +75,13 @@ _BLIND_ROOM_REPLAY_CHARACTER_LIMIT = 262_144
 def _redact_received_message(message: str) -> str:
     redacted_lines = []
     for line in message.splitlines():
-        if line.startswith("|challstr|"):
+        if line.startswith("|tugschallenge|"):
+            line = "|tugschallenge|<redacted>"
+        elif line.startswith("|tugschallengeend|"):
+            line = "|tugschallengeend|<redacted>"
+        elif line.startswith("|tugschallengeroom|"):
+            line = "|tugschallengeroom|<redacted>"
+        elif line.startswith("|challstr|"):
             line = "|challstr|<redacted>"
         elif line.startswith("|nametaken|"):
             line = "|nametaken|<redacted>"
@@ -399,6 +405,46 @@ class PSWebsocketClient:
             raise ValueError("Challenge acceptance requires a parsed challenge")
         message = ["/accept " + challenge.challenger_name]
         await self.send_message("", message)
+
+    async def enable_challenge_tokens(self):
+        """Opt this connection into the dormant exact-token event contract."""
+
+        await self.send_message("", ["/tugschallengetokens on"])
+
+    async def disable_challenge_tokens(self):
+        """Explicitly opt this connection out; callers control safe ordering."""
+
+        await self.send_message("", ["/tugschallengetokens off"])
+
+    async def send_exact_challenge_acceptance(
+        self,
+        challenge: BlindPoolChallenge,
+    ):
+        """Transmit exact acceptance without logging or retaining its token."""
+
+        if (
+            not isinstance(challenge, BlindPoolChallenge)
+            or challenge.challenge_token is None
+        ):
+            raise ValueError("Exact challenge acceptance requires an exact challenge")
+        message = [
+            "/accept {}, {}".format(
+                challenge.challenger_id,
+                challenge.challenge_token.wire_value(),
+            )
+        ]
+        cancelled = False
+        failed = False
+        try:
+            await self.send_message("", message)
+        except asyncio.CancelledError:
+            cancelled = True
+        except Exception:
+            failed = True
+        if cancelled:
+            raise asyncio.CancelledError from None
+        if failed:
+            raise ValueError("Exact challenge acceptance transmission failed") from None
 
     async def accept_challenge(self, battle_format, room_name):
         """Legacy compatibility wrapper retaining wait-and-accept behavior."""

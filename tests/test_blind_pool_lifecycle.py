@@ -35,6 +35,8 @@ from fp.websocket_client import PSWebsocketClient, _redact_received_message
 ROOT = Path(__file__).resolve().parents[1]
 PRIVATE_SENTINEL = "PHASE4-SYNTHETIC-PRIVATE-SENTINEL"
 CHALLENGE = "|pm|Synthetic Opponent|Blind Bot|/challenge|gen9tugs|||"
+EXACT_TOKEN = "a" * 32
+EXACT_CHALLENGE = "|tugschallenge|syntheticopponent|gen9tugs|" + EXACT_TOKEN
 CURRENT_SERVER_CHALLENGE = (
     "|pm|Synthetic Opponent|Blind Bot|/challenge gen9tugs|gen9tugs|||"
 )
@@ -53,6 +55,17 @@ def room_message(room_id: str = "battle-gen9tugs-401") -> str:
             "|player|p1|Synthetic Opponent|1|",
             "|player|p2|Blind Bot|1|",
         )
+    )
+
+
+def exact_room_message(
+    room_id: str = "battle-gen9tugs-401",
+    token: str = EXACT_TOKEN,
+) -> str:
+    return "{}\n|tugschallengeroom|{}|{}".format(
+        room_message(room_id),
+        token,
+        room_id,
     )
 
 
@@ -83,6 +96,7 @@ class FakeTransport:
         self.send_observer = send_observer
         self.sent = []
         self.handoffs = []
+        self.controls = []
         self.receive_calls = 0
         self._never = asyncio.Event()
 
@@ -101,6 +115,19 @@ class FakeTransport:
         raise ConnectionError(PRIVATE_SENTINEL)
 
     async def send_challenge_acceptance(self, challenge) -> None:
+        self.sent.append(challenge)
+        if self.send_observer is not None:
+            self.send_observer(challenge)
+        if self.send_error is not None:
+            raise self.send_error
+
+    async def enable_challenge_tokens(self) -> None:
+        self.controls.append("enable")
+
+    async def disable_challenge_tokens(self) -> None:
+        self.controls.append("disable")
+
+    async def send_exact_challenge_acceptance(self, challenge) -> None:
         self.sent.append(challenge)
         if self.send_observer is not None:
             self.send_observer(challenge)
@@ -1404,7 +1431,7 @@ class TestBlindPoolLifecycleStateTransitions(BlindPoolLifecycleFixture):
         self.store.initialize_or_load()
         reservation = self.store.reserve_next()
         state = self.store.snapshot()
-        self.assertEqual(1, state.schema_version)
+        self.assertEqual(2, state.schema_version)
         self.assertEqual("reserved", state.reservation.phase)
         self.assertEqual(reservation.team_id, state.cycle_order[state.next_index])
 

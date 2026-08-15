@@ -12,6 +12,7 @@ from typing import Any, NoReturn
 
 from .errors import BlindPoolValidationError
 from .models import (
+    BlindChallengeToken,
     BlindPoolBagState,
     BlindPoolRegistry,
     BlindPoolReservation,
@@ -20,11 +21,9 @@ from .models import (
 from .selection import BlindPoolSelectionSnapshot, coerce_selection_snapshot
 
 
-# The JSON shape is unchanged from Phase 3 and old ``reserved`` documents remain
-# valid, so extending the closed phase enum does not require a schema bump.
-# A pre-Phase-4 reader may correctly reject a durable ``accept_sent`` state;
-# this is forward compatibility for existing data, not rollback compatibility.
-STATE_SCHEMA_VERSION = 1
+# Phase 5D2 makes exact challenge identity an atomic part of every reservation.
+# Historical schema-v1 files are rejected rather than migrated or reinterpreted.
+STATE_SCHEMA_VERSION = 2
 RESERVATION_PHASE = "reserved"
 ACCEPT_SENT_PHASE = "accept_sent"
 RESERVATION_PHASES = frozenset({RESERVATION_PHASE, ACCEPT_SENT_PHASE})
@@ -51,7 +50,14 @@ _TOP_LEVEL_FIELDS = frozenset(
     }
 )
 _RESERVATION_FIELDS = frozenset(
-    {"reservation_id", "team_id", "cycle_number", "position", "phase"}
+    {
+        "reservation_id",
+        "team_id",
+        "cycle_number",
+        "position",
+        "phase",
+        "challenge_token",
+    }
 )
 _TEAM_ID_PATTERN = re.compile(r"^BL-[0-9]{3,}-v[1-9][0-9]*$")
 _FINGERPRINT_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -132,6 +138,22 @@ def _validate_reservation(
             "reservation_phase_invalid",
             "Blind Ladder reservation phase is unsupported",
         )
+    challenge_token_value = value["challenge_token"]
+    if challenge_token_value is None:
+        challenge_token = None
+    elif isinstance(challenge_token_value, str):
+        try:
+            challenge_token = BlindChallengeToken(challenge_token_value)
+        except BlindPoolValidationError:
+            _fail(
+                "state_challenge_token_invalid",
+                "Blind Ladder reservation challenge token is malformed",
+            )
+    else:
+        _fail(
+            "state_challenge_token_invalid",
+            "Blind Ladder reservation challenge token is malformed",
+        )
     if next_index == len(cycle_order):
         _fail(
             "state_reservation_invalid",
@@ -163,6 +185,7 @@ def _validate_reservation(
         cycle_number=cycle_number,
         position=next_index,
         phase=value["phase"],
+        challenge_token=challenge_token,
     )
 
 
@@ -319,6 +342,11 @@ def _state_document(state: BlindPoolBagState) -> dict[str, Any]:
             "cycle_number": reservation.cycle_number,
             "position": reservation.position,
             "phase": reservation.phase,
+            "challenge_token": (
+                None
+                if reservation.challenge_token is None
+                else reservation.challenge_token.wire_value()
+            ),
         },
     }
 

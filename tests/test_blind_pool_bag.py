@@ -475,7 +475,7 @@ class TestBlindPoolBagConfiguration(BlindPoolBagFixture):
 class TestBlindPoolBagInitialization(BlindPoolBagFixture):
     def test_first_initialization_persists_every_active_id_once(self):
         state = self.store().initialize_or_load()
-        self.assertEqual(1, state.schema_version)
+        self.assertEqual(2, state.schema_version)
         self.assertEqual(1, state.cycle_number)
         self.assertEqual(0, state.next_index)
         self.assertIsNone(state.last_consumed_id)
@@ -754,7 +754,7 @@ class TestBlindPoolBagStateValidation(BlindPoolBagFixture):
 
     def test_unsupported_schema_and_malformed_json_are_rejected(self):
         document = self.initialized_document()
-        document["schema_version"] = 2
+        document["schema_version"] = 1
         self.assert_document_error("state_schema_unsupported", document)
         self.state_path.write_text("{" + PRIVATE_SENTINEL, encoding="utf-8")
         self.assert_error("state_json_invalid", self.store().snapshot)
@@ -878,6 +878,7 @@ class TestBlindPoolBagStateValidation(BlindPoolBagFixture):
             "cycle_number": 1,
             "position": len(self.active_ids),
             "phase": "reserved",
+            "challenge_token": None,
         }
         self.assert_document_error("state_reservation_invalid", document)
 

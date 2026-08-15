@@ -20,7 +20,9 @@ from fp.data.blind_pool.errors import (
     BlindPoolReconciliationRequired,
     BlindPoolValidationError,
 )
+from fp.data.blind_pool.lifecycle import BlindExactChallengeProtocol
 from fp.data.blind_pool.models import (
+    BlindChallengeToken,
     BlindPoolBattleRoom,
     BlindPoolConfig,
     BlindPoolStateConfig,
@@ -30,16 +32,21 @@ from tests.test_blind_canonical_registry import (
     synthetic_sidecar,
 )
 from tests.test_blind_pool_lifecycle import (
-    CHALLENGE,
+    EXACT_CHALLENGE,
+    EXACT_TOKEN,
     FakeTransport,
     IdentityRandom,
-    room_message,
+    exact_room_message,
 )
 
 
 PRIVATE_PACKED = "PHASE5C2-SYNTHETIC-PACKED-SENTINEL"
 PRIVATE_ERROR = "PHASE5C2-SYNTHETIC-ERROR-SENTINEL"
 PRIVATE_SIDECAR = "PHASE5C2-SYNTHETIC-SIDECAR-SENTINEL"
+SECOND_EXACT_TOKEN = "b" * 32
+SECOND_EXACT_CHALLENGE = (
+    "|tugschallenge|syntheticopponent|gen9tugs|" + SECOND_EXACT_TOKEN
+)
 
 
 def battle_compatible_sidecar(team_id):
@@ -118,6 +125,7 @@ class RuntimeFixture(unittest.IsolatedAsyncioTestCase):
             transport,
             submit_team,
             initialize_battle,
+            exact_protocol=BlindExactChallengeProtocol.from_transport(transport),
             random_source=IdentityRandom(),
             reservation_id_factory=lambda: next(self.identifiers),
             lock_timeout_seconds=1,
@@ -148,7 +156,7 @@ class CanonicalRuntimeSuccessTests(RuntimeFixture):
     async def test_success_submits_exact_packed_then_initializes_fresh_projection(self):
         submitted = []
         initialized = []
-        transport = FakeTransport((CHALLENGE, room_message()))
+        transport = FakeTransport((EXACT_CHALLENGE, exact_room_message()))
 
         async def submit_team(packed):
             submitted.append(packed)
@@ -188,7 +196,7 @@ class CanonicalRuntimeSuccessTests(RuntimeFixture):
             submitted.append(packed)
 
         runtime = self.runtime(
-            FakeTransport((CHALLENGE, room_message())),
+            FakeTransport((EXACT_CHALLENGE, exact_room_message())),
             submit_team,
             self.successful_initializer,
         )
@@ -205,10 +213,13 @@ class CanonicalRuntimeSuccessTests(RuntimeFixture):
         runtime = self.runtime(
             FakeTransport(
                 (
-                    CHALLENGE,
-                    room_message(),
-                    CHALLENGE,
-                    room_message("battle-gen9tugs-402"),
+                    EXACT_CHALLENGE,
+                    exact_room_message(),
+                    SECOND_EXACT_CHALLENGE,
+                    exact_room_message(
+                        "battle-gen9tugs-402",
+                        SECOND_EXACT_TOKEN,
+                    ),
                 )
             ),
             submit_team,
@@ -224,20 +235,31 @@ class CanonicalRuntimeSuccessTests(RuntimeFixture):
 
     async def test_durable_order_uses_real_lifecycle_boundaries(self):
         events = []
+
+        def observe_accept(_challenge):
+            reservation = self.state_document()["reservation"]
+            self.assertEqual("accept_sent", reservation["phase"])
+            self.assertEqual(EXACT_TOKEN, reservation["challenge_token"])
+            events.append("accept")
+
         transport = FakeTransport(
-            (CHALLENGE, room_message()),
-            send_observer=lambda _challenge: events.append("accept"),
+            (EXACT_CHALLENGE, exact_room_message()),
+            send_observer=observe_accept,
         )
 
         async def submit_team(_packed):
             self.assertEqual("reserved", self.state_document()["reservation"]["phase"])
+            self.assertEqual(
+                EXACT_TOKEN,
+                self.state_document()["reservation"]["challenge_token"],
+            )
             events.append("submission")
 
         runtime = self.runtime(transport, submit_team, self.successful_initializer)
         original_mark = runtime._store.mark_accept_sent
 
-        def mark_accept_sent(reservation_id):
-            result = original_mark(reservation_id)
+        def mark_accept_sent(reservation_id, challenge_token=None):
+            result = original_mark(reservation_id, challenge_token)
             events.append("accept_sent")
             return result
 
@@ -275,8 +297,8 @@ class CanonicalRuntimeSuccessTests(RuntimeFixture):
 
     async def test_buffered_room_handoff_precedes_initializer_and_is_unchanged(self):
         request_line = '|request|{"rqid":1}'
-        payload = room_message() + "\n" + request_line
-        transport = FakeTransport((CHALLENGE, payload))
+        payload = exact_room_message() + "\n" + request_line
+        transport = FakeTransport((EXACT_CHALLENGE, payload))
         observed = []
 
         async def submit_team(_packed):
@@ -292,7 +314,7 @@ class CanonicalRuntimeSuccessTests(RuntimeFixture):
         self.assertTrue(observed[-1].endswith(request_line))
 
     async def test_real_battler_initializer_keeps_request_data_authoritative(self):
-        transport = FakeTransport((CHALLENGE, room_message()))
+        transport = FakeTransport((EXACT_CHALLENGE, exact_room_message()))
 
         async def submit_team(_packed):
             return None
@@ -376,12 +398,32 @@ class CanonicalRuntimeSuccessTests(RuntimeFixture):
             )
         )
         self.assertNotIn(PRIVATE_PACKED, repr(vars(battle)))
+        intended_values = (*vars(battle).values(), *vars(battle.user).values())
+        self.assertFalse(
+            any(isinstance(value, BlindChallengeToken) for value in intended_values)
+        )
+        self.assertNotIn(EXACT_TOKEN, repr(vars(battle)) + repr(vars(battle.user)))
 
 
 class CanonicalRuntimeFailureTests(RuntimeFixture):
+    async def test_runtime_construction_requires_explicit_exact_protocol(self):
+        transport = FakeTransport(())
+
+        async def submit_team(_packed):
+            return None
+
+        with self.assertRaises(TypeError):
+            CanonicalBlindRuntime(
+                self.state_config,
+                self.registry,
+                transport,
+                submit_team,
+                self.successful_initializer,
+            )
+
     async def assert_corruption_fails_preaccept(self, mutation):
         mutation()
-        transport = FakeTransport((CHALLENGE,))
+        transport = FakeTransport((EXACT_CHALLENGE,))
 
         async def submit_team(_packed):
             self.fail("corrupt artifact reached submission")
@@ -429,7 +471,7 @@ class CanonicalRuntimeFailureTests(RuntimeFixture):
         )
 
     async def test_submitter_failure_releases_before_accept_and_is_sanitized(self):
-        transport = FakeTransport((CHALLENGE,))
+        transport = FakeTransport((EXACT_CHALLENGE,))
 
         async def submit_team(_packed):
             raise RuntimeError(PRIVATE_ERROR)
@@ -443,7 +485,7 @@ class CanonicalRuntimeFailureTests(RuntimeFixture):
         self.assertFalse(runtime.retains_selection)
 
     async def test_submitter_cancellation_releases_and_clears_selection(self):
-        transport = FakeTransport((CHALLENGE,))
+        transport = FakeTransport((EXACT_CHALLENGE,))
 
         async def submit_team(_packed):
             raise asyncio.CancelledError(PRIVATE_ERROR)
@@ -486,7 +528,7 @@ class CanonicalRuntimeFailureTests(RuntimeFixture):
             raise RuntimeError(PRIVATE_ERROR)
 
         first_runtime = self.runtime(
-            FakeTransport((CHALLENGE,)),
+            FakeTransport((EXACT_CHALLENGE,)),
             failed_submit,
             self.successful_initializer,
         )
@@ -497,7 +539,7 @@ class CanonicalRuntimeFailureTests(RuntimeFixture):
             attempted.append(packed)
 
         restarted_runtime = self.runtime(
-            FakeTransport((CHALLENGE, room_message())),
+            FakeTransport((EXACT_CHALLENGE, exact_room_message())),
             successful_submit,
             self.successful_initializer,
         )
@@ -506,7 +548,7 @@ class CanonicalRuntimeFailureTests(RuntimeFixture):
         self.assertEqual(1, self.state_document()["next_index"])
 
     async def test_accept_sent_persistence_failure_releases_and_clears(self):
-        transport = FakeTransport((CHALLENGE,))
+        transport = FakeTransport((EXACT_CHALLENGE,))
 
         async def submit_team(_packed):
             return None
@@ -532,7 +574,7 @@ class CanonicalRuntimeFailureTests(RuntimeFixture):
 
     async def test_accept_send_ambiguity_quarantines_bag_but_clears_session(self):
         transport = FakeTransport(
-            (CHALLENGE,),
+            (EXACT_CHALLENGE,),
             send_error=RuntimeError(PRIVATE_ERROR),
         )
 
@@ -553,7 +595,7 @@ class CanonicalRuntimeFailureTests(RuntimeFixture):
         self.assertIsNone(self.state_document()["reservation"])
 
     async def test_initializer_failure_occurs_after_commit_and_clears_selection(self):
-        transport = FakeTransport((CHALLENGE, room_message()))
+        transport = FakeTransport((EXACT_CHALLENGE, exact_room_message()))
 
         async def submit_team(_packed):
             return None
@@ -570,7 +612,7 @@ class CanonicalRuntimeFailureTests(RuntimeFixture):
         self.assertFalse(runtime.retains_selection)
 
     async def test_initializer_cancellation_is_sanitized_after_commit(self):
-        transport = FakeTransport((CHALLENGE, room_message()))
+        transport = FakeTransport((EXACT_CHALLENGE, exact_room_message()))
 
         async def submit_team(_packed):
             return None
@@ -831,7 +873,7 @@ class CanonicalRuntimeSessionTests(RuntimeFixture):
             "canonical_runtime_reservation_invalid",
         )
 
-        reservation = runtime._store.reserve_next()
+        reservation = runtime._store.reserve_next(BlindChallengeToken("a" * 32))
         with self.assertRaises(BlindPoolLifecycleError) as mismatched:
             await runtime._prepare_reserved_team("BL-002-v1")
         self.assert_safe_error(
@@ -854,7 +896,7 @@ class CanonicalRuntimeSessionTests(RuntimeFixture):
         )
         await runtime.startup()
         runtime._session.begin_attempt()
-        reservation = runtime._store.reserve_next()
+        reservation = runtime._store.reserve_next(BlindChallengeToken("a" * 32))
         await runtime._prepare_reserved_team(reservation.team_id)
         self.assertTrue(runtime.retains_selection)
         runtime.close_attempt()

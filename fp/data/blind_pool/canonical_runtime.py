@@ -21,6 +21,7 @@ from .lifecycle import (
     BLIND_LADDER_FORMAT,
     BLIND_LADDER_MODE,
     BlindChallengeTransport,
+    BlindExactChallengeProtocol,
     BlindPoolLifecycleCoordinator,
 )
 from .models import BlindPoolBattleRoom, BlindPoolStateConfig
@@ -290,6 +291,7 @@ class CanonicalBlindRuntime:
         submit_team: CanonicalTeamSubmitter,
         initialize_battle: CanonicalBattleInitializer,
         *,
+        exact_protocol: BlindExactChallengeProtocol,
         random_source: ShuffleSource | None = None,
         reservation_id_factory: Callable[[], str] | None = None,
         lock_timeout_seconds: float = 5.0,
@@ -299,6 +301,11 @@ class CanonicalBlindRuntime:
         monotonic: Callable[[], float] | None = None,
         max_room_candidates: int = 8,
     ) -> None:
+        if not isinstance(exact_protocol, BlindExactChallengeProtocol):
+            raise _runtime_error(
+                "canonical_exact_protocol_required",
+                "Canonical Blind Ladder runtime requires exact challenge protocol",
+            ) from None
         selection = create_canonical_selection_snapshot(canonical_registry)
         self._store = BlindPoolBagStore.from_selection_snapshot(
             state_config,
@@ -325,6 +332,7 @@ class CanonicalBlindRuntime:
             self._store,
             transport,
             self._prepare_reserved_team,
+            exact_protocol=exact_protocol,
             **lifecycle_kwargs,
         )
         self._running = False
@@ -360,6 +368,7 @@ class CanonicalBlindRuntime:
             or reservation is None
             or reservation.phase != RESERVATION_PHASE
             or reservation.team_id != team_id
+            or reservation.challenge_token is None
         ):
             raise _runtime_error(
                 "canonical_runtime_reservation_invalid",

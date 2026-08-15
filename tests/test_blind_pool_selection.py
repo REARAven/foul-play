@@ -264,7 +264,7 @@ class CanonicalBagTests(SelectionFixture):
         self.assertEqual(expected, second.initialize_or_load())
         self.assertEqual(before, self.state_path.read_bytes())
 
-    def test_raw_initial_state_retains_exact_historical_json_shape(self):
+    def test_raw_initial_state_changes_only_to_authorized_schema_v2(self):
         raw = self.raw_registry()
         store = BlindPoolBagStore(
             self.state_config,
@@ -275,7 +275,7 @@ class CanonicalBagTests(SelectionFixture):
         store.initialize_or_load()
         self.assertEqual(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "registry_fingerprint": compute_registry_fingerprint(raw),
                 "cycle_number": 1,
                 "cycle_order": ["BL-001-v1", "BL-020-v1"],

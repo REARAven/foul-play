@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hmac
 from pathlib import Path
 import re
 from types import MappingProxyType
-from typing import Iterator, Mapping
+from typing import Iterator, Mapping, NoReturn
 
 from .errors import BlindPoolValidationError
 
@@ -14,6 +15,7 @@ from .errors import BlindPoolValidationError
 SCHEMA_VERSION = 1
 SUPPORTED_FORMAT_ID = "gen9tugs"
 OPAQUE_TEAM_ID_PATTERN = re.compile(r"^BL-[0-9]{3,}-v[1-9][0-9]*$")
+CHALLENGE_TOKEN_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 
 
 def is_valid_opaque_team_id(value: object) -> bool:
@@ -22,6 +24,56 @@ def is_valid_opaque_team_id(value: object) -> bool:
     return (
         isinstance(value, str) and OPAQUE_TEAM_ID_PATTERN.fullmatch(value) is not None
     )
+
+
+class BlindChallengeToken:
+    """One immutable exact server-issued challenge correlation token."""
+
+    __slots__ = ("_value",)
+
+    def __init__(self, value: str) -> None:
+        if (
+            not isinstance(value, str)
+            or CHALLENGE_TOKEN_PATTERN.fullmatch(value) is None
+        ):
+            raise BlindPoolValidationError(
+                "challenge_token_invalid",
+                "Blind Ladder challenge token is malformed",
+            ) from None
+        object.__setattr__(self, "_value", value)
+
+    def __setattr__(self, _name: str, _value: object) -> None:
+        raise AttributeError("BlindChallengeToken is immutable")
+
+    def __delattr__(self, _name: str) -> None:
+        raise AttributeError("BlindChallengeToken is immutable")
+
+    def __repr__(self) -> str:
+        return "BlindChallengeToken(configured=True)"
+
+    def __str__(self) -> str:
+        return repr(self)
+
+    def __reduce__(self) -> NoReturn:
+        raise TypeError("BlindChallengeToken serialization is disabled")
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, BlindChallengeToken):
+            return NotImplemented
+        return hmac.compare_digest(self._value, other._value)
+
+    def matches(self, other: BlindChallengeToken) -> bool:
+        """Compare two already validated tokens without data-dependent timing."""
+
+        return isinstance(other, BlindChallengeToken) and hmac.compare_digest(
+            self._value,
+            other._value,
+        )
+
+    def wire_value(self) -> str:
+        """Expose the exact value only at a private protocol/state boundary."""
+
+        return self._value
 
 
 @dataclass(frozen=True, repr=False)
@@ -145,6 +197,7 @@ class BlindPoolReservation:
     cycle_number: int
     position: int
     phase: str
+    challenge_token: BlindChallengeToken | None = field(default=None, repr=False)
 
     def __repr__(self) -> str:
         return (
@@ -187,11 +240,14 @@ class BlindPoolChallenge:
     challenger_name: str
     format_id: str
     source: str
+    challenge_token: BlindChallengeToken | None = field(default=None, repr=False)
 
     @property
-    def deduplication_identity(self) -> tuple[str, str]:
-        """No durable server challenge ID exists in the supported PM grammar."""
+    def deduplication_identity(self) -> BlindChallengeToken | tuple[str, str]:
+        """Use exact token identity when present and legacy PM identity otherwise."""
 
+        if self.challenge_token is not None:
+            return self.challenge_token
         return self.challenger_id, self.format_id
 
     def __repr__(self) -> str:
@@ -199,6 +255,42 @@ class BlindPoolChallenge:
             self.format_id,
             self.source,
         )
+
+    def __reduce__(self) -> NoReturn:
+        raise TypeError("BlindPoolChallenge serialization is disabled")
+
+
+@dataclass(frozen=True, repr=False)
+class BlindChallengeEndEvent:
+    """Private invalidation for one exact challenge token."""
+
+    challenge_token: BlindChallengeToken = field(repr=False)
+
+    def __repr__(self) -> str:
+        return "BlindChallengeEndEvent()"
+
+    def __str__(self) -> str:
+        return repr(self)
+
+    def __reduce__(self) -> NoReturn:
+        raise TypeError("BlindChallengeEndEvent serialization is disabled")
+
+
+@dataclass(frozen=True, repr=False)
+class BlindChallengeRoomBinding:
+    """Private exact-token binding to one structurally valid battle room."""
+
+    challenge_token: BlindChallengeToken = field(repr=False)
+    room_id: str
+
+    def __repr__(self) -> str:
+        return "BlindChallengeRoomBinding(room_id={!r})".format(self.room_id)
+
+    def __str__(self) -> str:
+        return repr(self)
+
+    def __reduce__(self) -> NoReturn:
+        raise TypeError("BlindChallengeRoomBinding serialization is disabled")
 
 
 @dataclass(frozen=True, repr=False)

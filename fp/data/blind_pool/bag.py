@@ -15,6 +15,7 @@ from .config import validate_blind_pool_state_config
 from .errors import BlindPoolValidationError
 from .locking import BlindPoolStateLock
 from .models import (
+    BlindChallengeToken,
     BlindPoolBagState,
     BlindPoolRegistry,
     BlindPoolReservation,
@@ -257,8 +258,19 @@ class BlindPoolBagStore:
         with self._lock():
             return load_blind_pool_bag_state(self._config, self._selection)
 
-    def reserve_next(self) -> BlindPoolReservation:
+    def reserve_next(
+        self,
+        challenge_token: BlindChallengeToken | None = None,
+    ) -> BlindPoolReservation:
         """Persist a reservation for the next unconsumed cycle position."""
+
+        if challenge_token is not None and not isinstance(
+            challenge_token, BlindChallengeToken
+        ):
+            raise BlindPoolValidationError(
+                "challenge_token_invalid",
+                "Blind Ladder challenge token is malformed",
+            ) from None
 
         with self._lock():
             state = load_blind_pool_bag_state(self._config, self._selection)
@@ -298,6 +310,7 @@ class BlindPoolBagStore:
                 cycle_number=state.cycle_number,
                 position=state.next_index,
                 phase=RESERVATION_PHASE,
+                challenge_token=challenge_token,
             )
             updated = replace(state, reservation=reservation)
             write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
@@ -342,7 +355,11 @@ class BlindPoolBagStore:
             ) from None
         return state.reservation
 
-    def mark_accept_sent(self, reservation_id: str) -> BlindPoolBagState:
+    def mark_accept_sent(
+        self,
+        reservation_id: str,
+        challenge_token: BlindChallengeToken | None = None,
+    ) -> BlindPoolBagState:
         """Persist that acceptance may now have been transmitted.
 
         This write-ahead marker is deliberately durable before a caller attempts
@@ -356,6 +373,14 @@ class BlindPoolBagStore:
                 reservation_id,
                 required_phase=RESERVATION_PHASE,
             )
+            if challenge_token is not None and (
+                reservation.challenge_token is None
+                or not reservation.challenge_token.matches(challenge_token)
+            ):
+                raise BlindPoolValidationError(
+                    "reservation_challenge_token_mismatch",
+                    "Blind Ladder reservation challenge identity does not match",
+                ) from None
             updated = replace(
                 state,
                 reservation=replace(reservation, phase=ACCEPT_SENT_PHASE),

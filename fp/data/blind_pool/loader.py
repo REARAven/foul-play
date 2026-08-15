@@ -20,6 +20,7 @@ from typing import Any, NoReturn
 from .config import _is_within, validate_blind_pool_config
 from .errors import BlindPoolValidationError
 from .models import (
+    OPAQUE_TEAM_ID_PATTERN,
     SCHEMA_VERSION,
     SUPPORTED_FORMAT_ID,
     BlindPoolConfig,
@@ -34,7 +35,7 @@ _TOP_LEVEL_FIELDS = frozenset(
     {"schema_version", "registry_version", "format_id", "entries"}
 )
 _ENTRY_FIELDS = frozenset({"team_id", "active", "team_file", "sha256"})
-_TEAM_ID_PATTERN = re.compile(r"^BL-[0-9]{3,}-v[1-9][0-9]*$")
+_TEAM_ID_PATTERN = OPAQUE_TEAM_ID_PATTERN
 _REGISTRY_VERSION_PATTERN = re.compile(r"^[0-9]+(?:\.[0-9]+)*$")
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _PORTABLE_PATH_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]*$")

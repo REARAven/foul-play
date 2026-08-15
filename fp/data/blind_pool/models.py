@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
 from types import MappingProxyType
 from typing import Iterator, Mapping
 
@@ -12,6 +13,15 @@ from .errors import BlindPoolValidationError
 
 SCHEMA_VERSION = 1
 SUPPORTED_FORMAT_ID = "gen9tugs"
+OPAQUE_TEAM_ID_PATTERN = re.compile(r"^BL-[0-9]{3,}-v[1-9][0-9]*$")
+
+
+def is_valid_opaque_team_id(value: object) -> bool:
+    """Return whether a value satisfies the shared opaque Blind Ladder ID contract."""
+
+    return (
+        isinstance(value, str) and OPAQUE_TEAM_ID_PATTERN.fullmatch(value) is not None
+    )
 
 
 @dataclass(frozen=True, repr=False)

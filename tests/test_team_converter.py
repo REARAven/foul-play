@@ -1,5 +1,6 @@
 import pytest
 
+from fp.teams import team_converter
 from fp.teams.team_converter import single_pokemon_export_to_dict
 
 
@@ -221,3 +222,48 @@ class TestSinglePokemonExportToDict:
         self.expected_pkmn_dict["tera_type"] = "water"
 
         assert self.expected_pkmn_dict == pkmn_dict
+
+
+class TestTeamExportParsing:
+    def test_whitespace_only_blank_lines_do_not_create_phantom_members(
+        self, monkeypatch
+    ):
+        export_string = (
+            "Pikachu @ Light Ball\r\n"
+            "Ability: Static\r\n"
+            "Timid Nature\r\n"
+            "- Thunderbolt\r\n"
+            "\r\n"
+            " \r\n"
+            "\t\r\n"
+            "Eevee @ Leftovers\r\n"
+            "Ability: Run Away\r\n"
+            "Jolly Nature\r\n"
+            "- Tackle\r\n"
+            "\r\n"
+            " \r\n"
+            "  \r\n"
+            "\t\r\n"
+        )
+
+        team_dict = team_converter.export_to_dict(export_string)
+
+        assert len(team_dict) == 2
+        assert [pkmn["species"] for pkmn in team_dict] == [
+            "pikachu",
+            "eevee",
+        ]
+
+        monkeypatch.setattr(
+            team_converter,
+            "json_to_packed",
+            lambda team: team,
+        )
+
+        packed_input = team_converter.export_to_packed(export_string)
+
+        assert len(packed_input) == 2
+        assert [pkmn["species"] for pkmn in packed_input] == [
+            "pikachu",
+            "eevee",
+        ]

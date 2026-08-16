@@ -109,10 +109,27 @@ def single_pokemon_export_to_dict(pkmn_export_string):
     return pkmn_dict
 
 
+def _split_team_members(export_string):
+    team_members = []
+    current_member = []
+
+    for line in export_string.splitlines():
+        if line.strip():
+            current_member.append(line)
+        elif current_member:
+            team_members.append("\n".join(current_member))
+            current_member = []
+
+    if current_member:
+        team_members.append("\n".join(current_member))
+
+    return team_members
+
+
 def export_to_packed(export_string):
     team_dict = list()
-    team_members = export_string.split("\n\n")
-    for pkmn in filter(None, team_members):
+    team_members = _split_team_members(export_string)
+    for pkmn in team_members:
         pkmn_dict = single_pokemon_export_to_dict(pkmn)
         team_dict.append(pkmn_dict)
 
@@ -121,8 +138,8 @@ def export_to_packed(export_string):
 
 def export_to_dict(export_string):
     team_dict = list()
-    team_members = export_string.split("\n\n")
-    for pkmn in filter(None, team_members):
+    team_members = _split_team_members(export_string)
+    for pkmn in team_members:
         pkmn_dict = single_pokemon_export_to_dict(pkmn)
         team_dict.append(pkmn_dict)
 

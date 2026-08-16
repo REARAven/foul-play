@@ -99,3 +99,26 @@ For example, to re-install the engine for generation 4:
 ```shell
 make poke_engine GEN=gen4
 ```
+
+## Offline Blind Ladder deployment maintenance
+
+The canonical Blind Ladder maintenance entrypoint is:
+
+```shell
+python -m fp.data.blind_pool.maintenance --help
+```
+
+Its `build-registry`, `preflight`, and `verify-artifacts` commands are offline.
+Stop the canonical runtime before using them: maintenance and runtime use the
+same deployment-owner guard.
+
+- `build-registry` reads an explicit opaque membership plan and canonical
+  metadata only. It does not inspect packed teams or sidecars, and it does not
+  repeat team-legality validation for already provisioned artifacts.
+- `preflight` observes deployment and state readiness without initializing,
+  recovering, or rewriting state.
+- `verify-artifacts` deliberately performs full verification of every active
+  canonical artifact, one at a time.
+
+These commands cannot resolve an accepted challenge state. Explicit accepted
+state reconciliation is reserved for a separately reviewed later phase.

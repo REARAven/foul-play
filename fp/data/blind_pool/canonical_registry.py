@@ -418,6 +418,15 @@ def _require_digest(value: Any, *, team_id: str | None = None) -> str:
     return value
 
 
+def is_valid_canonical_registry_version(value: object) -> bool:
+    """Return whether a value uses the committed registry-version grammar."""
+
+    return (
+        isinstance(value, str)
+        and _REGISTRY_VERSION_PATTERN.fullmatch(value) is not None
+    )
+
+
 def _parse_metadata(
     raw: bytes,
     *,
@@ -562,6 +571,54 @@ def _load_bound_metadata(
     return directory, metadata, final_snapshot
 
 
+def _load_validated_canonical_metadata_bytes(
+    private_root: str | Path,
+    team_id: str,
+    *,
+    repository_root: str | Path | None = None,
+) -> tuple[bytes, CanonicalArtifactMetadata]:
+    """Validate one exact metadata file without reading its packed/sidecar bodies."""
+
+    resolved_root = _resolve_private_root(
+        private_root,
+        repository_root=repository_root,
+    )
+    validated_team_id = _require_opaque_team_id(
+        team_id,
+        code="CANONICAL_ARTIFACT_PATH_INVALID",
+    )
+    directory = _resolve_artifact_directory(
+        resolved_root,
+        CANONICAL_ARTIFACT_SCHEMA_VERSION,
+        validated_team_id,
+    )
+    initial_snapshot = _artifact_directory_snapshot(
+        directory,
+        team_id=validated_team_id,
+    )
+    raw = _stable_read_bytes(
+        directory / "metadata.json",
+        code="CANONICAL_METADATA_INVALID",
+        team_id=validated_team_id,
+    )
+    metadata = _parse_metadata(
+        raw,
+        expected_team_id=validated_team_id,
+        expected_schema_version=CANONICAL_METADATA_SCHEMA_VERSION,
+    )
+    final_snapshot = _artifact_directory_snapshot(
+        directory,
+        team_id=validated_team_id,
+    )
+    if final_snapshot != initial_snapshot:
+        _fail(
+            "CANONICAL_ARTIFACT_CHANGED",
+            "Canonical artifact directory changed during verification",
+            team_id=validated_team_id,
+        )
+    return raw, metadata
+
+
 def _parse_registry_document(
     document: Any,
 ) -> tuple[
@@ -588,10 +645,7 @@ def _parse_registry_document(
             "Canonical runtime registry schema is unsupported",
         )
     registry_version = value["registry_version"]
-    if (
-        not isinstance(registry_version, str)
-        or _REGISTRY_VERSION_PATTERN.fullmatch(registry_version) is None
-    ):
+    if not is_valid_canonical_registry_version(registry_version):
         _fail(
             "CANONICAL_REGISTRY_INVALID",
             "Canonical registry deployment version is invalid",

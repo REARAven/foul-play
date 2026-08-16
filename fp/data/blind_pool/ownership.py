@@ -83,15 +83,22 @@ def _repository_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def _owner_path_candidate(state_path: Path) -> Path:
+    """Derive the one committed deployment-owner control path."""
+
+    return state_path.with_name(state_path.name + ".owner.lock")
+
+
 def _resolve_owner_path(
     config: BlindPoolStateConfig,
     *,
     repository_root: str | Path | None = None,
+    allow_missing_registry: bool = False,
 ) -> Path:
     """Derive and validate a sibling control file without exposing its path."""
 
     state_path = config.state_path
-    candidate = state_path.with_name(state_path.name + ".owner.lock")
+    candidate = _owner_path_candidate(state_path)
     invalid = False
     try:
         if candidate.exists() or candidate.is_symlink():
@@ -115,7 +122,15 @@ def _resolve_owner_path(
     protected_paths_invalid = False
     try:
         private_root = config.pool_config.private_root.resolve(strict=True)
-        registry_path = config.pool_config.registry_path.resolve(strict=True)
+        registry_candidate = config.pool_config.registry_path
+        if registry_candidate.exists() or registry_candidate.is_symlink():
+            registry_path = registry_candidate.resolve(strict=True)
+        elif allow_missing_registry:
+            registry_path = (
+                registry_candidate.parent.resolve(strict=True) / registry_candidate.name
+            )
+        else:
+            registry_path = registry_candidate.resolve(strict=True)
         transaction_lock = config.lock_path.resolve(strict=False)
         canonical_root = (private_root / "canonical").resolve(strict=False)
         repository = Path(repository_root or _repository_root()).resolve(strict=True)
@@ -224,10 +239,19 @@ class BlindPoolDeploymentOwnerGuard:
                 "Blind Ladder deployment owner configuration is invalid",
             )
         assert validated_config is not None
-        owner_path = _resolve_owner_path(
+        return _acquire_validated_blind_pool_deployment_owner(
             validated_config,
+            timeout_seconds=timeout_seconds,
             repository_root=repository_root,
         )
+
+    @classmethod
+    def _acquire_path(
+        cls,
+        owner_path: Path,
+        *,
+        timeout_seconds: float,
+    ) -> BlindPoolDeploymentOwnerGuard:
         lock = BlindPoolStateLock(owner_path, timeout_seconds=timeout_seconds)
         failed = False
         entered = False
@@ -314,4 +338,24 @@ def acquire_blind_pool_deployment_owner(
         config,
         timeout_seconds=timeout_seconds,
         repository_root=repository_root,
+    )
+
+
+def _acquire_validated_blind_pool_deployment_owner(
+    config: BlindPoolStateConfig,
+    *,
+    timeout_seconds: float = 0.25,
+    repository_root: str | Path | None = None,
+    allow_missing_registry: bool = False,
+) -> BlindPoolDeploymentOwnerGuard:
+    """Acquire the standard owner for already resolved internal path policy."""
+
+    owner_path = _resolve_owner_path(
+        config,
+        repository_root=repository_root,
+        allow_missing_registry=allow_missing_registry,
+    )
+    return BlindPoolDeploymentOwnerGuard._acquire_path(
+        owner_path,
+        timeout_seconds=timeout_seconds,
     )

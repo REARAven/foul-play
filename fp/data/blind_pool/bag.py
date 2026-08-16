@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import logging
 import random
 import re
@@ -20,6 +21,11 @@ from .models import (
     BlindPoolRegistry,
     BlindPoolReservation,
     BlindPoolStateConfig,
+)
+from .reconciliation import (
+    BlindReconciliationDisposition,
+    derive_reconciliation_case,
+    validate_reconciliation_case,
 )
 from .selection import (
     BlindPoolSelectionSnapshot,
@@ -405,12 +411,7 @@ class BlindPoolBagStore:
                 reservation_id,
                 required_phase=required_phase,
             )
-            updated = replace(
-                state,
-                next_index=state.next_index + 1,
-                last_consumed_id=reservation.team_id,
-                reservation=None,
-            )
+            updated = self._committed_state(state, reservation)
             write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
                 "Committed Blind Ladder selection cycle={} position={}".format(
@@ -480,7 +481,7 @@ class BlindPoolBagStore:
                 reservation_id,
                 required_phase=ACCEPT_SENT_PHASE,
             )
-            updated = replace(state, reservation=None)
+            updated = self._released_state(state)
             write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
             logger.info(
                 "Reconciled Blind Ladder no-room outcome cycle={} position={}".format(
@@ -489,3 +490,82 @@ class BlindPoolBagStore:
                 )
             )
             return updated
+
+    @staticmethod
+    def _committed_state(
+        state: BlindPoolBagState,
+        reservation: BlindPoolReservation,
+    ) -> BlindPoolBagState:
+        """Apply the one authoritative bag-consumption transition."""
+
+        return replace(
+            state,
+            next_index=state.next_index + 1,
+            last_consumed_id=reservation.team_id,
+            reservation=None,
+        )
+
+    @staticmethod
+    def _released_state(state: BlindPoolBagState) -> BlindPoolBagState:
+        """Clear a reservation without changing shuffled-bag progress."""
+
+        return replace(state, reservation=None)
+
+    def reconcile_accept_sent(
+        self,
+        expected_case: str,
+        disposition: BlindReconciliationDisposition,
+    ) -> BlindPoolBagState:
+        """Resolve one exact quarantined incident under the state transaction lock.
+
+        This is the narrow offline-maintenance transition. The ordinary runtime
+        release operation intentionally remains restricted to ``reserved``.
+        """
+
+        validated_case = validate_reconciliation_case(expected_case)
+        if not isinstance(disposition, BlindReconciliationDisposition):
+            raise BlindPoolValidationError(
+                "reconciliation_disposition_invalid",
+                "Blind Ladder reconciliation disposition is invalid",
+            ) from None
+        self._selection._require_canonical_reconciliation()
+
+        with self._lock():
+            state = load_blind_pool_bag_state(self._config, self._selection)
+            if state.reservation is None:
+                raise BlindPoolValidationError(
+                    "reconciliation_not_applicable",
+                    "Blind Ladder state has no accepted challenge to reconcile",
+                ) from None
+            reservation = self._active_reservation(
+                state,
+                state.reservation.reservation_id,
+                required_phase=ACCEPT_SENT_PHASE,
+            )
+            current_case = derive_reconciliation_case(state)
+            if not hmac.compare_digest(validated_case, current_case):
+                raise BlindPoolValidationError(
+                    "reconciliation_case_mismatch",
+                    "Blind Ladder reconciliation case no longer matches current state",
+                ) from None
+
+            if disposition is BlindReconciliationDisposition.CONSUMED:
+                updated = self._committed_state(state, reservation)
+            elif disposition is BlindReconciliationDisposition.NOT_CONSUMED:
+                updated = self._released_state(state)
+            else:  # pragma: no cover - guarded by the enum type above
+                raise AssertionError("unsupported reconciliation disposition")
+
+            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
+            persisted = load_blind_pool_bag_state(self._config, self._selection)
+            if persisted != updated:
+                raise BlindPoolValidationError(
+                    "reconciliation_post_write_verification_failed",
+                    "Blind Ladder reconciliation state verification failed",
+                ) from None
+            logger.info(
+                "Resolved Blind Ladder accepted challenge disposition={}".format(
+                    disposition.value
+                )
+            )
+            return persisted

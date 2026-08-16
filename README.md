@@ -108,7 +108,8 @@ The canonical Blind Ladder maintenance entrypoint is:
 python -m fp.data.blind_pool.maintenance --help
 ```
 
-Its `build-registry`, `preflight`, and `verify-artifacts` commands are offline.
+Its `build-registry`, `preflight`, `verify-artifacts`, `status`,
+`resolve-consumed`, and `resolve-not-consumed` commands are offline.
 Stop the canonical runtime before using them: maintenance and runtime use the
 same deployment-owner guard.
 
@@ -119,6 +120,24 @@ same deployment-owner guard.
   recovering, or rewriting state.
 - `verify-artifacts` deliberately performs full verification of every active
   canonical artifact, one at a time.
+- `status` reports the safe deployment state without changing it. An
+  `accept_sent` quarantine is reported as `recovery_required` with a derived
+  reconciliation case; the private challenge token is neither required nor
+  displayed.
 
-These commands cannot resolve an accepted challenge state. Explicit accepted
-state reconciliation is reserved for a separately reviewed later phase.
+To resolve an `accept_sent` quarantine, keep the runtime stopped and investigate
+the external operational evidence. If it proves the selection was consumed,
+run `resolve-consumed --case <case-id> --confirm consumed`; this advances the
+bag exactly as a normal room commitment would. Here, consumed means the
+selection counts as having produced the accepted battle attempt or room for bag
+accounting; it does not depend on battle completion, result, replay availability,
+or the later battle process. If it proves no room consumed the selection, run
+`resolve-not-consumed --case <case-id> --confirm not-consumed`; this releases
+the same selection for retry without advancing the bag. If the evidence remains
+ambiguous, leave the state unresolved. The case must match the exact current
+state, and the operator's explicit disposition—not an automatic evidence check—
+is authoritative.
+
+After resolution, run `status` or `preflight` again before restarting the
+runtime. These commands perform no network activity and do not display team
+contents. Do not inspect or copy the private token from the state file.

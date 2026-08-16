@@ -33,6 +33,8 @@ class BlindCanonicalErrorCategory(str, Enum):
     DEPLOYMENT_INTEGRITY = "deployment_integrity"
     DEPLOYMENT_OWNERSHIP = "deployment_ownership"
     RECOVERY_REQUIRED = "recovery_required"
+    RECONCILIATION_MISMATCH = "reconciliation_mismatch"
+    RECONCILIATION_NOT_APPLICABLE = "reconciliation_not_applicable"
     TRANSIENT_NETWORK = "transient_network"
 
 

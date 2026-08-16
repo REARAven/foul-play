@@ -133,6 +133,13 @@ class BlindPoolSelectionSnapshot:
     def __str__(self) -> str:
         return repr(self)
 
+    def _require_canonical_reconciliation(self) -> None:
+        if self._kind != _CANONICAL_SELECTION_KIND:
+            _fail(
+                "canonical_reconciliation_required",
+                "Offline reconciliation requires a canonical deployment",
+            )
+
     def _validate_collision_paths(
         self,
         *,

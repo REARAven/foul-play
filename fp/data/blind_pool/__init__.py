@@ -84,6 +84,12 @@ from .ownership import (
     BlindPoolDeploymentOwnerGuard,
     acquire_blind_pool_deployment_owner,
 )
+from .reconciliation import (
+    RECONCILIATION_CASE_DOMAIN,
+    BlindReconciliationDisposition,
+    derive_reconciliation_case,
+    validate_reconciliation_case,
+)
 from .selection import (
     BlindPoolSelectionSnapshot,
     create_canonical_selection_snapshot,
@@ -137,6 +143,7 @@ __all__ = (
     "BlindPoolReservation",
     "BlindPoolStateConfig",
     "BlindPoolValidationError",
+    "BlindReconciliationDisposition",
     "BlindRoomCorrelator",
     "CanonicalArtifactError",
     "CanonicalBlindRuntime",
@@ -147,6 +154,7 @@ __all__ = (
     "BlindCanonicalErrorCategory",
     "BlindCanonicalStartupConfig",
     "PreparedBlindCanonicalDeployment",
+    "RECONCILIATION_CASE_DOMAIN",
     "BlindPoolSelectionSnapshot",
     "compute_canonical_registry_fingerprint",
     "compute_registry_fingerprint",
@@ -154,6 +162,7 @@ __all__ = (
     "classify_blind_canonical_runtime_error",
     "create_canonical_selection_snapshot",
     "create_raw_selection_snapshot",
+    "derive_reconciliation_case",
     "get_active_blind_pool_entries",
     "get_blind_pool_entry_by_id",
     "load_blind_pool_config",
@@ -173,4 +182,5 @@ __all__ = (
     "validate_blind_pool_bag_state",
     "validate_blind_pool_registry",
     "validate_blind_pool_state_config",
+    "validate_reconciliation_case",
 )

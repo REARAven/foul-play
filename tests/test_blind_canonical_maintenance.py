@@ -405,16 +405,23 @@ class TestBlindCanonicalArtifactVerification(MaintenanceFixture):
 
 
 class TestBlindCanonicalMaintenanceCli(MaintenanceFixture):
-    def test_command_surface_contains_only_phase_5e2a_operations(self):
+    def test_command_surface_contains_only_reviewed_operations(self):
         help_text = maintenance._parser().format_help()
-        for command in ("build-registry", "preflight", "verify-artifacts"):
-            self.assertIn(command, help_text)
-        for forbidden in (
+        for command in (
+            "build-registry",
+            "preflight",
+            "verify-artifacts",
+            "status",
             "resolve-consumed",
             "resolve-not-consumed",
+        ):
+            self.assertIn(command, help_text)
+        for forbidden in (
             "release-accept-sent",
             "commit-accept-sent",
             "reset-state",
+            "edit-state",
+            "force-release",
         ):
             self.assertNotIn(forbidden, help_text)
 

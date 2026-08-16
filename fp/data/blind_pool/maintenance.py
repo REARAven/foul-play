@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass, field
 from enum import Enum
+import hmac
 from pathlib import Path
 import sys
 from typing import NoReturn, Sequence
@@ -22,6 +23,11 @@ from .models import BlindPoolConfig, BlindPoolStateConfig
 from .ownership import (
     BlindPoolDeploymentOwnerGuard,
     acquire_blind_pool_deployment_owner,
+)
+from .reconciliation import (
+    BlindReconciliationDisposition,
+    derive_reconciliation_case,
+    validate_reconciliation_case,
 )
 from .registry_generation import (
     CanonicalRegistryBuildConfig,
@@ -55,6 +61,7 @@ class BlindCanonicalInspectionResult:
     registry_version: str
     entry_count: int
     active_count: int
+    reconciliation_case: str | None = field(default=None, repr=False)
 
     @property
     def ready(self) -> bool:
@@ -81,6 +88,18 @@ class BlindCanonicalArtifactVerificationResult:
     def __repr__(self) -> str:
         return "BlindCanonicalArtifactVerificationResult(active_count={!r})".format(
             self.active_count
+        )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class BlindCanonicalReconciliationResult:
+    """Content-neutral result of one explicit offline disposition."""
+
+    disposition: BlindReconciliationDisposition
+
+    def __repr__(self) -> str:
+        return "BlindCanonicalReconciliationResult(disposition={!r})".format(
+            self.disposition.value
         )
 
 
@@ -165,6 +184,7 @@ def _inspect_state_read_only(
     store: BlindPoolBagStore,
     state_config: BlindPoolStateConfig,
 ) -> BlindCanonicalInspectionResult:
+    reconciliation_case: str | None = None
     if not state_config.state_path.exists():
         status = BlindCanonicalInspectionStatus.READY_FOR_FIRST_START
     else:
@@ -196,6 +216,17 @@ def _inspect_state_read_only(
             status = BlindCanonicalInspectionStatus.STARTUP_RECOVERY_AVAILABLE
         elif state.reservation.phase == ACCEPT_SENT_PHASE:
             status = BlindCanonicalInspectionStatus.RECOVERY_REQUIRED
+            case_invalid = False
+            try:
+                reconciliation_case = derive_reconciliation_case(state)
+            except BlindPoolValidationError:
+                case_invalid = True
+            if case_invalid:
+                _raise(
+                    BlindCanonicalErrorCategory.DEPLOYMENT_INTEGRITY,
+                    "blind_canonical_reconciliation_identity_invalid",
+                    "Canonical accepted challenge identity is invalid",
+                )
         else:
             _raise(
                 BlindCanonicalErrorCategory.DEPLOYMENT_INTEGRITY,
@@ -207,6 +238,7 @@ def _inspect_state_read_only(
         registry.registry_version,
         len(registry.entries),
         len(registry.active_ids),
+        reconciliation_case,
     )
 
 
@@ -341,6 +373,177 @@ def verify_active_blind_canonical_artifacts(
     return BlindCanonicalArtifactVerificationResult(verified)
 
 
+def _validated_state_config_for_owner(
+    config: BlindCanonicalStartupConfig,
+    *,
+    repository_root: str | Path | None,
+) -> BlindPoolStateConfig:
+    """Validate only the paths needed to acquire deployment ownership."""
+
+    if not isinstance(config, BlindCanonicalStartupConfig):
+        _raise(
+            BlindCanonicalErrorCategory.CONFIGURATION,
+            "blind_canonical_maintenance_config_invalid",
+            "Canonical maintenance configuration is invalid",
+        )
+    validation_failed = False
+    try:
+        state_config = validate_blind_pool_state_config(
+            BlindPoolStateConfig(
+                BlindPoolConfig(
+                    config.private_root,
+                    config.canonical_registry_path,
+                ),
+                config.state_path,
+            ),
+            repository_root=repository_root,
+        )
+    except BlindPoolValidationError:
+        validation_failed = True
+        state_config = None
+    if validation_failed:
+        _raise(
+            BlindCanonicalErrorCategory.DEPLOYMENT_INTEGRITY,
+            "blind_canonical_deployment_invalid",
+            "Canonical deployment validation failed",
+        )
+    assert state_config is not None
+    return state_config
+
+
+def _reconciliation_error(error_code: str) -> BlindCanonicalActivationError:
+    if error_code in {
+        "reconciliation_case_invalid",
+        "reconciliation_case_mismatch",
+    }:
+        return _error(
+            BlindCanonicalErrorCategory.RECONCILIATION_MISMATCH,
+            "blind_canonical_reconciliation_case_mismatch",
+            "Reconciliation case no longer matches current deployment state",
+        )
+    if error_code in {
+        "state_not_initialized",
+        "reservation_not_found",
+        "reservation_phase_transition_invalid",
+        "reconciliation_not_applicable",
+    }:
+        return _error(
+            BlindCanonicalErrorCategory.RECONCILIATION_NOT_APPLICABLE,
+            "blind_canonical_reconciliation_not_applicable",
+            "Canonical deployment has no accepted challenge to reconcile",
+        )
+    if error_code == "registry_fingerprint_mismatch":
+        return _error(
+            BlindCanonicalErrorCategory.RECOVERY_REQUIRED,
+            "blind_canonical_state_registry_mismatch",
+            "Canonical state requires explicit operator recovery",
+        )
+    return _error(
+        BlindCanonicalErrorCategory.DEPLOYMENT_INTEGRITY,
+        "blind_canonical_reconciliation_failed",
+        "Canonical reconciliation validation failed",
+    )
+
+
+def reconcile_blind_canonical_deployment(
+    config: BlindCanonicalStartupConfig,
+    expected_case: str,
+    disposition: BlindReconciliationDisposition,
+    *,
+    repository_root: str | Path | None = None,
+    owner_timeout_seconds: float = 0.25,
+) -> BlindCanonicalReconciliationResult:
+    """Apply one explicit offline disposition to the exact current incident."""
+
+    case_error_code: str | None = None
+    try:
+        validated_case = validate_reconciliation_case(expected_case)
+    except BlindPoolValidationError as error:
+        case_error_code = error.code
+        validated_case = None
+    if case_error_code is not None:
+        raise _reconciliation_error(case_error_code) from None
+    if not isinstance(disposition, BlindReconciliationDisposition):
+        _raise(
+            BlindCanonicalErrorCategory.CONFIGURATION,
+            "blind_canonical_reconciliation_disposition_invalid",
+            "Canonical reconciliation disposition is invalid",
+        )
+    assert validated_case is not None
+
+    owner_state_config = _validated_state_config_for_owner(
+        config,
+        repository_root=repository_root,
+    )
+    ownership_failed = False
+    try:
+        owner = acquire_blind_pool_deployment_owner(
+            owner_state_config,
+            timeout_seconds=owner_timeout_seconds,
+            repository_root=repository_root,
+        )
+    except BlindPoolValidationError:
+        ownership_failed = True
+        owner = None
+    if ownership_failed:
+        _raise(
+            BlindCanonicalErrorCategory.DEPLOYMENT_OWNERSHIP,
+            "blind_canonical_deployment_in_use",
+            "Canonical deployment is already active or unavailable",
+        )
+    assert owner is not None
+
+    operation_error: BlindCanonicalActivationError | None = None
+    unexpected_error: BaseException | None = None
+    result: BlindCanonicalReconciliationResult | None = None
+    try:
+        _registry, state_config, store = _load_immutable_deployment(
+            config,
+            repository_root=repository_root,
+        )
+        if state_config != owner_state_config:
+            _raise(
+                BlindCanonicalErrorCategory.DEPLOYMENT_INTEGRITY,
+                "blind_canonical_deployment_changed",
+                "Canonical deployment changed during reconciliation",
+            )
+        try:
+            observed_state = store.snapshot()
+            observed_case = derive_reconciliation_case(observed_state)
+            if not hmac.compare_digest(validated_case, observed_case):
+                raise BlindPoolValidationError(
+                    "reconciliation_case_mismatch",
+                    "Blind Ladder reconciliation case no longer matches current state",
+                ) from None
+            store.reconcile_accept_sent(validated_case, disposition)
+        except BlindPoolValidationError as error:
+            error_code = error.code
+        else:
+            error_code = None
+        if error_code is not None:
+            raise _reconciliation_error(error_code) from None
+        result = BlindCanonicalReconciliationResult(disposition)
+    except BlindCanonicalActivationError as error:
+        operation_error = error
+    except BaseException as error:
+        unexpected_error = error
+    finally:
+        try:
+            owner.close()
+        except BlindPoolValidationError:
+            operation_error = _error(
+                BlindCanonicalErrorCategory.DEPLOYMENT_OWNERSHIP,
+                "blind_canonical_owner_release_failed",
+                "Canonical deployment ownership could not be released",
+            )
+    if unexpected_error is not None:
+        raise unexpected_error
+    if operation_error is not None:
+        raise operation_error from None
+    assert result is not None
+    return result
+
+
 def _add_deployment_paths(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--private-root", required=True)
     parser.add_argument("--registry", required=True)
@@ -357,6 +560,31 @@ def _parser() -> argparse.ArgumentParser:
     build.add_argument("--plan", required=True)
     _add_deployment_paths(commands.add_parser("preflight"))
     _add_deployment_paths(commands.add_parser("verify-artifacts"))
+    _add_deployment_paths(commands.add_parser("status"))
+    consumed = commands.add_parser(
+        "resolve-consumed",
+        help=(
+            "Offline operator assertion that the quarantined selection should "
+            "be counted as consumed"
+        ),
+    )
+    _add_deployment_paths(consumed)
+    consumed.add_argument("--case", required=True)
+    consumed.add_argument("--confirm", required=True, choices=("consumed",))
+    not_consumed = commands.add_parser(
+        "resolve-not-consumed",
+        help=(
+            "Offline operator assertion that the quarantined selection should "
+            "be released for retry"
+        ),
+    )
+    _add_deployment_paths(not_consumed)
+    not_consumed.add_argument("--case", required=True)
+    not_consumed.add_argument(
+        "--confirm",
+        required=True,
+        choices=("not-consumed",),
+    )
     return parser
 
 
@@ -394,6 +622,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "verify-artifacts":
             result = verify_active_blind_canonical_artifacts(_startup_config(args))
             print("active artifacts verified: {}".format(result.active_count))
+            return 0
+        if args.command == "status":
+            result = inspect_blind_canonical_deployment(_startup_config(args))
+            print("deployment status: {}".format(result.status.value))
+            if result.reconciliation_case is not None:
+                print("reconciliation case: {}".format(result.reconciliation_case))
+            return 0
+        if args.command == "resolve-consumed":
+            result = reconcile_blind_canonical_deployment(
+                _startup_config(args),
+                args.case,
+                BlindReconciliationDisposition.CONSUMED,
+            )
+            print("reconciliation resolved: {}".format(result.disposition.value))
+            return 0
+        if args.command == "resolve-not-consumed":
+            result = reconcile_blind_canonical_deployment(
+                _startup_config(args),
+                args.case,
+                BlindReconciliationDisposition.NOT_CONSUMED,
+            )
+            print("reconciliation resolved: {}".format(result.disposition.value))
             return 0
         raise AssertionError("unreachable maintenance command")
     except BlindCanonicalActivationError as error:

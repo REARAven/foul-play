@@ -168,6 +168,44 @@ def choose_weighted_public_variant(
     return ordered[-1]
 
 
+def _compatible_family_candidates(
+    context: PublicPriorSearchContext,
+    identities: tuple[PublicPriorIdentity, ...],
+    *,
+    battle_format: str,
+    species_id: str,
+    level: int,
+    evidence: PublicEvidence | None,
+) -> tuple[tuple[PublicPriorIdentity, PublicSetVariant], ...]:
+    """Return compatible variants from one dataset family in layer order.
+
+    Identities sharing a ``dataset_id`` are version layers of one public prior
+    family. A variant ID from an earlier-selected layer shadows the same ID in
+    later layers, while unique variant IDs remain additive. This lets a small
+    newer public-prior delta extend an immutable older release without making
+    unrelated dataset families lose their existing precedence semantics.
+    """
+
+    candidates = []
+    shadowed_variant_ids = set()
+    for identity in identities:
+        if identity.format_id != battle_format:
+            continue
+        dataset = context.registry.get(identity)
+        if dataset is None or dataset.identity.format_id != battle_format:
+            continue
+        species = dataset.get_species(species_id)
+        if species is None:
+            continue
+        for variant in species.variants:
+            if variant.variant_id in shadowed_variant_ids:
+                continue
+            shadowed_variant_ids.add(variant.variant_id)
+            if public_variant_is_compatible(variant, species_id, level, evidence):
+                candidates.append((identity, variant))
+    return tuple(candidates)
+
+
 def select_public_prior_variant(
     context: PublicPriorSearchContext,
     *,
@@ -177,33 +215,49 @@ def select_public_prior_variant(
     evidence: PublicEvidence | None,
     rng: Any = None,
 ) -> PublicPriorSelectionResult:
-    """Apply configured dataset precedence and return one public variant."""
+    """Apply dataset-family precedence and layer compatible family variants."""
 
     if context.format_id != battle_format:
         return PublicPriorSelectionResult(
             PublicPriorSelectionStatus.CONTEXT_FORMAT_MISMATCH
         )
 
+    seen_dataset_ids = set()
     for identity in context.selected_identities:
         if identity.format_id != battle_format:
             continue
-        dataset = context.registry.get(identity)
-        if dataset is None or dataset.identity.format_id != battle_format:
+        if identity.dataset_id in seen_dataset_ids:
             continue
-        species = dataset.get_species(species_id)
-        if species is None:
-            continue
-        compatible = tuple(
-            variant
-            for variant in species.variants
-            if public_variant_is_compatible(variant, species_id, level, evidence)
+        seen_dataset_ids.add(identity.dataset_id)
+        family_identities = tuple(
+            candidate_identity
+            for candidate_identity in context.selected_identities
+            if candidate_identity.dataset_id == identity.dataset_id
         )
-        if not compatible:
+        candidates = _compatible_family_candidates(
+            context,
+            family_identities,
+            battle_format=battle_format,
+            species_id=species_id,
+            level=level,
+            evidence=evidence,
+        )
+        if not candidates:
             continue
+        selected_variant = choose_weighted_public_variant(
+            (variant for _, variant in candidates), rng=rng
+        )
+        if selected_variant is None:
+            continue
+        selected_identity = next(
+            candidate_identity
+            for candidate_identity, variant in candidates
+            if variant is selected_variant
+        )
         return PublicPriorSelectionResult(
             status=PublicPriorSelectionStatus.SELECTED,
-            dataset_identity=identity,
-            variant=choose_weighted_public_variant(compatible, rng=rng),
+            dataset_identity=selected_identity,
+            variant=selected_variant,
         )
 
     return PublicPriorSelectionResult(PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT)
@@ -251,7 +305,7 @@ def populate_pokemon_from_public_variant(
     """Populate one copied Pokémon while preserving all public runtime state.
 
     Returns ``False`` without mutation when existing moves would require a
-    five-move state.  A transformed runtime state is intentionally left intact
+    five-move state. A transformed runtime state is intentionally left intact
     and counts as handled so generic sampling cannot overwrite it.
     """
 

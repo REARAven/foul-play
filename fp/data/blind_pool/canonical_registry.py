@@ -118,6 +118,17 @@ def _stat_identity(info: os.stat_result) -> tuple[int, ...]:
     )
 
 
+def _directory_identity(info: os.stat_result) -> tuple[int, ...]:
+    """Compare stable directory identity without volatile filesystem metadata."""
+
+    return (
+        int(info.st_dev),
+        int(info.st_ino),
+        int(info.st_mode),
+        int(getattr(info, "st_file_attributes", 0)),
+    )
+
+
 def _same_file_object(left: os.stat_result, right: os.stat_result) -> bool:
     """Compare stable identity without relying on settling timestamp fields."""
 
@@ -157,7 +168,7 @@ def _resolve_existing_directory(
         unavailable = False
     if unavailable:
         _fail(code, "Canonical directory is unavailable", team_id=team_id)
-    if _stat_identity(before) != _stat_identity(after):
+    if _directory_identity(before) != _directory_identity(after):
         _fail(
             "CANONICAL_ARTIFACT_CHANGED",
             "Canonical directory changed during verification",
@@ -365,14 +376,14 @@ def _artifact_directory_snapshot(
             "Canonical artifact directory could not be inspected",
             team_id=team_id,
         )
-    if _stat_identity(directory_before) != _stat_identity(directory_after):
+    if _directory_identity(directory_before) != _directory_identity(directory_after):
         _fail(
             "CANONICAL_ARTIFACT_CHANGED",
             "Canonical artifact directory changed during verification",
             team_id=team_id,
         )
     return _DirectorySnapshot(
-        directory_identity=_stat_identity(directory_after),
+        directory_identity=_directory_identity(directory_after),
         entries=tuple(sorted(entries)),
     )
 

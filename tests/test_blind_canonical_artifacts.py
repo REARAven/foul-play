@@ -7,9 +7,11 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
+from fp.data.blind_pool import canonical_registry
 from fp.data.blind_pool.canonical_artifacts import load_canonical_team_artifact
 from fp.data.blind_pool.canonical_models import (
     CanonicalArtifactError,
@@ -29,6 +31,22 @@ from tests.test_blind_canonical_registry import (
 
 
 PRIVATE_SENTINEL = "synthetic-private-sentinel-5c1"
+
+
+def stat_with(info, **overrides):
+    values = {
+        "st_dev": info.st_dev,
+        "st_ino": info.st_ino,
+        "st_mode": info.st_mode,
+        "st_size": info.st_size,
+        "st_mtime": info.st_mtime,
+        "st_ctime": info.st_ctime,
+        "st_mtime_ns": getattr(info, "st_mtime_ns", int(info.st_mtime * 1_000_000_000)),
+        "st_ctime_ns": getattr(info, "st_ctime_ns", int(info.st_ctime * 1_000_000_000)),
+        "st_file_attributes": getattr(info, "st_file_attributes", 0),
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
 
 
 def rebind_metadata(fixture, team_id, *, metadata_updates=None):
@@ -231,6 +249,95 @@ class CanonicalArtifactTestCase(unittest.TestCase):
             return MutatingReader(source) if path == target else source
 
         with mock.patch.object(Path, "open", patched_open):
+            self.assert_code(
+                "CANONICAL_ARTIFACT_CHANGED",
+                lambda: _stable_read_bytes(target, code="CANONICAL_PACKED_INVALID"),
+            )
+
+    def test_artifact_directory_snapshot_ignores_volatile_directory_fields(self):
+        directory, _ = self.fixture.add_artifact("BL-001-v1")
+        original = os.lstat(directory)
+        variants = (
+            {"st_size": original.st_size + 4096},
+            {
+                "st_mtime": original.st_mtime + 10,
+                "st_ctime": original.st_ctime + 20,
+                "st_mtime_ns": original.st_mtime_ns + 10_000_000_000,
+                "st_ctime_ns": original.st_ctime_ns + 20_000_000_000,
+            },
+        )
+        for changes in variants:
+            with self.subTest(fields=tuple(changes)):
+                with mock.patch.object(
+                    canonical_registry.os,
+                    "lstat",
+                    side_effect=(original, stat_with(original, **changes)),
+                ):
+                    snapshot = canonical_registry._artifact_directory_snapshot(
+                        directory,
+                        team_id="BL-001-v1",
+                    )
+                self.assertEqual(3, len(snapshot.entries))
+
+    def test_artifact_directory_snapshot_rejects_identity_transitions(self):
+        directory, _ = self.fixture.add_artifact("BL-001-v1")
+        original = os.lstat(directory)
+        transitions = (
+            {"st_ino": original.st_ino + 1},
+            {
+                "st_file_attributes": getattr(original, "st_file_attributes", 0)
+                | canonical_registry._REPARSE_POINT,
+            },
+        )
+        for changes in transitions:
+            with self.subTest(fields=tuple(changes)):
+                with mock.patch.object(
+                    canonical_registry.os,
+                    "lstat",
+                    side_effect=(original, stat_with(original, **changes)),
+                ):
+                    self.assert_code(
+                        "CANONICAL_ARTIFACT_CHANGED",
+                        lambda: canonical_registry._artifact_directory_snapshot(
+                            directory,
+                            team_id="BL-001-v1",
+                        ),
+                    )
+
+    def test_child_file_object_replacement_between_snapshots_fails_closed(self):
+        directory, _ = self.fixture.add_artifact("BL-001-v1")
+        metadata_path = directory / "metadata.json"
+        packed_path = directory / "packed.txt"
+        real_read = canonical_registry._stable_read_bytes
+        replaced = False
+
+        def replacing_read(path, **options):
+            nonlocal replaced
+            raw = real_read(path, **options)
+            if path == metadata_path and not replaced:
+                replacement = directory / "packed.replacement"
+                replacement.write_bytes(packed_path.read_bytes())
+                os.replace(replacement, packed_path)
+                replaced = True
+            return raw
+
+        with mock.patch.object(
+            canonical_registry,
+            "_stable_read_bytes",
+            side_effect=replacing_read,
+        ):
+            self.assert_code("CANONICAL_ARTIFACT_CHANGED", self.fixture.load)
+
+    def test_stable_read_detects_regular_file_object_replacement(self):
+        target = self.fixture.base / "stable-replacement.bin"
+        target.write_bytes(b"stable-content")
+        original = os.lstat(target)
+        replacement = stat_with(original, st_ino=original.st_ino + 1)
+        with mock.patch.object(
+            canonical_registry.os,
+            "lstat",
+            side_effect=(original, replacement),
+        ):
             self.assert_code(
                 "CANONICAL_ARTIFACT_CHANGED",
                 lambda: _stable_read_bytes(target, code="CANONICAL_PACKED_INVALID"),

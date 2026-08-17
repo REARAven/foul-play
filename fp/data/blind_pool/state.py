@@ -387,8 +387,16 @@ def write_blind_pool_bag_state_atomic(
     config: BlindPoolStateConfig,
     state: BlindPoolBagState,
     registry: BlindPoolSelectionSnapshot | BlindPoolRegistry,
+    *,
+    replace_existing: bool = True,
 ) -> None:
-    """Replace state from a flushed unique sibling file without in-place writes."""
+    """Publish state from a flushed unique sibling without in-place writes."""
+
+    if type(replace_existing) is not bool:
+        _fail(
+            "atomic_state_write_failed",
+            "Blind Ladder state publication policy is invalid",
+        )
 
     try:
         validated_state = validate_blind_pool_bag_state(
@@ -422,8 +430,19 @@ def write_blind_pool_bag_state_atomic(
             output.write(payload)
             output.flush()
             os.fsync(output.fileno())
-        os.replace(temporary_path, config.state_path)
-        temporary_path = None
+        if replace_existing:
+            os.replace(temporary_path, config.state_path)
+            temporary_path = None
+        else:
+            try:
+                os.link(temporary_path, config.state_path)
+            except FileExistsError:
+                _fail(
+                    "state_target_exists",
+                    "Blind Ladder target state already exists",
+                )
+            temporary_path.unlink()
+            temporary_path = None
         _fsync_directory(config.state_path.parent)
     except (OSError, UnicodeError):
         _fail("atomic_state_write_failed", "Blind Ladder state could not be persisted")

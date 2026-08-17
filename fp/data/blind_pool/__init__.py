@@ -80,6 +80,10 @@ from .models import (
     BlindPoolReservation,
     BlindPoolStateConfig,
 )
+from .migration import (
+    BlindPoolExpansionMigrationResult,
+    migrate_blind_canonical_pool_expansion,
+)
 from .ownership import (
     BlindPoolDeploymentOwnerGuard,
     acquire_blind_pool_deployment_owner,
@@ -136,6 +140,7 @@ __all__ = (
     "BlindPoolChallenge",
     "BlindPoolConfig",
     "BlindPoolEntry",
+    "BlindPoolExpansionMigrationResult",
     "BlindPoolLifecycleError",
     "BlindPoolLifecycleCoordinator",
     "BlindPoolReconciliationRequired",
@@ -171,6 +176,7 @@ __all__ = (
     "load_canonical_runtime_registry",
     "load_blind_canonical_startup_config",
     "load_canonical_team_artifact",
+    "migrate_blind_canonical_pool_expansion",
     "normalize_showdown_identity",
     "parse_challenge_end",
     "parse_challenge_room_binding",

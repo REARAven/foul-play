@@ -20,6 +20,7 @@ from .canonical_registry import load_canonical_runtime_registry
 from .config import validate_blind_pool_state_config
 from .errors import BlindPoolValidationError
 from .models import BlindPoolConfig, BlindPoolStateConfig
+from .migration import migrate_blind_canonical_pool_expansion
 from .ownership import (
     BlindPoolDeploymentOwnerGuard,
     acquire_blind_pool_deployment_owner,
@@ -550,6 +551,12 @@ def _add_deployment_paths(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--state", required=True)
 
 
+def _add_expansion_paths(parser: argparse.ArgumentParser, prefix: str) -> None:
+    parser.add_argument("--{}-private-root".format(prefix), required=True)
+    parser.add_argument("--{}-registry".format(prefix), required=True)
+    parser.add_argument("--{}-state".format(prefix), required=True)
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Offline canonical Blind Ladder deployment maintenance",
@@ -561,6 +568,9 @@ def _parser() -> argparse.ArgumentParser:
     _add_deployment_paths(commands.add_parser("preflight"))
     _add_deployment_paths(commands.add_parser("verify-artifacts"))
     _add_deployment_paths(commands.add_parser("status"))
+    expansion = commands.add_parser("migrate-expansion")
+    _add_expansion_paths(expansion, "source")
+    _add_expansion_paths(expansion, "target")
     consumed = commands.add_parser(
         "resolve-consumed",
         help=(
@@ -593,6 +603,17 @@ def _startup_config(args: argparse.Namespace) -> BlindCanonicalStartupConfig:
         Path(args.private_root),
         Path(args.registry),
         Path(args.state),
+    )
+
+
+def _expansion_config(
+    args: argparse.Namespace,
+    prefix: str,
+) -> BlindCanonicalStartupConfig:
+    return BlindCanonicalStartupConfig(
+        Path(getattr(args, "{}_private_root".format(prefix))),
+        Path(getattr(args, "{}_registry".format(prefix))),
+        Path(getattr(args, "{}_state".format(prefix))),
     )
 
 
@@ -629,6 +650,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             if result.reconciliation_case is not None:
                 print("reconciliation case: {}".format(result.reconciliation_case))
             return 0
+        if args.command == "migrate-expansion":
+            result = migrate_blind_canonical_pool_expansion(
+                _expansion_config(args, "source"),
+                _expansion_config(args, "target"),
+            )
+            print("expansion migration: complete")
+            print("source active: {}".format(result.source_active_count))
+            print("target active: {}".format(result.target_active_count))
+            print(
+                "consumed preserved: {}".format(
+                    result.consumed_count_preserved,
+                )
+            )
+            print("remaining: {}".format(result.remaining_count))
+            print("target registry version: {}".format(result.target_registry_version))
+            return 0
         if args.command == "resolve-consumed":
             result = reconcile_blind_canonical_deployment(
                 _startup_config(args),
@@ -651,6 +688,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "{}: {}".format(error.category.value, error.code),
             file=sys.stderr,
         )
+        return 2
+    except BlindPoolValidationError as error:
+        print("migration: {}".format(error.code), file=sys.stderr)
         return 2
 
 

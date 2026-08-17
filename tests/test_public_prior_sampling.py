@@ -355,6 +355,108 @@ class TestContextFallbackAndPrecedence(unittest.TestCase):
         choose_weighted_public_variant(variants, _FixedRng(0.5))
         self.assertEqual(before, tuple(variant.weight for variant in variants))
 
+    def test_18a_same_dataset_family_layers_one_weighted_pool(self):
+        earlier_variant = _variant("earlier", weight=1, item="lightball")
+        later_variant = _variant("later", weight=3, item="choicescarf")
+        earlier = _dataset("family", version="2", variants=(earlier_variant,))
+        later = _dataset("family", version="1", variants=(later_variant,))
+        context = _context(
+            earlier,
+            later,
+            selected=(earlier.identity, later.identity),
+        )
+        before = (earlier_variant.weight, later_variant.weight)
+
+        first = _selected(context, rng=_FixedRng(0))
+        last = _selected(context, rng=_FixedRng(0.99))
+
+        self.assertEqual(
+            (earlier.identity, "earlier"),
+            (first.dataset_identity, first.variant.variant_id),
+        )
+        self.assertEqual(
+            (later.identity, "later"), (last.dataset_identity, last.variant.variant_id)
+        )
+        self.assertEqual(before, (earlier_variant.weight, later_variant.weight))
+
+    def test_18b_earlier_family_layer_shadows_duplicate_variant_id(self):
+        earlier = _dataset(
+            "family",
+            version="2",
+            variants=(_variant("duplicate", weight=1, item="lightball"),),
+        )
+        later = _dataset(
+            "family",
+            version="1",
+            variants=(
+                _variant(
+                    "duplicate",
+                    weight=100,
+                    item="choicescarf",
+                    moves=("quickattack", "irontail", "nuzzle", "protect"),
+                ),
+            ),
+        )
+        context = _context(
+            earlier,
+            later,
+            selected=(earlier.identity, later.identity),
+        )
+
+        selected = _selected(context, rng=_FixedRng(0.99))
+        shadowed_only = _selected(context, _evidence(moves=("quickattack",)))
+
+        self.assertEqual(earlier.identity, selected.dataset_identity)
+        self.assertEqual("lightball", selected.variant.item_id)
+        self.assertIs(
+            PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT,
+            shadowed_only.status,
+        )
+
+    def test_18c_layered_family_applies_all_public_evidence_cumulatively(self):
+        earlier = _dataset(
+            "family",
+            version="2",
+            variants=(_variant("newer"),),
+        )
+        later = _dataset(
+            "family",
+            version="1",
+            variants=(
+                _variant(
+                    "older",
+                    item="choicescarf",
+                    ability="lightningrod",
+                    moves=("quickattack", "irontail", "nuzzle", "protect"),
+                ),
+            ),
+        )
+        context = _context(
+            earlier,
+            later,
+            selected=(earlier.identity, later.identity),
+        )
+        evidence = _evidence(
+            species="pikachu",
+            level=50,
+            moves=("quickattack", "nuzzle"),
+            item="choicescarf",
+            ability="lightningrod",
+        )
+
+        selected = _selected(context, evidence)
+
+        self.assertEqual(later.identity, selected.dataset_identity)
+        self.assertEqual("older", selected.variant.variant_id)
+        self.assertIs(
+            PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT,
+            _selected(context, replace(evidence, species_id="raichu")).status,
+        )
+        self.assertIs(
+            PublicPriorSelectionStatus.NO_COMPATIBLE_VARIANT,
+            _selected(context, evidence, level=100).status,
+        )
+
 
 class TestCompatibilityAndFirewall(unittest.TestCase):
     def setUp(self):

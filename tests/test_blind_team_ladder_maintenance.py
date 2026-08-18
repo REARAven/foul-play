@@ -7,12 +7,47 @@ from pathlib import Path
 import unittest
 from unittest import mock
 
+from fp.data.blind_pool.bag import BlindPoolBagStore
+from fp.data.blind_pool.config import validate_blind_pool_state_config
 from fp.data.blind_pool.errors import BlindPoolValidationError
+from fp.data.blind_pool.leaderboard import (
+    BlindTeamPublicIdentity,
+    PUBLIC_TEAM_KIND_PLAYER,
+)
+from fp.data.blind_pool.models import (
+    BlindChallengeToken,
+    BlindPoolConfig,
+    BlindPoolStateConfig,
+)
+from fp.data.blind_pool.ownership import acquire_blind_pool_deployment_owner
+from fp.data.blind_pool.selection import create_canonical_selection_snapshot
 from fp.data.blind_pool.team_ladder_maintenance import main
+from fp.data.blind_pool.team_public_registry import (
+    BlindTeamPublicRegistryStore,
+    validate_team_public_registry_config,
+)
+from fp.data.blind_pool.team_rating_state import (
+    BlindTeamRatingStateStore,
+    validate_team_rating_state_config,
+)
+from fp.data.blind_pool.team_result_ledger import (
+    TEAM_OUTCOME_A_WIN,
+    BlindTeamResultLedgerStore,
+    validate_team_result_ledger_config,
+)
 from tests.test_blind_canonical_registry import SyntheticCanonicalFixture
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PLAYER_TEAM_ID = "player-team:" + "1" * 32
+
+
+class IdentityRandom:
+    def shuffle(self, values):
+        return None
+
+    def randrange(self, start, stop=None):
+        return start
 
 
 class TeamLadderMaintenanceTests(unittest.TestCase):
@@ -24,7 +59,19 @@ class TeamLadderMaintenanceTests(unittest.TestCase):
         state_dir = self.fixture.private_root / "state"
         state_dir.mkdir()
         self.selection = state_dir / "selection.json"
-        self.selection.write_text("{}", encoding="utf-8")
+        self.registry = self.fixture.load()
+        self.selection_snapshot = create_canonical_selection_snapshot(self.registry)
+        self.state_config = validate_blind_pool_state_config(
+            BlindPoolStateConfig(
+                BlindPoolConfig(
+                    self.fixture.private_root,
+                    self.fixture.registry_path,
+                ),
+                self.selection,
+            ),
+            repository_root=ROOT,
+        )
+        self.team_store().initialize_or_load()
         self.external = self.fixture.base / "team-ladder"
         self.external.mkdir()
         self.results = self.external / "results.json"
@@ -46,6 +93,82 @@ class TeamLadderMaintenanceTests(unittest.TestCase):
             "--repository-root",
             str(ROOT),
         ]
+
+    def team_store(self):
+        return BlindPoolBagStore.from_selection_snapshot(
+            self.state_config,
+            self.selection_snapshot,
+            random_source=IdentityRandom(),
+            reservation_id_factory=lambda: "c" * 32,
+            team_mode=True,
+        )
+
+    def legacy_store(self):
+        if self.selection.exists():
+            self.selection.unlink()
+        return BlindPoolBagStore.from_selection_snapshot(
+            self.state_config,
+            self.selection_snapshot,
+            random_source=IdentityRandom(),
+            reservation_id_factory=lambda: "c" * 32,
+            team_mode=False,
+        )
+
+    def stores(self):
+        public = BlindTeamPublicRegistryStore(
+            validate_team_public_registry_config(
+                self.public,
+                private_root=self.fixture.private_root,
+                canonical_registry_path=self.fixture.registry_path,
+                selection_state_path=self.selection,
+                result_ledger_path=self.results,
+                rating_state_path=self.ratings,
+                repository_root=ROOT,
+            )
+        )
+        results = BlindTeamResultLedgerStore(
+            validate_team_result_ledger_config(
+                self.results,
+                private_root=self.fixture.private_root,
+                registry_path=self.fixture.registry_path,
+                selection_state_path=self.selection,
+                rating_state_path=self.ratings,
+                public_registry_path=self.public,
+                repository_root=ROOT,
+            )
+        )
+        ratings = BlindTeamRatingStateStore(
+            validate_team_rating_state_config(
+                self.ratings,
+                private_root=self.fixture.private_root,
+                canonical_registry_path=self.fixture.registry_path,
+                selection_state_path=self.selection,
+                result_ledger_path=self.results,
+                public_registry_path=self.public,
+                repository_root=ROOT,
+            )
+        )
+        return public, results, ratings
+
+    def create_pending_result(self):
+        public, results, _ratings = self.stores()
+        public.register_player(
+            BlindTeamPublicIdentity(
+                PLAYER_TEAM_ID,
+                "Synthetic player team",
+                PUBLIC_TEAM_KIND_PLAYER,
+            )
+        )
+        return results, results.create_pending_intent(
+            player_account_id="player",
+            bot_account_id="bot",
+            player_team_id=PLAYER_TEAM_ID,
+            bot_team_id=self.registry.active_ids[0],
+            reservation_id="a" * 32,
+            room_id="battle-gen9tugs-1",
+            format_id="gen9tugs",
+            registry_fingerprint=self.registry.registry_fingerprint,
+        )
 
     def run_command(self, command, *extra):
         output = io.StringIO()
@@ -93,6 +216,169 @@ class TeamLadderMaintenanceTests(unittest.TestCase):
         self.assertIn("rated results: 0", status)
         self.assertIn("team ladder state: verified", verified)
         self.assertNotIn("BL-", status + verified)
+
+    def test_migration_command_preserves_idle_bag_semantics_and_hides_ids(self):
+        legacy = self.legacy_store()
+        legacy.initialize_or_load()
+        reservation = legacy.reserve_next()
+        legacy.commit_reservation(reservation.reservation_id)
+        before = legacy.snapshot()
+
+        _, output = self.run_command("migrate-selection-state")
+        after = self.team_store().snapshot()
+
+        self.assertIn("selection state migration: complete", output)
+        self.assertIn("selection schema: 3", output)
+        self.assertNotIn("BL-", output)
+        self.assertEqual(before.cycle_number, after.cycle_number)
+        self.assertEqual(before.cycle_order, after.cycle_order)
+        self.assertEqual(before.next_index, after.next_index)
+        self.assertEqual(before.last_consumed_id, after.last_consumed_id)
+
+    def test_migration_command_requires_and_releases_deployment_owner(self):
+        legacy = self.legacy_store()
+        legacy.initialize_or_load()
+        owners = []
+
+        def acquire_owner(*args, **kwargs):
+            owner = acquire_blind_pool_deployment_owner(*args, **kwargs)
+            owners.append(owner)
+            return owner
+
+        with mock.patch(
+            "fp.data.blind_pool.team_ladder_maintenance."
+            "acquire_blind_pool_deployment_owner",
+            side_effect=acquire_owner,
+        ) as acquire:
+            self.run_command("migrate-selection-state")
+        acquire.assert_called_once()
+        self.assertEqual(1, len(owners))
+        self.assertFalse(owners[0].held)
+
+    def test_active_owner_blocks_migration(self):
+        legacy = self.legacy_store()
+        legacy.initialize_or_load()
+        with acquire_blind_pool_deployment_owner(
+            self.state_config,
+            repository_root=ROOT,
+        ):
+            with self.assertRaises(BlindPoolValidationError) as caught:
+                self.run_command("migrate-selection-state")
+        self.assertEqual("deployment_ownership_unavailable", caught.exception.code)
+
+    def test_migration_refuses_unresolved_legacy_reservation(self):
+        legacy = self.legacy_store()
+        legacy.initialize_or_load()
+        legacy.reserve_next(BlindChallengeToken("a" * 32))
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command("migrate-selection-state")
+        self.assertEqual(
+            "state_schema_migration_reservation_unresolved",
+            caught.exception.code,
+        )
+
+    def test_repeated_migration_is_safe_and_does_not_rewrite_state(self):
+        before = self.selection.read_bytes()
+        _, output = self.run_command("migrate-selection-state")
+        self.assertEqual(before, self.selection.read_bytes())
+        self.assertIn("selection state migration: already complete", output)
+
+    def test_preflight_accepts_complete_idle_team_state(self):
+        self.initialize()
+        _, output = self.run_command("preflight")
+        self.assertIn("team ladder preflight: ready", output)
+        self.assertIn("selection schema: 3", output)
+        self.assertIn("pending results: 0", output)
+        self.assertNotIn("BL-", output)
+
+    def test_preflight_rejects_schema_two(self):
+        self.initialize()
+        self.legacy_store().initialize_or_load()
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command("preflight")
+        self.assertEqual("state_schema_unsupported", caught.exception.code)
+
+    def test_preflight_rejects_unresolved_selection_reservation(self):
+        self.initialize()
+        self.team_store().reserve_next(
+            BlindChallengeToken("a" * 32),
+            BlindTeamPublicIdentity(
+                PLAYER_TEAM_ID,
+                "Synthetic player team",
+                PUBLIC_TEAM_KIND_PLAYER,
+            ),
+        )
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command("preflight")
+        self.assertEqual("team_selection_recovery_required", caught.exception.code)
+
+    def test_preflight_rejects_pending_result(self):
+        self.initialize()
+        self.create_pending_result()
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command("preflight")
+        self.assertEqual("team_result_recovery_required", caught.exception.code)
+
+    def test_preflight_rejects_missing_bot_public_identity(self):
+        self.initialize()
+        document = json.loads(self.public.read_text(encoding="utf-8"))
+        document["identities"] = document["identities"][1:]
+        self.public.write_text(json.dumps(document), encoding="utf-8")
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command("preflight")
+        self.assertEqual("team_public_registry_bot_missing", caught.exception.code)
+
+    def test_preflight_rejects_rating_state_behind_history(self):
+        self.initialize()
+        results, pending = self.create_pending_result()
+        results.mark_selection_committed(pending.battle_id)
+        results.finalize_terminal(pending.battle_id, TEAM_OUTCOME_A_WIN)
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command("preflight")
+        self.assertEqual("team_rating_state_behind", caught.exception.code)
+
+    def test_preflight_rejects_divergent_rating_state(self):
+        self.initialize()
+        results, pending = self.create_pending_result()
+        results.mark_selection_committed(pending.battle_id)
+        results.finalize_terminal(pending.battle_id, TEAM_OUTCOME_A_WIN)
+        _public, _results, ratings = self.stores()
+        ratings.sync(results.require_ready())
+        document = json.loads(self.ratings.read_text(encoding="utf-8"))
+        document["teams"][PLAYER_TEAM_ID]["rating"] = 1515
+        document["teams"][self.registry.active_ids[0]]["rating"] = 1485
+        self.ratings.write_text(json.dumps(document), encoding="utf-8")
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command("preflight")
+        self.assertEqual("team_rating_state_diverged", caught.exception.code)
+
+    def test_preflight_rejects_missing_historical_public_identity(self):
+        self.initialize()
+        results, pending = self.create_pending_result()
+        results.mark_selection_committed(pending.battle_id)
+        results.finalize_terminal(pending.battle_id, TEAM_OUTCOME_A_WIN)
+        document = json.loads(self.public.read_text(encoding="utf-8"))
+        document["identities"] = [
+            identity
+            for identity in document["identities"]
+            if identity["private_team_id"] != PLAYER_TEAM_ID
+        ]
+        self.public.write_text(json.dumps(document), encoding="utf-8")
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command("preflight")
+        self.assertEqual(
+            "team_public_registry_history_invalid",
+            caught.exception.code,
+        )
+
+    def test_verify_and_status_require_schema_three(self):
+        self.initialize()
+        self.legacy_store().initialize_or_load()
+        for command in ("verify", "status"):
+            with self.subTest(command=command):
+                with self.assertRaises(BlindPoolValidationError) as caught:
+                    self.run_command(command)
+                self.assertEqual("state_schema_unsupported", caught.exception.code)
 
     def test_leaderboard_contains_public_aliases_without_private_ids(self):
         self.initialize()

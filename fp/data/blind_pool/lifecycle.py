@@ -557,6 +557,11 @@ class BlindPoolLifecycleCoordinator:
         monotonic: Callable[[], float] = time.monotonic,
         max_room_candidates: int = 8,
         exact_protocol: BlindExactChallengeProtocol | None = None,
+        create_result_intent: Callable[
+            [BlindPoolReservation, BlindPoolChallenge, BlindPoolBattleRoom], str
+        ]
+        | None = None,
+        mark_result_selection_committed: Callable[[str], None] | None = None,
     ) -> None:
         if format_id != BLIND_LADDER_FORMAT or mode != BLIND_LADDER_MODE:
             raise BlindPoolLifecycleError(
@@ -579,6 +584,13 @@ class BlindPoolLifecycleCoordinator:
             raise BlindPoolLifecycleError(
                 "exact_protocol_invalid",
                 "Blind Ladder exact challenge protocol is invalid",
+            ) from None
+        if (create_result_intent is None) != (
+            mark_result_selection_committed is None
+        ) or (create_result_intent is not None and exact_protocol is None):
+            raise BlindPoolLifecycleError(
+                "result_lifecycle_configuration_invalid",
+                "Blind Ladder result lifecycle configuration is invalid",
             ) from None
         if (
             isinstance(max_room_candidates, bool)
@@ -615,6 +627,8 @@ class BlindPoolLifecycleCoordinator:
         self._monotonic = monotonic
         self._max_room_candidates = max_room_candidates
         self._exact_protocol = exact_protocol
+        self._create_result_intent = create_result_intent
+        self._mark_result_selection_committed = mark_result_selection_committed
         self._exact_capability_enabled = False
         self._active_challenge_identity: (
             BlindChallengeToken | tuple[str, str] | None
@@ -1477,6 +1491,19 @@ class BlindPoolLifecycleCoordinator:
                 room, event_lines = await self._wait_for_matching_room(challenge)
             else:
                 room, event_lines = await self._wait_for_exact_matching_room(challenge)
+            result_battle_id = None
+            if self._create_result_intent is not None:
+                try:
+                    result_battle_id = self._create_result_intent(
+                        reservation,
+                        challenge,
+                        room,
+                    )
+                except (BlindPoolValidationError, BlindPoolLifecycleError):
+                    raise BlindPoolLifecycleError(
+                        "result_intent_failed",
+                        "Blind Ladder durable result intent could not be established",
+                    ) from None
             try:
                 self._store.commit_room_created(reservation.reservation_id)
             except (BlindPoolValidationError, asyncio.CancelledError) as error:
@@ -1494,6 +1521,16 @@ class BlindPoolLifecycleCoordinator:
                     raise BlindPoolLifecycleError(
                         "room_created_commit_failed",
                         "Blind Ladder room-created commit could not be proven",
+                    ) from None
+
+            if self._mark_result_selection_committed is not None:
+                assert result_battle_id is not None
+                try:
+                    self._mark_result_selection_committed(result_battle_id)
+                except (BlindPoolValidationError, BlindPoolLifecycleError):
+                    raise BlindPoolLifecycleError(
+                        "result_selection_commit_failed",
+                        "Blind Ladder result commit phase could not be persisted",
                     ) from None
 
             self._remember_resolved_room(room.room_id)

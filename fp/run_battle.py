@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from fp import constants
 from fp.config import FoulPlayConfig, SaveReplay
@@ -71,6 +71,7 @@ async def pokemon_battle(
     team_dict,
     *,
     public_prior_configuration: PublicPriorRuntimeConfiguration | None = None,
+    terminal_result_handler: Callable[..., None] | None = None,
 ):
     battle = await start_battle(
         ps_websocket_client,
@@ -81,11 +82,14 @@ async def pokemon_battle(
     while True:
         msg = await ps_websocket_client.receive_message()
         if battle_is_finished(battle.battle_tag, msg):
+            tied = constants.TIE_STRING in msg and constants.WIN_STRING not in msg
             winner = (
                 msg.split(constants.WIN_STRING)[-1].split("\n")[0].strip()
                 if constants.WIN_STRING in msg
                 else None
             )
+            if terminal_result_handler is not None:
+                terminal_result_handler(winner, tied=tied)
             logger.info("Winner: {}".format(winner))
             await ps_websocket_client.send_message(battle.battle_tag, ["gg"])
             if (

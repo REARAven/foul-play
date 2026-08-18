@@ -94,6 +94,18 @@ from .reconciliation import (
     derive_reconciliation_case,
     validate_reconciliation_case,
 )
+from .result_ledger import (
+    RESULT_LEDGER_PATH_ENV,
+    RESULT_LEDGER_SCHEMA_VERSION,
+    BlindCompletedBattleResult,
+    BlindPendingBattleResult,
+    BlindResultLedgerConfig,
+    BlindResultLedgerState,
+    BlindResultLedgerStore,
+    derive_blind_battle_id,
+    validate_result_ledger_config,
+    validate_result_ledger_document,
+)
 from .selection import (
     BlindPoolSelectionSnapshot,
     create_canonical_selection_snapshot,
@@ -160,6 +172,13 @@ __all__ = (
     "BlindCanonicalStartupConfig",
     "PreparedBlindCanonicalDeployment",
     "RECONCILIATION_CASE_DOMAIN",
+    "RESULT_LEDGER_PATH_ENV",
+    "RESULT_LEDGER_SCHEMA_VERSION",
+    "BlindCompletedBattleResult",
+    "BlindPendingBattleResult",
+    "BlindResultLedgerConfig",
+    "BlindResultLedgerState",
+    "BlindResultLedgerStore",
     "BlindPoolSelectionSnapshot",
     "compute_canonical_registry_fingerprint",
     "compute_registry_fingerprint",
@@ -168,6 +187,7 @@ __all__ = (
     "create_canonical_selection_snapshot",
     "create_raw_selection_snapshot",
     "derive_reconciliation_case",
+    "derive_blind_battle_id",
     "get_active_blind_pool_entries",
     "get_blind_pool_entry_by_id",
     "load_blind_pool_config",
@@ -189,4 +209,6 @@ __all__ = (
     "validate_blind_pool_registry",
     "validate_blind_pool_state_config",
     "validate_reconciliation_case",
+    "validate_result_ledger_config",
+    "validate_result_ledger_document",
 )

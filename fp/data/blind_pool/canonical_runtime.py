@@ -23,8 +23,20 @@ from .lifecycle import (
     BlindChallengeTransport,
     BlindExactChallengeProtocol,
     BlindPoolLifecycleCoordinator,
+    normalize_showdown_identity,
 )
-from .models import BlindPoolBattleRoom, BlindPoolStateConfig
+from .models import (
+    BlindPoolBattleRoom,
+    BlindPoolChallenge,
+    BlindPoolReservation,
+    BlindPoolStateConfig,
+)
+from .result_ledger import (
+    OUTCOME_PLAYER_LOSS,
+    OUTCOME_PLAYER_WIN,
+    OUTCOME_TIE,
+    BlindResultLedgerStore,
+)
 from .selection import create_canonical_selection_snapshot
 from .state import RESERVATION_PHASE
 
@@ -301,6 +313,7 @@ class CanonicalBlindRuntime:
         room_timeout_seconds: float = 30.0,
         monotonic: Callable[[], float] | None = None,
         max_room_candidates: int = 8,
+        result_store: BlindResultLedgerStore | None = None,
     ) -> None:
         if not isinstance(exact_protocol, BlindExactChallengeProtocol):
             raise _runtime_error(
@@ -328,6 +341,24 @@ class CanonicalBlindRuntime:
             ) from None
         else:
             self._store = prepared_store
+        if result_store is not None and not isinstance(
+            result_store, BlindResultLedgerStore
+        ):
+            raise _runtime_error(
+                "canonical_result_store_invalid",
+                "Canonical Blind Ladder result store is invalid",
+            ) from None
+        bot_id = normalize_showdown_identity(getattr(transport, "username", ""))
+        if result_store is not None and not bot_id:
+            raise _runtime_error(
+                "canonical_result_identity_invalid",
+                "Canonical Blind Ladder result identity is invalid",
+            ) from None
+        self._result_store = result_store
+        self._registry_fingerprint = canonical_registry.registry_fingerprint
+        self._bot_id = bot_id
+        self._active_result_battle_id: str | None = None
+        self._result_finalized = False
         self._session = CanonicalBlindRuntimeSession(
             canonical_registry,
             submit_team,
@@ -342,6 +373,11 @@ class CanonicalBlindRuntime:
         }
         if monotonic is not None:
             lifecycle_kwargs["monotonic"] = monotonic
+        if result_store is not None:
+            lifecycle_kwargs["create_result_intent"] = self._create_result_intent
+            lifecycle_kwargs["mark_result_selection_committed"] = (
+                self._mark_result_selection_committed
+            )
         self._coordinator = BlindPoolLifecycleCoordinator(
             self._store,
             transport,
@@ -390,6 +426,105 @@ class CanonicalBlindRuntime:
             ) from None
         await self._session.prepare_team(team_id)
 
+    def _create_result_intent(
+        self,
+        reservation: BlindPoolReservation,
+        challenge: BlindPoolChallenge,
+        room: BlindPoolBattleRoom,
+    ) -> str:
+        store = self._result_store
+        if store is None or self._active_result_battle_id is not None:
+            raise _runtime_error(
+                "canonical_result_intent_invalid",
+                "Canonical Blind Ladder result intent is invalid",
+            ) from None
+        player_id = normalize_showdown_identity(room.opponent_id)
+        challenge_id = normalize_showdown_identity(challenge.challenger_id)
+        if (
+            not player_id
+            or player_id != challenge_id
+            or room.format_id != BLIND_LADDER_FORMAT
+        ):
+            raise _runtime_error(
+                "canonical_result_identity_invalid",
+                "Canonical Blind Ladder result identity is invalid",
+            ) from None
+        pending = store.create_pending_intent(
+            player_id=player_id,
+            bot_id=self._bot_id,
+            team_id=reservation.team_id,
+            reservation_id=reservation.reservation_id,
+            room_id=room.room_id,
+            format_id=room.format_id,
+            registry_fingerprint=self._registry_fingerprint,
+        )
+        self._active_result_battle_id = pending.battle_id
+        self._result_finalized = False
+        return pending.battle_id
+
+    def _mark_result_selection_committed(self, battle_id: str) -> None:
+        store = self._result_store
+        if store is None or battle_id != self._active_result_battle_id:
+            raise _runtime_error(
+                "canonical_result_intent_invalid",
+                "Canonical Blind Ladder result intent is invalid",
+            ) from None
+        store.mark_selection_committed(battle_id)
+
+    def record_terminal_result(
+        self,
+        winner: str | None,
+        *,
+        tied: bool,
+    ) -> None:
+        """Persist one authoritative terminal event before battle completion."""
+
+        store = self._result_store
+        battle_id = self._active_result_battle_id
+        if store is None or battle_id is None or type(tied) is not bool:
+            raise _runtime_error(
+                "canonical_result_terminal_invalid",
+                "Canonical Blind Ladder terminal result is invalid",
+            ) from None
+        if tied:
+            if winner is not None:
+                raise _runtime_error(
+                    "canonical_result_terminal_invalid",
+                    "Canonical Blind Ladder terminal result is invalid",
+                ) from None
+            outcome = OUTCOME_TIE
+        else:
+            winner_id = normalize_showdown_identity(winner or "")
+            pending = store.load().pending_result
+            if pending is None or pending.battle_id != battle_id:
+                completed = next(
+                    (
+                        record
+                        for record in store.load().completed_results
+                        if record.battle_id == battle_id
+                    ),
+                    None,
+                )
+                if completed is None:
+                    raise _runtime_error(
+                        "canonical_result_terminal_invalid",
+                        "Canonical Blind Ladder terminal result is invalid",
+                    ) from None
+                player_id = completed.player_id
+            else:
+                player_id = pending.player_id
+            if winner_id == player_id:
+                outcome = OUTCOME_PLAYER_WIN
+            elif winner_id == self._bot_id:
+                outcome = OUTCOME_PLAYER_LOSS
+            else:
+                raise _runtime_error(
+                    "canonical_result_winner_unexpected",
+                    "Canonical Blind Ladder terminal winner is invalid",
+                ) from None
+        store.finalize_terminal(battle_id, outcome)
+        self._result_finalized = True
+
     async def run_once(self) -> Any:
         if self._running:
             raise _runtime_error(
@@ -397,6 +532,12 @@ class CanonicalBlindRuntime:
                 "Canonical Blind Ladder runtime is already active",
             ) from None
         self._running = True
+        if self._result_store is not None and self._active_result_battle_id is not None:
+            self._running = False
+            raise _runtime_error(
+                "canonical_result_recovery_required",
+                "Canonical Blind Ladder result recovery is required",
+            ) from None
         try:
             self._session.begin_attempt()
         except BaseException:
@@ -453,6 +594,14 @@ class CanonicalBlindRuntime:
         if lifecycle_failure is not None:
             error_type, code, message = lifecycle_failure
             raise error_type(code, message) from None
+        if self._result_store is not None:
+            if self._active_result_battle_id is None or not self._result_finalized:
+                raise _runtime_error(
+                    "canonical_result_terminal_missing",
+                    "Canonical Blind Ladder terminal result was not persisted",
+                ) from None
+            self._active_result_battle_id = None
+            self._result_finalized = False
         return result
 
     def reconcile_as_room_created(self, reservation_id: str):

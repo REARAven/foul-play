@@ -47,13 +47,21 @@ async def _run_sequential_battles(
     integrity_checker: Callable[[object, object], None],
 ) -> None:
     async def initialize_battle(_room, team_projection):
+        runtime = runtime_holder[0]
+        if runtime is None:
+            raise BlindPoolLifecycleError(
+                "result_runtime_unavailable",
+                "Blind canonical result runtime is unavailable",
+            ) from None
         return await battle_runner(
             client,
             process_config.pokemon_format,
             team_projection,
             public_prior_configuration=public_prior_configuration,
+            terminal_result_handler=runtime.record_terminal_result,
         )
 
+    runtime_holder: list[object | None] = [None]
     runtime_error = None
     try:
         runtime = prepared_deployment.create_runtime(
@@ -67,6 +75,7 @@ async def _run_sequential_battles(
     if runtime_error is not None:
         raise classify_blind_canonical_runtime_error(runtime_error) from None
     assert runtime is not None
+    runtime_holder[0] = runtime
 
     battles_run = 0
     wins = 0

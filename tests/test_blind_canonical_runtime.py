@@ -10,6 +10,7 @@ import unittest
 from unittest import mock
 
 from fp.battle.state import Battle
+from fp.config import FoulPlayConfig
 from fp.data.blind_pool.bag import BlindPoolBagStore
 from fp.data.blind_pool.canonical_runtime import (
     CanonicalBlindRuntime,
@@ -404,7 +405,8 @@ class CanonicalRuntimeSuccessTests(RuntimeFixture):
             return battle
 
         runtime = self.runtime(transport, submit_team, initialize)
-        battle = await runtime.run_once()
+        with mock.patch.object(FoulPlayConfig, "pokemon_format", "gen9tugs"):
+            battle = await runtime.run_once()
         active = battle.user.active
         self.assertEqual("Request Nickname", active.nickname)
         self.assertEqual(77, active.level)

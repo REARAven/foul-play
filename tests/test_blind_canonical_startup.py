@@ -34,6 +34,11 @@ from fp.data.blind_pool.models import (
     BlindPoolStateConfig,
 )
 from fp.data.blind_pool.ownership import acquire_blind_pool_deployment_owner
+from fp.data.blind_pool.result_ledger import (
+    RESULT_LEDGER_PATH_ENV,
+    BlindResultLedgerStore,
+    validate_result_ledger_config,
+)
 from fp.data.blind_pool.startup import (
     CANONICAL_REGISTRY_PATH_ENV,
     BlindCanonicalActivationError,
@@ -82,6 +87,7 @@ class TestBlindCanonicalConfiguration(unittest.TestCase):
                 "TUGS_BLIND_POOL_REGISTRY": PRIVATE_SENTINEL,
                 "TUGS_BLIND_POOL_STATE": PRIVATE_SENTINEL,
                 CANONICAL_REGISTRY_PATH_ENV: PRIVATE_SENTINEL,
+                RESULT_LEDGER_PATH_ENV: PRIVATE_SENTINEL,
             },
             clear=False,
         ):
@@ -153,10 +159,22 @@ class TestBlindCanonicalStartup(unittest.TestCase):
         self.state_directory = self.fixture.private_root / "state"
         self.state_directory.mkdir()
         self.state_path = self.state_directory / "bag.json"
+        self.result_directory = self.fixture.base / "ladder"
+        self.result_directory.mkdir()
+        self.result_path = self.result_directory / "results.json"
+        result_config = validate_result_ledger_config(
+            self.result_path,
+            private_root=self.fixture.private_root,
+            registry_path=self.fixture.registry_path,
+            selection_state_path=self.state_path,
+        )
+        self.result_store = BlindResultLedgerStore(result_config)
+        self.result_store.initialize_empty()
         self.environ = {
             "TUGS_BLIND_POOL_ROOT": str(self.fixture.private_root),
             CANONICAL_REGISTRY_PATH_ENV: str(self.fixture.registry_path),
             "TUGS_BLIND_POOL_STATE": str(self.state_path),
+            RESULT_LEDGER_PATH_ENV: str(self.result_path),
         }
         self.config = load_blind_canonical_startup_config(self.environ)
         self.deployments = []
@@ -182,6 +200,7 @@ class TestBlindCanonicalStartup(unittest.TestCase):
             str(self.fixture.private_root),
             str(self.fixture.registry_path),
             str(self.state_path),
+            str(self.result_path),
             TOKEN,
         ):
             self.assertNotIn(sentinel, rendered)
@@ -319,6 +338,54 @@ class TestBlindCanonicalStartup(unittest.TestCase):
             timeout_seconds=0.05,
         )
         owner.close()
+
+    def test_unresolved_result_intent_blocks_startup_and_releases_owner(self):
+        fingerprint = self.fixture.load().registry_fingerprint
+        self.result_store.create_pending_intent(
+            player_id="syntheticplayer",
+            bot_id="syntheticbot",
+            team_id="BL-001-v1",
+            reservation_id="1" * 32,
+            room_id="battle-gen9tugs-401",
+            format_id="gen9tugs",
+            registry_fingerprint=fingerprint,
+        )
+        with self.assertRaises(BlindCanonicalActivationError) as caught:
+            prepare_blind_canonical_deployment(
+                self.config,
+                owner_timeout_seconds=0.05,
+            )
+        self.assertEqual(
+            BlindCanonicalErrorCategory.RECOVERY_REQUIRED,
+            caught.exception.category,
+        )
+        self.assertEqual("blind_result_recovery_required", caught.exception.code)
+        self.assert_safe(caught.exception)
+        self.assertFalse(self.state_path.exists())
+        state_config = BlindPoolStateConfig(
+            BlindPoolConfig(self.fixture.private_root, self.fixture.registry_path),
+            self.state_path,
+        )
+        owner = acquire_blind_pool_deployment_owner(
+            state_config,
+            timeout_seconds=0.05,
+        )
+        owner.close()
+
+    def test_historical_result_from_older_registry_does_not_block_startup(self):
+        pending = self.result_store.create_pending_intent(
+            player_id="syntheticplayer",
+            bot_id="syntheticbot",
+            team_id="BL-001-v1",
+            reservation_id="1" * 32,
+            room_id="battle-gen9tugs-401",
+            format_id="gen9tugs",
+            registry_fingerprint="f" * 64,
+        )
+        self.result_store.mark_selection_committed(pending.battle_id)
+        self.result_store.finalize_terminal(pending.battle_id, "player_win")
+        deployment = self.prepare()
+        self.assertTrue(deployment.owner_held)
 
     def test_schema_one_malformed_and_fingerprint_mismatch_preserve_bytes(self):
         first = self.prepare()
@@ -879,6 +946,7 @@ class TestBlindCanonicalMainOrchestration(unittest.TestCase):
             "TUGS_BLIND_POOL_REGISTRY": PRIVATE_SENTINEL,
             "TUGS_BLIND_POOL_STATE": PRIVATE_SENTINEL,
             CANONICAL_REGISTRY_PATH_ENV: PRIVATE_SENTINEL,
+            RESULT_LEDGER_PATH_ENV: PRIVATE_SENTINEL,
         }
         with mock.patch.multiple(
             FoulPlayConfig, create=True, **values
@@ -954,6 +1022,7 @@ class TestBlindCanonicalMainOrchestration(unittest.TestCase):
             "TUGS_BLIND_POOL_ROOT": PRIVATE_SENTINEL,
             "TUGS_BLIND_POOL_STATE": PRIVATE_SENTINEL,
             CANONICAL_REGISTRY_PATH_ENV: PRIVATE_SENTINEL,
+            RESULT_LEDGER_PATH_ENV: PRIVATE_SENTINEL,
         }
         with mock.patch.dict(os.environ, invalid, clear=False), mock.patch(
             "pathlib.Path.open",
@@ -1012,6 +1081,7 @@ class TestBlindCanonicalTopLevel(unittest.TestCase):
             events.append("battle")
             self.assertEqual(6, len(projection))
             self.assertIs(mock.sentinel.prior, kwargs["public_prior_configuration"])
+            kwargs["terminal_result_handler"]("Blind Bot", tied=False)
             return "Blind Bot"
 
         import fp.data.blind_pool.canonical_runtime as runtime_module
@@ -1048,12 +1118,61 @@ class TestBlindCanonicalTopLevel(unittest.TestCase):
         self.assertEqual(["mods", "prior", "connect", "battle"], events)
         self.assertEqual(1, artifact_loader.call_count)
         self.assertEqual(["enable"], client.controls)
+        result_state = self.result_store.load()
+        self.assertEqual(1, result_state.completed_count)
+        self.assertEqual(0, result_state.pending_count)
         self.assertEqual(1, len(client.sent))
         self.assertEqual(1, len(client.submitted))
         self.assertTrue(client.closed)
+        selection_state = json.loads(self.state_path.read_text(encoding="utf-8"))
+        self.assertIsNone(selection_state["reservation"])
+        self.assertEqual(1, selection_state["next_index"])
+
+    def test_persistent_two_battle_loop_waits_for_each_result_finalization(self):
+        second_token = "b" * 32
+        second_challenge = "|tugschallenge|syntheticopponent|gen9tugs|" + second_token
+        client = _ExactSyntheticClient(
+            (
+                EXACT_CHALLENGE,
+                exact_room_message(),
+                second_challenge,
+                exact_room_message("battle-gen9tugs-402", second_token),
+            )
+        )
+        process_config = _process_config(run_count=2)
+        process_config.username = "Blind Bot"
+        battle_calls = []
+
+        async def connect(*_args):
+            return client
+
+        async def battle_runner(_client, _format_id, _projection, **kwargs):
+            battle_calls.append(len(battle_calls) + 1)
+            kwargs["terminal_result_handler"]("Blind Bot", tied=False)
+            return "Blind Bot"
+
+        asyncio.run(
+            run_blind_canonical_activation(
+                process_config,
+                None,
+                None,
+                None,
+                websocket_factory=connect,
+                environ=self.environ,
+                battle_runner=battle_runner,
+                integrity_checker=lambda *_args: None,
+            )
+        )
+        state = self.result_store.load()
+        self.assertEqual([1, 2], battle_calls)
+        self.assertEqual(2, state.completed_count)
+        self.assertEqual(0, state.pending_count)
+        self.assertEqual(2, len(client.sent))
+        self.assertEqual(2, len(client.submitted))
+        self.assertTrue(client.closed)
         state = json.loads(self.state_path.read_text(encoding="utf-8"))
         self.assertIsNone(state["reservation"])
-        self.assertEqual(1, state["next_index"])
+        self.assertEqual(2, state["next_index"])
 
 
 class TestBlindCanonicalLogPrivacy(unittest.TestCase):

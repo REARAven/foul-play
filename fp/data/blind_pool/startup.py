@@ -19,6 +19,11 @@ from .ownership import (
     BlindPoolDeploymentOwnerGuard,
     acquire_blind_pool_deployment_owner,
 )
+from .result_ledger import (
+    RESULT_LEDGER_PATH_ENV,
+    BlindResultLedgerStore,
+    validate_result_ledger_config,
+)
 from .selection import BlindPoolSelectionSnapshot, create_canonical_selection_snapshot
 from .state import ACCEPT_SENT_PHASE, RESERVATION_PHASE
 
@@ -77,6 +82,7 @@ class BlindCanonicalStartupConfig:
     private_root: Path = field(repr=False)
     canonical_registry_path: Path = field(repr=False)
     state_path: Path = field(repr=False)
+    result_ledger_path: Path | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         invalid = False
@@ -84,12 +90,21 @@ class BlindCanonicalStartupConfig:
             private_root = Path(self.private_root)
             registry_path = Path(self.canonical_registry_path)
             state_path = Path(self.state_path)
+            result_ledger_path = (
+                None
+                if self.result_ledger_path is None
+                else Path(self.result_ledger_path)
+            )
         except (TypeError, ValueError):
             invalid = True
-            private_root = registry_path = state_path = None
-        if invalid or not all(
-            path is not None and path.is_absolute()
-            for path in (private_root, registry_path, state_path)
+            private_root = registry_path = state_path = result_ledger_path = None
+        if (
+            invalid
+            or not all(
+                path is not None and path.is_absolute()
+                for path in (private_root, registry_path, state_path)
+            )
+            or (result_ledger_path is not None and not result_ledger_path.is_absolute())
         ):
             raise _error(
                 BlindCanonicalErrorCategory.CONFIGURATION,
@@ -99,6 +114,7 @@ class BlindCanonicalStartupConfig:
         object.__setattr__(self, "private_root", private_root)
         object.__setattr__(self, "canonical_registry_path", registry_path)
         object.__setattr__(self, "state_path", state_path)
+        object.__setattr__(self, "result_ledger_path", result_ledger_path)
 
     def __repr__(self) -> str:
         return "BlindCanonicalStartupConfig(configured=True)"
@@ -120,6 +136,7 @@ class PreparedBlindCanonicalDeployment:
     _selection: BlindPoolSelectionSnapshot = field(repr=False)
     _store: BlindPoolBagStore = field(repr=False)
     _owner: BlindPoolDeploymentOwnerGuard = field(repr=False)
+    _result_store: BlindResultLedgerStore = field(repr=False)
 
     @property
     def active_count(self) -> int:
@@ -149,6 +166,7 @@ class PreparedBlindCanonicalDeployment:
             initialize_battle,
             exact_protocol=BlindExactChallengeProtocol.from_transport(transport),
             prepared_store=self._store,
+            result_store=self._result_store,
             **runtime_options,
         )
 
@@ -176,7 +194,12 @@ def load_blind_canonical_startup_config(
     from .config import PRIVATE_ROOT_ENV, STATE_PATH_ENV
 
     values = os.environ if environ is None else environ
-    names = (PRIVATE_ROOT_ENV, CANONICAL_REGISTRY_PATH_ENV, STATE_PATH_ENV)
+    names = (
+        PRIVATE_ROOT_ENV,
+        CANONICAL_REGISTRY_PATH_ENV,
+        STATE_PATH_ENV,
+        RESULT_LEDGER_PATH_ENV,
+    )
     configured = tuple(values.get(name) for name in names)
     if any(not isinstance(value, str) or not value for value in configured):
         raise _error(
@@ -279,6 +302,36 @@ def prepare_blind_canonical_deployment(
         ) from None
     assert selection is not None and state_config is not None and store is not None
 
+    if config.result_ledger_path is None:
+        raise _error(
+            BlindCanonicalErrorCategory.CONFIGURATION,
+            "blind_result_config_incomplete",
+            "Blind canonical startup requires explicit result persistence",
+        ) from None
+    result_config_failed = False
+    try:
+        result_config = validate_result_ledger_config(
+            config.result_ledger_path,
+            private_root=config.private_root,
+            registry_path=config.canonical_registry_path,
+            selection_state_path=config.state_path,
+            repository_root=repository_root,
+        )
+        result_store = BlindResultLedgerStore(
+            result_config,
+            lock_timeout_seconds=lock_timeout_seconds,
+        )
+    except BlindPoolValidationError:
+        result_config_failed = True
+        result_store = None
+    if result_config_failed:
+        raise _error(
+            BlindCanonicalErrorCategory.CONFIGURATION,
+            "blind_result_config_invalid",
+            "Blind canonical result persistence configuration is invalid",
+        ) from None
+    assert result_store is not None
+
     ownership_code: str | None = None
     try:
         owner = acquire_blind_pool_deployment_owner(
@@ -296,6 +349,25 @@ def prepare_blind_canonical_deployment(
             "Blind canonical deployment is already active or unavailable",
         ) from None
     assert owner is not None
+
+    result_code: str | None = None
+    try:
+        result_store.require_ready()
+    except BlindPoolValidationError as error:
+        result_code = error.code
+    if result_code is not None:
+        _close_owner_after_failure(owner)
+        if result_code == "result_recovery_required":
+            raise _error(
+                BlindCanonicalErrorCategory.RECOVERY_REQUIRED,
+                "blind_result_recovery_required",
+                "Blind canonical result persistence requires explicit recovery",
+            ) from None
+        raise _error(
+            BlindCanonicalErrorCategory.DEPLOYMENT_INTEGRITY,
+            "blind_result_ledger_invalid",
+            "Blind canonical result persistence is invalid",
+        ) from None
 
     state_code: str | None = None
     try:
@@ -360,6 +432,7 @@ def prepare_blind_canonical_deployment(
         selection,
         store,
         owner,
+        result_store,
     )
 
 
@@ -375,6 +448,18 @@ def classify_blind_canonical_runtime_error(
             "Blind canonical acceptance state requires explicit recovery",
         )
     code = getattr(error, "code", "")
+    if code in {
+        "battle_initialization_failed",
+        "result_intent_failed",
+        "result_selection_commit_failed",
+        "canonical_result_recovery_required",
+        "canonical_result_terminal_missing",
+    }:
+        return _error(
+            BlindCanonicalErrorCategory.RECOVERY_REQUIRED,
+            "blind_result_recovery_required",
+            "Blind canonical result persistence requires explicit recovery",
+        )
     if code in {
         "exact_protocol_enable_failed",
         "exact_challenge_receive_failed",

@@ -29,6 +29,10 @@ from fp.data.blind_pool.reconciliation import (
     BlindReconciliationDisposition,
     derive_reconciliation_case,
 )
+from fp.data.blind_pool.result_ledger import (
+    BlindResultLedgerStore,
+    validate_result_ledger_config,
+)
 from fp.data.blind_pool.startup import (
     BlindCanonicalActivationError,
     BlindCanonicalErrorCategory,
@@ -45,6 +49,21 @@ TOKEN_B = "b" * 32
 
 
 class ReconciliationFixture(MaintenanceFixture):
+    def setUp(self):
+        super().setUp()
+        result_directory = self.fixture.base / "results"
+        result_directory.mkdir()
+        self.result_path = result_directory / "ledger.json"
+        self.config = replace(self.config, result_ledger_path=self.result_path)
+        BlindResultLedgerStore(
+            validate_result_ledger_config(
+                self.result_path,
+                private_root=self.fixture.private_root,
+                registry_path=self.fixture.registry_path,
+                selection_state_path=self.state_path,
+            )
+        ).initialize_empty()
+
     def quarantine(self, token: str = TOKEN_A):
         store = self.initialize()
         reservation = store.reserve_next(BlindChallengeToken(token))

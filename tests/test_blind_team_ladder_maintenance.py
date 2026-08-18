@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 from pathlib import Path
@@ -20,6 +20,7 @@ from fp.data.blind_pool.models import (
     BlindPoolStateConfig,
 )
 from fp.data.blind_pool.ownership import acquire_blind_pool_deployment_owner
+from fp.data.blind_pool.reconciliation import derive_reconciliation_case
 from fp.data.blind_pool.selection import create_canonical_selection_snapshot
 from fp.data.blind_pool.team_ladder_maintenance import main
 from fp.data.blind_pool.team_public_registry import (
@@ -170,9 +171,26 @@ class TeamLadderMaintenanceTests(unittest.TestCase):
             registry_fingerprint=self.registry.registry_fingerprint,
         )
 
+    def create_accept_sent(self):
+        self.initialize()
+        player_identity = BlindTeamPublicIdentity(
+            PLAYER_TEAM_ID,
+            "Synthetic player team",
+            PUBLIC_TEAM_KIND_PLAYER,
+        )
+        public, _results, _ratings = self.stores()
+        public.register_player(player_identity)
+        store = self.team_store()
+        reservation = store.reserve_next(
+            BlindChallengeToken("a" * 32),
+            player_identity,
+        )
+        state = store.mark_accept_sent(reservation.reservation_id)
+        return store, state, derive_reconciliation_case(state)
+
     def run_command(self, command, *extra):
         output = io.StringIO()
-        with redirect_stdout(output):
+        with redirect_stdout(output), redirect_stderr(output):
             result = main([command, *self.arguments, *extra])
         return result, output.getvalue()
 
@@ -402,6 +420,217 @@ class TeamLadderMaintenanceTests(unittest.TestCase):
         self.assertIn("processed results: 0", rating)
         self.assertIn("bot identities registered: 2", bots)
         self.assertNotIn("BL-", rating + bots)
+
+    def test_recovery_status_reports_accept_sent_case_without_private_identity(self):
+        _store, _state, reconciliation_case = self.create_accept_sent()
+
+        _, output = self.run_command("recovery-status")
+
+        self.assertIn("team selection recovery: required", output)
+        self.assertIn("selection schema: 3", output)
+        self.assertIn("reservation phase: accept_sent", output)
+        self.assertIn("completed results: 0", output)
+        self.assertIn("pending results: 0", output)
+        self.assertIn("pending phase: none", output)
+        self.assertIn("processed results: 0", output)
+        self.assertIn("rated results: 0", output)
+        self.assertIn("reconciliation case: {}".format(reconciliation_case), output)
+        for private_value in (
+            "BL-001-v1",
+            "BL-002-v1",
+            PLAYER_TEAM_ID,
+            "Synthetic player team",
+            "c" * 32,
+            "a" * 32,
+        ):
+            self.assertNotIn(private_value, output)
+
+    def test_recovery_status_distinguishes_idle_and_pre_accept_state(self):
+        self.initialize()
+        _, idle = self.run_command("recovery-status")
+        self.assertEqual("team selection recovery: none\n", idle)
+
+        player_identity = BlindTeamPublicIdentity(
+            PLAYER_TEAM_ID,
+            "Synthetic player team",
+            PUBLIC_TEAM_KIND_PLAYER,
+        )
+        public, _results, _ratings = self.stores()
+        public.register_player(player_identity)
+        self.team_store().reserve_next(
+            BlindChallengeToken("a" * 32),
+            player_identity,
+        )
+        _, reserved = self.run_command("recovery-status")
+        self.assertIn("team selection recovery: startup-release", reserved)
+        self.assertIn("reservation phase: reserved", reserved)
+        self.assertNotIn("reconciliation case:", reserved)
+
+    def test_resolve_not_consumed_preserves_bag_and_team_history(self):
+        store, before, reconciliation_case = self.create_accept_sent()
+        public_before = self.public.read_bytes()
+        results_before = self.results.read_bytes()
+        ratings_before = self.ratings.read_bytes()
+
+        _, output = self.run_command(
+            "resolve-not-consumed",
+            "--case",
+            reconciliation_case,
+            "--confirm",
+            "not-consumed",
+        )
+        after = store.snapshot()
+
+        self.assertEqual(
+            "reconciliation resolved: not-consumed\nreservation pending: 0\n",
+            output,
+        )
+        self.assertIsNone(after.reservation)
+        self.assertEqual(before.cycle_number, after.cycle_number)
+        self.assertEqual(before.cycle_order, after.cycle_order)
+        self.assertEqual(before.next_index, after.next_index)
+        self.assertEqual(before.last_consumed_id, after.last_consumed_id)
+        self.assertEqual(public_before, self.public.read_bytes())
+        self.assertEqual(results_before, self.results.read_bytes())
+        self.assertEqual(ratings_before, self.ratings.read_bytes())
+        public, results, ratings = self.stores()
+        self.assertIsNotNone(public.load().identity(PLAYER_TEAM_ID))
+        self.assertEqual(0, results.load().completed_count)
+        self.assertEqual(0, results.load().pending_count)
+        self.assertEqual(0, ratings.verify(results.load()).rated_results)
+        self.assertNotIn("BL-", output)
+        self.assertNotIn(PLAYER_TEAM_ID, output)
+
+    def test_resolve_not_consumed_rejects_stale_malformed_and_missing_confirmation(
+        self,
+    ):
+        _store, _state, reconciliation_case = self.create_accept_sent()
+        stale_case = ("0" if reconciliation_case[0] != "0" else "1") + (
+            reconciliation_case[1:]
+        )
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command(
+                "resolve-not-consumed",
+                "--case",
+                stale_case,
+                "--confirm",
+                "not-consumed",
+            )
+        self.assertEqual("reconciliation_case_mismatch", caught.exception.code)
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command(
+                "resolve-not-consumed",
+                "--case",
+                "not-a-case",
+                "--confirm",
+                "not-consumed",
+            )
+        self.assertEqual("reconciliation_case_invalid", caught.exception.code)
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command(
+                "resolve-not-consumed",
+                "--case",
+                reconciliation_case,
+            )
+        self.assertEqual(
+            "team_recovery_confirmation_required",
+            caught.exception.code,
+        )
+
+    def test_resolve_not_consumed_refuses_pending_team_result(self):
+        _store, state, reconciliation_case = self.create_accept_sent()
+        public, results, _ratings = self.stores()
+        reservation = state.reservation
+        self.assertIsNotNone(reservation)
+        results.create_pending_intent(
+            player_account_id="player",
+            bot_account_id="bot",
+            player_team_id=PLAYER_TEAM_ID,
+            bot_team_id=reservation.team_id,
+            reservation_id=reservation.reservation_id,
+            room_id="battle-gen9tugs-2",
+            format_id="gen9tugs",
+            registry_fingerprint=self.registry.registry_fingerprint,
+        )
+        public_before = public.load()
+
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command(
+                "resolve-not-consumed",
+                "--case",
+                reconciliation_case,
+                "--confirm",
+                "not-consumed",
+            )
+        self.assertEqual(
+            "team_recovery_pending_result_conflict",
+            caught.exception.code,
+        )
+        self.assertIsNotNone(self.team_store().snapshot().reservation)
+        self.assertEqual(public_before, public.load())
+
+    def test_resolve_not_consumed_rejects_completed_result_evidence(self):
+        _store, state, reconciliation_case = self.create_accept_sent()
+        _public, results, ratings = self.stores()
+        reservation = state.reservation
+        self.assertIsNotNone(reservation)
+        pending = results.create_pending_intent(
+            player_account_id="player",
+            bot_account_id="bot",
+            player_team_id=PLAYER_TEAM_ID,
+            bot_team_id=reservation.team_id,
+            reservation_id=reservation.reservation_id,
+            room_id="battle-gen9tugs-3",
+            format_id="gen9tugs",
+            registry_fingerprint=self.registry.registry_fingerprint,
+        )
+        results.mark_selection_committed(pending.battle_id)
+        results.finalize_terminal(pending.battle_id, TEAM_OUTCOME_A_WIN)
+        ratings.sync(results.require_ready())
+
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command(
+                "resolve-not-consumed",
+                "--case",
+                reconciliation_case,
+                "--confirm",
+                "not-consumed",
+            )
+        self.assertEqual(
+            "team_recovery_result_evidence_conflict",
+            caught.exception.code,
+        )
+        self.assertIsNotNone(self.team_store().snapshot().reservation)
+
+    def test_team_recovery_rejects_schema_two_and_active_owner(self):
+        self.initialize()
+        self.legacy_store().initialize_or_load()
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command("recovery-status")
+        self.assertEqual("state_schema_unsupported", caught.exception.code)
+
+        self.selection.unlink()
+        self.team_store().initialize_or_load()
+        with acquire_blind_pool_deployment_owner(
+            self.state_config,
+            repository_root=ROOT,
+        ):
+            with self.assertRaises(BlindPoolValidationError) as caught:
+                self.run_command("recovery-status")
+        self.assertEqual("deployment_ownership_unavailable", caught.exception.code)
+
+    def test_resolved_case_is_not_reusable(self):
+        _store, _state, reconciliation_case = self.create_accept_sent()
+        arguments = (
+            "--case",
+            reconciliation_case,
+            "--confirm",
+            "not-consumed",
+        )
+        self.run_command("resolve-not-consumed", *arguments)
+        with self.assertRaises(BlindPoolValidationError) as caught:
+            self.run_command("resolve-not-consumed", *arguments)
+        self.assertEqual("reconciliation_not_applicable", caught.exception.code)
 
 
 if __name__ == "__main__":

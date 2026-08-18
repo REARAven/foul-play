@@ -646,6 +646,9 @@ class BlindPoolLifecycleCoordinator:
         ]
         | None = None,
         mark_result_selection_committed: Callable[[str], None] | None = None,
+        register_player_identity: Callable[[BlindTeamPublicIdentity], None]
+        | None = None,
+        team_mode: bool = False,
     ) -> None:
         if format_id != BLIND_LADDER_FORMAT or mode != BLIND_LADDER_MODE:
             raise BlindPoolLifecycleError(
@@ -675,6 +678,18 @@ class BlindPoolLifecycleCoordinator:
             raise BlindPoolLifecycleError(
                 "result_lifecycle_configuration_invalid",
                 "Blind Ladder result lifecycle configuration is invalid",
+            ) from None
+        if (
+            type(team_mode) is not bool
+            or (
+                team_mode
+                and (exact_protocol is None or register_player_identity is None)
+            )
+            or (not team_mode and register_player_identity is not None)
+        ):
+            raise BlindPoolLifecycleError(
+                "team_lifecycle_configuration_invalid",
+                "Blind Ladder team lifecycle configuration is invalid",
             ) from None
         if (
             isinstance(max_room_candidates, bool)
@@ -713,6 +728,8 @@ class BlindPoolLifecycleCoordinator:
         self._exact_protocol = exact_protocol
         self._create_result_intent = create_result_intent
         self._mark_result_selection_committed = mark_result_selection_committed
+        self._register_player_identity = register_player_identity
+        self._team_mode = team_mode
         self._exact_capability_enabled = False
         self._active_challenge_identity: (
             BlindChallengeToken | tuple[str, str] | None
@@ -1201,6 +1218,8 @@ class BlindPoolLifecycleCoordinator:
             and actual.position == expected.position
             and actual.phase == phase
             and token_matches
+            and actual.player_team_id == expected.player_team_id
+            and actual.player_team_display_name == expected.player_team_display_name
         )
 
     @classmethod
@@ -1490,6 +1509,20 @@ class BlindPoolLifecycleCoordinator:
             try:
                 if self._exact_protocol is None:
                     reservation = self._store.reserve_next()
+                elif self._team_mode:
+                    assert challenge.challenge_token is not None
+                    identity = challenge.player_team_identity
+                    if identity is None:
+                        raise BlindPoolValidationError(
+                            "player_team_identity_required",
+                            "Team ladder challenge identity is required",
+                        ) from None
+                    assert self._register_player_identity is not None
+                    self._register_player_identity(identity)
+                    reservation = self._store.reserve_next(
+                        challenge.challenge_token,
+                        identity,
+                    )
                 else:
                     assert challenge.challenge_token is not None
                     reservation = self._store.reserve_next(challenge.challenge_token)

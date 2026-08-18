@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, NoReturn, Protocol
 
 from .bag import BlindPoolBagStore, ShuffleSource
@@ -39,6 +40,19 @@ from .result_ledger import (
     OUTCOME_TIE,
     BlindResultLedgerStore,
 )
+from .team_public_registry import BlindTeamPublicRegistryStore
+from .team_rating import (
+    TEAM_OUTCOME_A_LOSS,
+    TEAM_OUTCOME_A_WIN,
+    TEAM_OUTCOME_TIE,
+    BlindTeamRating,
+    BlindTeamRatingUpdate,
+)
+from .team_rating_state import BlindTeamRatingStateStore
+from .team_result_ledger import (
+    BlindTeamCompletedBattleResult,
+    BlindTeamResultLedgerStore,
+)
 from .selection import create_canonical_selection_snapshot
 from .state import RESERVATION_PHASE
 
@@ -50,6 +64,28 @@ _PREPARED = "prepared"
 _INITIALIZING = "initializing"
 _INITIALIZED = "initialized"
 _FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class BlindTeamPublicRatingUpdate:
+    """Post-terminal public-only view of one persisted team rating update."""
+
+    player_name: str
+    player_rating_before: int
+    player_rating_after: int
+    player_delta: int
+    player_wins: int
+    player_losses: int
+    player_ties: int
+    player_win_rate: str
+    player_peak: int
+    player_streak: str
+    bot_name: str
+    bot_rating_after: int
+    bot_wins: int
+    bot_losses: int
+    bot_ties: int
+    bot_win_rate: str
 
 
 class CanonicalTeamSubmitter(Protocol):
@@ -315,8 +351,10 @@ class CanonicalBlindRuntime:
         room_timeout_seconds: float = 30.0,
         monotonic: Callable[[], float] | None = None,
         max_room_candidates: int = 8,
-        result_store: BlindResultLedgerStore | None = None,
-        rating_store: BlindRatingStateStore | None = None,
+        result_store: BlindResultLedgerStore | BlindTeamResultLedgerStore | None = None,
+        rating_store: BlindRatingStateStore | BlindTeamRatingStateStore | None = None,
+        team_public_store: BlindTeamPublicRegistryStore | None = None,
+        team_mode: bool = False,
     ) -> None:
         if not isinstance(exact_protocol, BlindExactChallengeProtocol):
             raise _runtime_error(
@@ -331,6 +369,7 @@ class CanonicalBlindRuntime:
                 random_source=random_source,
                 reservation_id_factory=reservation_id_factory,
                 lock_timeout_seconds=lock_timeout_seconds,
+                team_mode=team_mode,
             )
         elif (
             not isinstance(prepared_store, BlindPoolBagStore)
@@ -344,19 +383,35 @@ class CanonicalBlindRuntime:
             ) from None
         else:
             self._store = prepared_store
-        if result_store is not None and not isinstance(
-            result_store, BlindResultLedgerStore
-        ):
+        if type(team_mode) is not bool:
             raise _runtime_error(
-                "canonical_result_store_invalid",
-                "Canonical Blind Ladder result store is invalid",
+                "canonical_team_mode_invalid",
+                "Canonical Blind Ladder team mode is invalid",
             ) from None
-        if rating_store is not None and not isinstance(
-            rating_store, BlindRatingStateStore
-        ):
+        if team_mode:
+            stores_valid = (
+                isinstance(result_store, BlindTeamResultLedgerStore)
+                and isinstance(rating_store, BlindTeamRatingStateStore)
+                and isinstance(team_public_store, BlindTeamPublicRegistryStore)
+                and self._store._team_mode
+            )
+        else:
+            stores_valid = (
+                (
+                    result_store is None
+                    or isinstance(result_store, BlindResultLedgerStore)
+                )
+                and (
+                    rating_store is None
+                    or isinstance(rating_store, BlindRatingStateStore)
+                )
+                and team_public_store is None
+                and not self._store._team_mode
+            )
+        if not stores_valid:
             raise _runtime_error(
-                "canonical_rating_store_invalid",
-                "Canonical Blind Ladder rating store is invalid",
+                "canonical_persistence_store_invalid",
+                "Canonical Blind Ladder persistence stores are invalid",
             ) from None
         if (result_store is None) != (rating_store is None):
             raise _runtime_error(
@@ -371,12 +426,15 @@ class CanonicalBlindRuntime:
             ) from None
         self._result_store = result_store
         self._rating_store = rating_store
+        self._team_public_store = team_public_store
+        self._team_mode = team_mode
         self._registry_fingerprint = canonical_registry.registry_fingerprint
         self._bot_id = bot_id
         self._active_result_battle_id: str | None = None
         self._result_finalized = False
         self._rating_synchronized = False
         self._last_rating_update: BlindRatingUpdate | None = None
+        self._last_team_rating_update: BlindTeamPublicRatingUpdate | None = None
         self._session = CanonicalBlindRuntimeSession(
             canonical_registry,
             submit_team,
@@ -396,6 +454,11 @@ class CanonicalBlindRuntime:
             lifecycle_kwargs["mark_result_selection_committed"] = (
                 self._mark_result_selection_committed
             )
+        if team_mode:
+            lifecycle_kwargs["register_player_identity"] = (
+                self._register_player_identity
+            )
+            lifecycle_kwargs["team_mode"] = True
         self._coordinator = BlindPoolLifecycleCoordinator(
             self._store,
             transport,
@@ -425,6 +488,21 @@ class CanonicalBlindRuntime:
         """Return the latest public-safe persisted player rating update."""
 
         return self._last_rating_update
+
+    @property
+    def last_team_rating_update(self) -> BlindTeamPublicRatingUpdate | None:
+        """Return public team details only after terminal persistence."""
+
+        return self._last_team_rating_update
+
+    def _register_player_identity(self, identity) -> None:
+        store = self._team_public_store
+        if not self._team_mode or store is None:
+            raise _runtime_error(
+                "canonical_team_public_store_invalid",
+                "Canonical Blind Ladder public registry is unavailable",
+            ) from None
+        store.register_player(identity)
 
     async def startup(self) -> None:
         await self._coordinator.startup()
@@ -473,19 +551,48 @@ class CanonicalBlindRuntime:
                 "canonical_result_identity_invalid",
                 "Canonical Blind Ladder result identity is invalid",
             ) from None
-        pending = store.create_pending_intent(
-            player_id=player_id,
-            bot_id=self._bot_id,
-            team_id=reservation.team_id,
-            reservation_id=reservation.reservation_id,
-            room_id=room.room_id,
-            format_id=room.format_id,
-            registry_fingerprint=self._registry_fingerprint,
-        )
+        if self._team_mode:
+            challenge_identity = challenge.player_team_identity
+            if (
+                not isinstance(store, BlindTeamResultLedgerStore)
+                or challenge_identity is None
+                or reservation.player_team_id != challenge_identity.team_id
+                or reservation.player_team_display_name
+                != challenge_identity.display_name
+                or reservation.challenge_token is None
+                or challenge.challenge_token is None
+                or not reservation.challenge_token.matches(challenge.challenge_token)
+            ):
+                raise _runtime_error(
+                    "canonical_team_identity_mismatch",
+                    "Canonical Blind Ladder team identity does not match",
+                ) from None
+            pending = store.create_pending_intent(
+                player_account_id=player_id,
+                bot_account_id=self._bot_id,
+                player_team_id=reservation.player_team_id,
+                bot_team_id=reservation.team_id,
+                reservation_id=reservation.reservation_id,
+                room_id=room.room_id,
+                format_id=room.format_id,
+                registry_fingerprint=self._registry_fingerprint,
+            )
+        else:
+            assert isinstance(store, BlindResultLedgerStore)
+            pending = store.create_pending_intent(
+                player_id=player_id,
+                bot_id=self._bot_id,
+                team_id=reservation.team_id,
+                reservation_id=reservation.reservation_id,
+                room_id=room.room_id,
+                format_id=room.format_id,
+                registry_fingerprint=self._registry_fingerprint,
+            )
         self._active_result_battle_id = pending.battle_id
         self._result_finalized = False
         self._rating_synchronized = False
         self._last_rating_update = None
+        self._last_team_rating_update = None
         return pending.battle_id
 
     def _mark_result_selection_committed(self, battle_id: str) -> None:
@@ -518,7 +625,7 @@ class CanonicalBlindRuntime:
                     "canonical_result_terminal_invalid",
                     "Canonical Blind Ladder terminal result is invalid",
                 ) from None
-            outcome = OUTCOME_TIE
+            outcome = TEAM_OUTCOME_TIE if self._team_mode else OUTCOME_TIE
         else:
             winner_id = normalize_showdown_identity(winner or "")
             pending = store.load().pending_result
@@ -536,19 +643,27 @@ class CanonicalBlindRuntime:
                         "canonical_result_terminal_invalid",
                         "Canonical Blind Ladder terminal result is invalid",
                     ) from None
-                player_id = completed.player_id
+                player_id = (
+                    completed.player_account_id
+                    if self._team_mode
+                    else completed.player_id
+                )
             else:
-                player_id = pending.player_id
+                player_id = (
+                    pending.player_account_id if self._team_mode else pending.player_id
+                )
             if winner_id == player_id:
-                outcome = OUTCOME_PLAYER_WIN
+                outcome = TEAM_OUTCOME_A_WIN if self._team_mode else OUTCOME_PLAYER_WIN
             elif winner_id == self._bot_id:
-                outcome = OUTCOME_PLAYER_LOSS
+                outcome = (
+                    TEAM_OUTCOME_A_LOSS if self._team_mode else OUTCOME_PLAYER_LOSS
+                )
             else:
                 raise _runtime_error(
                     "canonical_result_winner_unexpected",
                     "Canonical Blind Ladder terminal winner is invalid",
                 ) from None
-        store.finalize_terminal(battle_id, outcome)
+        completed = store.finalize_terminal(battle_id, outcome)
         self._result_finalized = True
         rating_store = self._rating_store
         if rating_store is None:
@@ -557,9 +672,81 @@ class CanonicalBlindRuntime:
                 "Canonical Blind Ladder rating store is unavailable",
             ) from None
         synchronized = rating_store.sync(store.require_ready())
-        if synchronized.last_update is not None:
+        if self._team_mode:
+            if not isinstance(
+                completed, BlindTeamCompletedBattleResult
+            ) or not isinstance(rating_store, BlindTeamRatingStateStore):
+                raise _runtime_error(
+                    "canonical_team_rating_update_missing",
+                    "Canonical Blind Ladder team rating update is unavailable",
+                ) from None
+            if synchronized.last_update is not None:
+                if not isinstance(synchronized.last_update, BlindTeamRatingUpdate):
+                    raise _runtime_error(
+                        "canonical_team_rating_update_missing",
+                        "Canonical Blind Ladder team rating update is unavailable",
+                    ) from None
+                self._last_team_rating_update = self._public_team_update(
+                    completed,
+                    synchronized.state,
+                    synchronized.last_update,
+                )
+            elif self._last_team_rating_update is None:
+                raise _runtime_error(
+                    "canonical_team_rating_update_missing",
+                    "Canonical Blind Ladder team rating update is unavailable",
+                ) from None
+        elif synchronized.last_update is not None:
             self._last_rating_update = synchronized.last_update
         self._rating_synchronized = True
+
+    def _public_team_update(
+        self,
+        completed,
+        rating_state,
+        update: BlindTeamRatingUpdate,
+    ) -> BlindTeamPublicRatingUpdate:
+        public_store = self._team_public_store
+        if public_store is None:
+            raise _runtime_error(
+                "canonical_team_public_store_invalid",
+                "Canonical Blind Ladder public registry is unavailable",
+            ) from None
+        public = public_store.load()
+        player_identity = public.identity(completed.player_team_id)
+        bot_identity = public.identity(completed.bot_team_id)
+        player_rating: BlindTeamRating | None = rating_state.team(
+            completed.player_team_id
+        )
+        bot_rating: BlindTeamRating | None = rating_state.team(completed.bot_team_id)
+        if (
+            player_identity is None
+            or bot_identity is None
+            or player_rating is None
+            or bot_rating is None
+        ):
+            raise _runtime_error(
+                "canonical_team_public_update_invalid",
+                "Canonical Blind Ladder public rating update is unavailable",
+            ) from None
+        return BlindTeamPublicRatingUpdate(
+            player_identity.display_name,
+            update.team_a_rating_before,
+            update.team_a_rating_after,
+            update.team_a_delta,
+            player_rating.wins,
+            player_rating.losses,
+            player_rating.ties,
+            player_rating.win_rate_display,
+            player_rating.peak_rating,
+            player_rating.streak_label,
+            bot_identity.display_name,
+            bot_rating.rating,
+            bot_rating.wins,
+            bot_rating.losses,
+            bot_rating.ties,
+            bot_rating.win_rate_display,
+        )
 
     async def run_once(self) -> Any:
         if self._running:

@@ -115,6 +115,7 @@ class ExpansionFixture:
         cycle_order: tuple[str, ...] | None = None,
         last_consumed_id: str | None = None,
         reservation_phase: str | None = None,
+        schema_version: int = 2,
     ) -> BlindPoolBagState:
         order = self.old_ids if cycle_order is None else cycle_order
         if last_consumed_id is None and next_index:
@@ -130,7 +131,7 @@ class ExpansionFixture:
                 challenge_token=None,
             )
         state = BlindPoolBagState(
-            schema_version=2,
+            schema_version=schema_version,
             registry_fingerprint=self.source_selection.registry_fingerprint,
             cycle_number=cycle_number,
             cycle_order=order,
@@ -142,17 +143,19 @@ class ExpansionFixture:
             self.source_state_config,
             state,
             self.source_selection,
+            required_schema_version=schema_version,
         )
         return state
 
-    def migrate(self, *, random_source=None):
+    def migrate(self, *, random_source=None, team_mode=False):
         return migrate_blind_canonical_pool_expansion(
             self.source_startup,
             self.target_startup,
             random_source=random_source or IdentityRandom(),
+            team_mode=team_mode,
         )
 
-    def target_state(self) -> BlindPoolBagState:
+    def target_state(self, *, team_mode=False) -> BlindPoolBagState:
         registry = load_canonical_runtime_registry(
             self.target.private_root,
             self.target.registry_path,
@@ -162,7 +165,11 @@ class ExpansionFixture:
             BlindPoolConfig(self.target.private_root, self.target.registry_path),
             self.target_state_path,
         )
-        return load_blind_pool_bag_state(config, selection)
+        return load_blind_pool_bag_state(
+            config,
+            selection,
+            required_schema_version=3 if team_mode else 2,
+        )
 
 
 class ExpansionMigrationTestCase(unittest.TestCase):
@@ -183,6 +190,16 @@ class ExpansionMigrationTestCase(unittest.TestCase):
         fixture.migrate(random_source=ReverseRandom())
         migrated = fixture.target_state()
         self.assertEqual(source.cycle_order[:7], migrated.cycle_order[:7])
+
+    def test_schema_three_expansion_preserves_consumed_prefix_and_index(self):
+        fixture = self.fixture()
+        source = fixture.write_source_state(next_index=2, schema_version=3)
+        fixture.migrate(random_source=ReverseRandom(), team_mode=True)
+        migrated = fixture.target_state(team_mode=True)
+        self.assertEqual(3, migrated.schema_version)
+        self.assertEqual(source.cycle_order[:2], migrated.cycle_order[:2])
+        self.assertEqual(source.next_index, migrated.next_index)
+        self.assertEqual(source.last_consumed_id, migrated.last_consumed_id)
 
     def test_consumed_ids_do_not_recur_in_remaining_cycle(self):
         fixture = self.fixture()

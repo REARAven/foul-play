@@ -21,9 +21,11 @@ from .models import (
 from .selection import BlindPoolSelectionSnapshot, coerce_selection_snapshot
 
 
-# Phase 5D2 makes exact challenge identity an atomic part of every reservation.
-# Historical schema-v1 files are rejected rather than migrated or reinterpreted.
-STATE_SCHEMA_VERSION = 2
+# Schema 3 binds the server-authoritative player-team identity to the durable
+# reservation.  Schema 2 remains an explicit legacy/account-ladder contract;
+# callers must opt into the schema they intend to operate.
+LEGACY_STATE_SCHEMA_VERSION = 2
+STATE_SCHEMA_VERSION = 3
 RESERVATION_PHASE = "reserved"
 ACCEPT_SENT_PHASE = "accept_sent"
 RESERVATION_PHASES = frozenset({RESERVATION_PHASE, ACCEPT_SENT_PHASE})
@@ -49,7 +51,7 @@ _TOP_LEVEL_FIELDS = frozenset(
         "reservation",
     }
 )
-_RESERVATION_FIELDS = frozenset(
+_LEGACY_RESERVATION_FIELDS = frozenset(
     {
         "reservation_id",
         "team_id",
@@ -58,6 +60,9 @@ _RESERVATION_FIELDS = frozenset(
         "phase",
         "challenge_token",
     }
+)
+_TEAM_RESERVATION_FIELDS = _LEGACY_RESERVATION_FIELDS | frozenset(
+    {"player_team_id", "player_team_display_name"}
 )
 _TEAM_ID_PATTERN = re.compile(r"^BL-[0-9]{3,}-v[1-9][0-9]*$")
 _FINGERPRINT_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -111,6 +116,7 @@ def _validate_reservation(
     cycle_order: tuple[str, ...],
     next_index: int,
     last_consumed_id: str | None,
+    schema_version: int,
 ) -> BlindPoolReservation | None:
     if value is None:
         return None
@@ -118,7 +124,11 @@ def _validate_reservation(
         _fail("state_reservation_invalid", "Blind Ladder reservation must be an object")
     _validate_exact_fields(
         value,
-        _RESERVATION_FIELDS,
+        (
+            _TEAM_RESERVATION_FIELDS
+            if schema_version == STATE_SCHEMA_VERSION
+            else _LEGACY_RESERVATION_FIELDS
+        ),
         context="Blind Ladder reservation",
     )
     reservation_id = value["reservation_id"]
@@ -179,6 +189,32 @@ def _validate_reservation(
             "state_reservation_invalid",
             "Blind Ladder reservation repeats the consumed team",
         )
+    player_team_id = None
+    player_team_display_name = None
+    if schema_version == STATE_SCHEMA_VERSION:
+        from .leaderboard import (
+            BlindTeamPublicIdentity,
+            PUBLIC_TEAM_KIND_PLAYER,
+        )
+
+        if challenge_token is None:
+            _fail(
+                "state_challenge_token_required",
+                "Team ladder reservation requires exact challenge identity",
+            )
+        try:
+            identity = BlindTeamPublicIdentity(
+                value["player_team_id"],
+                value["player_team_display_name"],
+                PUBLIC_TEAM_KIND_PLAYER,
+            )
+        except BlindPoolValidationError:
+            _fail(
+                "state_player_team_identity_invalid",
+                "Blind Ladder player-team identity is invalid",
+            )
+        player_team_id = identity.team_id
+        player_team_display_name = identity.display_name
     return BlindPoolReservation(
         reservation_id=reservation_id,
         team_id=team_id,
@@ -186,12 +222,16 @@ def _validate_reservation(
         position=next_index,
         phase=value["phase"],
         challenge_token=challenge_token,
+        player_team_id=player_team_id,
+        player_team_display_name=player_team_display_name,
     )
 
 
 def validate_blind_pool_bag_state(
     document: Any,
     registry: BlindPoolSelectionSnapshot | BlindPoolRegistry,
+    *,
+    required_schema_version: int = LEGACY_STATE_SCHEMA_VERSION,
 ) -> BlindPoolBagState:
     """Validate decoded state against current validated registry semantics."""
 
@@ -201,7 +241,12 @@ def validate_blind_pool_bag_state(
     _validate_exact_fields(document, _TOP_LEVEL_FIELDS, context="Blind Ladder state")
 
     schema_version = document["schema_version"]
-    if type(schema_version) is not int or schema_version != STATE_SCHEMA_VERSION:
+    if required_schema_version not in {
+        LEGACY_STATE_SCHEMA_VERSION,
+        STATE_SCHEMA_VERSION,
+    }:
+        _fail("state_schema_unsupported", "Blind Ladder state schema is unsupported")
+    if type(schema_version) is not int or schema_version != required_schema_version:
         _fail(
             "state_schema_unsupported",
             "Blind Ladder state schema version is unsupported",
@@ -283,9 +328,10 @@ def validate_blind_pool_bag_state(
         cycle_order=cycle_order,
         next_index=next_index,
         last_consumed_id=last_consumed_id,
+        schema_version=schema_version,
     )
     return BlindPoolBagState(
-        schema_version=STATE_SCHEMA_VERSION,
+        schema_version=schema_version,
         registry_fingerprint=fingerprint,
         cycle_number=cycle_number,
         cycle_order=cycle_order,
@@ -298,6 +344,8 @@ def validate_blind_pool_bag_state(
 def load_blind_pool_bag_state(
     config: BlindPoolStateConfig,
     registry: BlindPoolSelectionSnapshot | BlindPoolRegistry,
+    *,
+    required_schema_version: int = LEGACY_STATE_SCHEMA_VERSION,
 ) -> BlindPoolBagState:
     """Read one state file; callers must hold its transaction lock."""
 
@@ -322,7 +370,11 @@ def load_blind_pool_bag_state(
         )
     except (json.JSONDecodeError, ValueError):
         _fail("state_json_invalid", "Blind Ladder state contains malformed JSON")
-    return validate_blind_pool_bag_state(document, registry)
+    return validate_blind_pool_bag_state(
+        document,
+        registry,
+        required_schema_version=required_schema_version,
+    )
 
 
 def _state_document(state: BlindPoolBagState) -> dict[str, Any]:
@@ -346,6 +398,14 @@ def _state_document(state: BlindPoolBagState) -> dict[str, Any]:
                 None
                 if reservation.challenge_token is None
                 else reservation.challenge_token.wire_value()
+            ),
+            **(
+                {
+                    "player_team_id": reservation.player_team_id,
+                    "player_team_display_name": reservation.player_team_display_name,
+                }
+                if state.schema_version == STATE_SCHEMA_VERSION
+                else {}
             ),
         },
     }
@@ -389,6 +449,7 @@ def write_blind_pool_bag_state_atomic(
     registry: BlindPoolSelectionSnapshot | BlindPoolRegistry,
     *,
     replace_existing: bool = True,
+    required_schema_version: int = LEGACY_STATE_SCHEMA_VERSION,
 ) -> None:
     """Publish state from a flushed unique sibling without in-place writes."""
 
@@ -402,6 +463,7 @@ def write_blind_pool_bag_state_atomic(
         validated_state = validate_blind_pool_bag_state(
             _state_document(state),
             registry,
+            required_schema_version=required_schema_version,
         )
         payload = _serialize_state(validated_state)
     except (TypeError, ValueError, UnicodeError):

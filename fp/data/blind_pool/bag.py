@@ -22,6 +22,7 @@ from .models import (
     BlindPoolReservation,
     BlindPoolStateConfig,
 )
+from .leaderboard import BlindTeamPublicIdentity, PUBLIC_TEAM_KIND_PLAYER
 from .reconciliation import (
     BlindReconciliationDisposition,
     derive_reconciliation_case,
@@ -34,6 +35,7 @@ from .selection import (
 )
 from .state import (
     ACCEPT_SENT_PHASE,
+    LEGACY_STATE_SCHEMA_VERSION,
     RESERVATION_PHASE,
     STATE_SCHEMA_VERSION,
     load_blind_pool_bag_state,
@@ -68,6 +70,7 @@ class BlindPoolBagStore:
         random_source: ShuffleSource | None = None,
         reservation_id_factory: Callable[[], str] | None = None,
         lock_timeout_seconds: float = 5.0,
+        team_mode: bool = False,
     ) -> None:
         validated_config = validate_blind_pool_state_config(config)
         if not isinstance(registry, BlindPoolRegistry):
@@ -85,6 +88,7 @@ class BlindPoolBagStore:
             random_source=random_source,
             reservation_id_factory=reservation_id_factory,
             lock_timeout_seconds=lock_timeout_seconds,
+            team_mode=team_mode,
         )
 
     @classmethod
@@ -96,6 +100,7 @@ class BlindPoolBagStore:
         random_source: ShuffleSource | None = None,
         reservation_id_factory: Callable[[], str] | None = None,
         lock_timeout_seconds: float = 5.0,
+        team_mode: bool = False,
     ) -> BlindPoolBagStore:
         """Construct explicitly from an already validated selection snapshot."""
 
@@ -111,6 +116,7 @@ class BlindPoolBagStore:
             random_source=random_source,
             reservation_id_factory=reservation_id_factory,
             lock_timeout_seconds=lock_timeout_seconds,
+            team_mode=team_mode,
         )
         return store
 
@@ -123,6 +129,7 @@ class BlindPoolBagStore:
         random_source: ShuffleSource | None = None,
         reservation_id_factory: Callable[[], str] | None = None,
         lock_timeout_seconds: float = 5.0,
+        team_mode: bool = False,
     ) -> BlindPoolBagStore:
         """Construct explicitly from a committed canonical runtime registry."""
 
@@ -132,6 +139,7 @@ class BlindPoolBagStore:
             random_source=random_source,
             reservation_id_factory=reservation_id_factory,
             lock_timeout_seconds=lock_timeout_seconds,
+            team_mode=team_mode,
         )
 
     def _initialize(
@@ -142,6 +150,7 @@ class BlindPoolBagStore:
         random_source: ShuffleSource | None,
         reservation_id_factory: Callable[[], str] | None,
         lock_timeout_seconds: float,
+        team_mode: bool,
     ) -> None:
         self._config = validate_blind_pool_state_config(config)
         self._lock_path = self._resolve_lock_path(self._config)
@@ -163,6 +172,14 @@ class BlindPoolBagStore:
             lambda: uuid.uuid4().hex
         )
         self._lock_timeout_seconds = lock_timeout_seconds
+        if type(team_mode) is not bool:
+            raise BlindPoolValidationError(
+                "selection_mode_invalid", "Blind Ladder selection mode is invalid"
+            ) from None
+        self._team_mode = team_mode
+        self._schema_version = (
+            STATE_SCHEMA_VERSION if team_mode else LEGACY_STATE_SCHEMA_VERSION
+        )
 
     def __repr__(self) -> str:
         return "BlindPoolBagStore(active_count={!r})".format(len(self._active_ids))
@@ -219,9 +236,33 @@ class BlindPoolBagStore:
             )
         return tuple(order)
 
+    def _load_state(self) -> BlindPoolBagState:
+        if self._team_mode:
+            return load_blind_pool_bag_state(
+                self._config,
+                self._selection,
+                required_schema_version=self._schema_version,
+            )
+        return load_blind_pool_bag_state(self._config, self._selection)
+
+    def _write_state(self, state: BlindPoolBagState) -> None:
+        if self._team_mode:
+            write_blind_pool_bag_state_atomic(
+                self._config,
+                state,
+                self._selection,
+                required_schema_version=self._schema_version,
+            )
+        else:
+            write_blind_pool_bag_state_atomic(
+                self._config,
+                state,
+                self._selection,
+            )
+
     def _initial_state(self) -> BlindPoolBagState:
         state = BlindPoolBagState(
-            schema_version=STATE_SCHEMA_VERSION,
+            schema_version=self._schema_version,
             registry_fingerprint=self._fingerprint,
             cycle_number=1,
             cycle_order=self._new_cycle_order(),
@@ -240,6 +281,7 @@ class BlindPoolBagStore:
                 "reservation": None,
             },
             self._selection,
+            required_schema_version=self._schema_version,
         )
 
     def initialize_or_load(self) -> BlindPoolBagState:
@@ -247,9 +289,9 @@ class BlindPoolBagStore:
 
         with self._lock():
             if self._config.state_path.exists():
-                return load_blind_pool_bag_state(self._config, self._selection)
+                return self._load_state()
             state = self._initial_state()
-            write_blind_pool_bag_state_atomic(self._config, state, self._selection)
+            self._write_state(state)
             logger.info(
                 "Initialized Blind Ladder bag active={} cycle={} "
                 "next_position={}".format(
@@ -262,11 +304,12 @@ class BlindPoolBagStore:
         """Return the latest state, including any unresolved reservation."""
 
         with self._lock():
-            return load_blind_pool_bag_state(self._config, self._selection)
+            return self._load_state()
 
     def reserve_next(
         self,
         challenge_token: BlindChallengeToken | None = None,
+        player_team_identity: BlindTeamPublicIdentity | None = None,
     ) -> BlindPoolReservation:
         """Persist a reservation for the next unconsumed cycle position."""
 
@@ -278,8 +321,28 @@ class BlindPoolBagStore:
                 "Blind Ladder challenge token is malformed",
             ) from None
 
+        if self._team_mode:
+            if challenge_token is None:
+                raise BlindPoolValidationError(
+                    "challenge_token_required",
+                    "Team ladder reservations require exact challenge identity",
+                ) from None
+            if (
+                not isinstance(player_team_identity, BlindTeamPublicIdentity)
+                or player_team_identity.kind != PUBLIC_TEAM_KIND_PLAYER
+            ):
+                raise BlindPoolValidationError(
+                    "player_team_identity_required",
+                    "Team ladder reservations require player-team identity",
+                ) from None
+        elif player_team_identity is not None:
+            raise BlindPoolValidationError(
+                "player_team_identity_unexpected",
+                "Legacy reservations do not accept player-team identity",
+            ) from None
+
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._selection)
+            state = self._load_state()
             if state.reservation is not None:
                 raise BlindPoolValidationError(
                     "unresolved_reservation_exists",
@@ -287,7 +350,7 @@ class BlindPoolBagStore:
                 ) from None
             if state.next_index == len(state.cycle_order):
                 state = BlindPoolBagState(
-                    schema_version=STATE_SCHEMA_VERSION,
+                    schema_version=self._schema_version,
                     registry_fingerprint=self._fingerprint,
                     cycle_number=state.cycle_number + 1,
                     cycle_order=self._new_cycle_order(state.last_consumed_id),
@@ -317,9 +380,19 @@ class BlindPoolBagStore:
                 position=state.next_index,
                 phase=RESERVATION_PHASE,
                 challenge_token=challenge_token,
+                player_team_id=(
+                    None
+                    if player_team_identity is None
+                    else player_team_identity.team_id
+                ),
+                player_team_display_name=(
+                    None
+                    if player_team_identity is None
+                    else player_team_identity.display_name
+                ),
             )
             updated = replace(state, reservation=reservation)
-            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
+            self._write_state(updated)
             logger.info(
                 "Reserved Blind Ladder selection cycle={} position={}".format(
                     reservation.cycle_number,
@@ -372,7 +445,7 @@ class BlindPoolBagStore:
         """
 
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._selection)
+            state = self._load_state()
             reservation = self._active_reservation(
                 state,
                 reservation_id,
@@ -390,7 +463,7 @@ class BlindPoolBagStore:
                 state,
                 reservation=replace(reservation, phase=ACCEPT_SENT_PHASE),
             )
-            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
+            self._write_state(updated)
             logger.info(
                 "Marked Blind Ladder acceptance pending cycle={} position={}".format(
                     reservation.cycle_number,
@@ -405,14 +478,14 @@ class BlindPoolBagStore:
         required_phase: str,
     ) -> BlindPoolBagState:
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._selection)
+            state = self._load_state()
             reservation = self._active_reservation(
                 state,
                 reservation_id,
                 required_phase=required_phase,
             )
             updated = self._committed_state(state, reservation)
-            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
+            self._write_state(updated)
             logger.info(
                 "Committed Blind Ladder selection cycle={} position={}".format(
                     reservation.cycle_number,
@@ -452,14 +525,14 @@ class BlindPoolBagStore:
         """Clear exactly one reservation without consuming its position."""
 
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._selection)
+            state = self._load_state()
             reservation = self._active_reservation(
                 state,
                 reservation_id,
                 required_phase=RESERVATION_PHASE,
             )
             updated = replace(state, reservation=None)
-            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
+            self._write_state(updated)
             logger.info(
                 "Released Blind Ladder selection cycle={} position={}".format(
                     reservation.cycle_number,
@@ -475,14 +548,14 @@ class BlindPoolBagStore:
         """Explicitly release an ambiguously accepted reservation without use."""
 
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._selection)
+            state = self._load_state()
             reservation = self._active_reservation(
                 state,
                 reservation_id,
                 required_phase=ACCEPT_SENT_PHASE,
             )
             updated = self._released_state(state)
-            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
+            self._write_state(updated)
             logger.info(
                 "Reconciled Blind Ladder no-room outcome cycle={} position={}".format(
                     reservation.cycle_number,
@@ -531,7 +604,7 @@ class BlindPoolBagStore:
         self._selection._require_canonical_reconciliation()
 
         with self._lock():
-            state = load_blind_pool_bag_state(self._config, self._selection)
+            state = self._load_state()
             if state.reservation is None:
                 raise BlindPoolValidationError(
                     "reconciliation_not_applicable",
@@ -556,8 +629,8 @@ class BlindPoolBagStore:
             else:  # pragma: no cover - guarded by the enum type above
                 raise AssertionError("unsupported reconciliation disposition")
 
-            write_blind_pool_bag_state_atomic(self._config, updated, self._selection)
-            persisted = load_blind_pool_bag_state(self._config, self._selection)
+            self._write_state(updated)
+            persisted = self._load_state()
             if persisted != updated:
                 raise BlindPoolValidationError(
                     "reconciliation_post_write_verification_failed",

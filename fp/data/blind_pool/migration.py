@@ -23,6 +23,7 @@ from .selection import BlindPoolSelectionSnapshot, create_canonical_selection_sn
 from .startup import BlindCanonicalStartupConfig
 from .state import (
     ACCEPT_SENT_PHASE,
+    LEGACY_STATE_SCHEMA_VERSION,
     STATE_SCHEMA_VERSION,
     load_blind_pool_bag_state,
     write_blind_pool_bag_state_atomic,
@@ -58,6 +59,7 @@ class _MigrationDeployment:
     registry: CanonicalRuntimeRegistry
     selection: BlindPoolSelectionSnapshot
     state_config: BlindPoolStateConfig
+    state_schema_version: int
 
 
 def _fail(code: str, message: str) -> NoReturn:
@@ -99,6 +101,7 @@ def _load_deployment(
     state_config: BlindPoolStateConfig,
     *,
     repository_root: str | Path | None,
+    state_schema_version: int,
 ) -> _MigrationDeployment:
     try:
         registry = load_canonical_runtime_registry(
@@ -107,13 +110,22 @@ def _load_deployment(
             repository_root=repository_root,
         )
         selection = create_canonical_selection_snapshot(registry)
-        BlindPoolBagStore.from_selection_snapshot(state_config, selection)
+        BlindPoolBagStore.from_selection_snapshot(
+            state_config,
+            selection,
+            team_mode=state_schema_version == STATE_SCHEMA_VERSION,
+        )
     except (CanonicalArtifactError, BlindPoolValidationError):
         _fail(
             "expansion_deployment_invalid",
             "Blind Ladder expansion deployment validation failed",
         )
-    return _MigrationDeployment(registry, selection, state_config)
+    return _MigrationDeployment(
+        registry,
+        selection,
+        state_config,
+        state_schema_version,
+    )
 
 
 def _validate_expansion_bindings(
@@ -186,7 +198,7 @@ def _expanded_state(
             remaining[0],
         )
     return BlindPoolBagState(
-        schema_version=STATE_SCHEMA_VERSION,
+        schema_version=source_state.schema_version,
         registry_fingerprint=target.selection.registry_fingerprint,
         cycle_number=source_state.cycle_number,
         cycle_order=consumed_prefix + tuple(remaining),
@@ -206,6 +218,7 @@ def _migrate_locked(
         source_state = load_blind_pool_bag_state(
             source.state_config,
             source.selection,
+            required_schema_version=source.state_schema_version,
         )
     except BlindPoolValidationError:
         _fail(
@@ -239,10 +252,12 @@ def _migrate_locked(
             migrated,
             target.selection,
             replace_existing=False,
+            required_schema_version=target.state_schema_version,
         )
         validated = load_blind_pool_bag_state(
             target.state_config,
             target.selection,
+            required_schema_version=target.state_schema_version,
         )
     except BlindPoolValidationError as error:
         if error.code == "state_target_exists":
@@ -276,9 +291,18 @@ def migrate_blind_canonical_pool_expansion(
     random_source: ShuffleSource | None = None,
     owner_timeout_seconds: float = 0.25,
     lock_timeout_seconds: float = 5.0,
+    team_mode: bool = False,
 ) -> BlindPoolExpansionMigrationResult:
     """Atomically publish a new state for one strict canonical pool expansion."""
 
+    if type(team_mode) is not bool:
+        _fail(
+            "expansion_config_invalid",
+            "Blind Ladder expansion mode is invalid",
+        )
+    state_schema_version = (
+        STATE_SCHEMA_VERSION if team_mode else LEGACY_STATE_SCHEMA_VERSION
+    )
     source_state_config = _state_config(
         source_config,
         repository_root=repository_root,
@@ -324,11 +348,13 @@ def migrate_blind_canonical_pool_expansion(
             source_config,
             source_state_config,
             repository_root=repository_root,
+            state_schema_version=state_schema_version,
         )
         target = _load_deployment(
             target_config,
             target_state_config,
             repository_root=repository_root,
+            state_schema_version=state_schema_version,
         )
         for state_config in state_configs:
             stack.enter_context(

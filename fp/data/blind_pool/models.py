@@ -210,6 +210,8 @@ class BlindPoolReservation:
     position: int
     phase: str
     challenge_token: BlindChallengeToken | None = field(default=None, repr=False)
+    player_team_id: str | None = field(default=None, repr=False)
+    player_team_display_name: str | None = field(default=None, repr=False)
 
     def __repr__(self) -> str:
         return (

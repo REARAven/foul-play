@@ -87,23 +87,55 @@ async def _run_sequential_battles(
         if runtime_error is not None:
             raise classify_blind_canonical_runtime_error(runtime_error) from None
 
+        team_update = getattr(runtime, "last_team_rating_update", None)
         update = runtime.last_rating_update
-        if update is None:
+        if team_update is not None:
+            logger.info(
+                "Team rating: {} {} ({:+d})".format(
+                    team_update.player_name,
+                    team_update.player_rating_after,
+                    team_update.player_delta,
+                )
+            )
+            logger.info(
+                "Record: {}-{}-{} | Win rate: {}".format(
+                    team_update.player_wins,
+                    team_update.player_losses,
+                    team_update.player_ties,
+                    team_update.player_win_rate,
+                )
+            )
+            logger.info("Current streak: {}".format(team_update.player_streak))
+            logger.info("Peak rating: {}".format(team_update.player_peak))
+            logger.info(
+                "Opponent: {} | Rating: {} | Record: {}-{}-{} | Win rate: {}".format(
+                    team_update.bot_name,
+                    team_update.bot_rating_after,
+                    team_update.bot_wins,
+                    team_update.bot_losses,
+                    team_update.bot_ties,
+                    team_update.bot_win_rate,
+                )
+            )
+        elif update is None:
             raise classify_blind_canonical_runtime_error(
                 BlindPoolLifecycleError(
                     "canonical_rating_update_missing",
                     "Blind Ladder persisted rating update is unavailable",
                 )
             ) from None
-        logger.info(
-            "Ladder rating: {} ({:+d})".format(
-                update.rating_after,
-                update.rating_delta,
+        else:
+            logger.info(
+                "Ladder rating: {} ({:+d})".format(
+                    update.rating_after,
+                    update.rating_delta,
+                )
             )
-        )
-        logger.info("Record: {}-{}-{}".format(update.wins, update.losses, update.ties))
-        logger.info("Current streak: {}".format(update.streak_label))
-        logger.info("Peak rating: {}".format(update.peak_rating))
+            logger.info(
+                "Record: {}-{}-{}".format(update.wins, update.losses, update.ties)
+            )
+            logger.info("Current streak: {}".format(update.streak_label))
+            logger.info("Peak rating: {}".format(update.peak_rating))
         integrity_checker(original_pokedex, original_move_json)
 
         battles_run += 1

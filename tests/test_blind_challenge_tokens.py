@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import copy
 import json
 import logging
@@ -12,6 +13,7 @@ from unittest import mock
 from fp.data.blind_pool import (
     BlindChallengeEndEvent,
     BlindChallengeRoomBinding,
+    BlindChallengeTeamIdentity,
     BlindChallengeToken,
     BlindExactChallengeProtocol,
     BlindPoolLifecycleCoordinator,
@@ -20,6 +22,7 @@ from fp.data.blind_pool import (
     BlindPoolValidationError,
     parse_challenge_end,
     parse_challenge_room_binding,
+    parse_challenge_team_identity,
     parse_exact_challenge_offer,
     parse_private_challenge_event,
 )
@@ -38,6 +41,7 @@ TOKEN_TWO = "b" * 32
 UNKNOWN_TOKEN = "c" * 32
 TOKEN_SENTINEL = "deadc0de" * 4
 OFFER = "|tugschallenge|syntheticopponent|gen9tugs|" + TOKEN
+PLAYER_TEAM_ID = "player-team:" + "1" * 32
 
 
 def offer(
@@ -51,6 +55,35 @@ def offer(
 
 def binding(token: str, room_id: str) -> str:
     return "|tugschallengeroom|{}|{}".format(token, room_id)
+
+
+def team_identity_event(
+    token: str = TOKEN,
+    *,
+    team_id: str = PLAYER_TEAM_ID,
+    display_name: str = "Synthetic Offense",
+    version: int = 1,
+) -> str:
+    raw = json.dumps(
+        {"v": version, "team_id": team_id, "display_name": display_name},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    payload = base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+    return "|tugschallengeteam|{}|{}".format(token, payload)
+
+
+def noncanonical_base64url_alias(payload: str) -> str:
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    remainder = len(payload) % 4
+    if remainder not in (2, 3):
+        raise AssertionError("fixture payload needs unused base64 bits")
+    unused_bits = 4 if remainder == 2 else 2
+    index = alphabet.index(payload[-1])
+    alias_index = (index & ~((1 << unused_bits) - 1)) | (
+        (index + 1) & ((1 << unused_bits) - 1)
+    )
+    return payload[:-1] + alphabet[alias_index]
 
 
 class _Websocket:
@@ -132,6 +165,83 @@ class TokenModelAndParserTests(unittest.TestCase):
             with self.subTest(model=type(value).__name__):
                 with self.assertRaises(TypeError):
                     pickle.dumps(value)
+
+    def test_valid_player_team_identity_event_is_private_and_canonical(self):
+        event = parse_challenge_team_identity(team_identity_event())
+        self.assertIsInstance(event, BlindChallengeTeamIdentity)
+        self.assertTrue(event.challenge_token.matches(BlindChallengeToken(TOKEN)))
+        self.assertEqual("Synthetic Offense", event.public_identity.display_name)
+        self.assertEqual("player", event.public_identity.kind)
+        rendered = repr(event) + str(event) + repr(event.public_identity)
+        self.assertNotIn(PLAYER_TEAM_ID, rendered)
+        self.assertIn("Synthetic Offense", rendered)
+        self.assertIsInstance(
+            parse_private_challenge_event(team_identity_event()),
+            BlindChallengeTeamIdentity,
+        )
+
+    def test_player_team_identity_parser_rejects_every_noncanonical_boundary(self):
+        valid_payload = team_identity_event().split("|")[3]
+        candidate_payloads = tuple(
+            team_identity_event(display_name="Synthetic" + "x" * length).split("|")[3]
+            for length in range(3)
+        )
+        alias_payload = next(
+            payload for payload in candidate_payloads if len(payload) % 4 in (2, 3)
+        )
+        documents = (
+            {"v": 2, "team_id": PLAYER_TEAM_ID, "display_name": "Synthetic"},
+            {"v": 1, "team_id": "invalid", "display_name": "Synthetic"},
+            {"v": 1, "team_id": PLAYER_TEAM_ID, "display_name": "Bot team 31"},
+            {"v": 1, "team_id": PLAYER_TEAM_ID, "display_name": "<unsafe>"},
+            {"v": 1, "team_id": PLAYER_TEAM_ID},
+            {
+                "v": 1,
+                "team_id": PLAYER_TEAM_ID,
+                "display_name": "Synthetic",
+                "extra": True,
+            },
+        )
+        malformed = [
+            "|tugschallengeteam|{}|{}".format(TOKEN.upper(), valid_payload),
+            "|tugschallengeteam|{}|***".format(TOKEN),
+            "|tugschallengeteam|{}|{}=".format(TOKEN, valid_payload),
+            "|tugschallengeteam|{}|{}".format(
+                TOKEN, noncanonical_base64url_alias(alias_payload)
+            ),
+            "|tugschallengeteam|{}".format(TOKEN),
+            "|tugschallengeteam|{}|{}|extra".format(TOKEN, valid_payload),
+        ]
+        for document in documents:
+            raw = json.dumps(document, separators=(",", ":")).encode("utf-8")
+            malformed.append(
+                "|tugschallengeteam|{}|{}".format(
+                    TOKEN,
+                    base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii"),
+                )
+            )
+        reordered = json.dumps(
+            {
+                "display_name": "Synthetic",
+                "team_id": PLAYER_TEAM_ID,
+                "v": 1,
+            },
+            separators=(",", ":"),
+        ).encode("utf-8")
+        malformed.append(
+            "|tugschallengeteam|{}|{}".format(
+                TOKEN,
+                base64.urlsafe_b64encode(reordered).rstrip(b"=").decode("ascii"),
+            )
+        )
+        for message in malformed:
+            with self.subTest(length=len(message)):
+                with self.assertRaises(BlindPoolLifecycleError) as caught:
+                    parse_challenge_team_identity(message)
+                self.assertEqual(
+                    "private_challenge_event_invalid", caught.exception.code
+                )
+                self.assertNotIn(PLAYER_TEAM_ID, str(caught.exception))
 
     def test_private_event_parsers_reject_exact_grammar_violations_safely(self):
         cases = (
@@ -348,6 +458,7 @@ class WebsocketExactProtocolTests(unittest.TestCase):
             "|tugschallenge|",
             "|tugschallengeend|",
             "|tugschallengeroom|",
+            "|tugschallengeteam|",
         )
         suffixes = (
             TOKEN_SENTINEL,
@@ -367,6 +478,15 @@ class WebsocketExactProtocolTests(unittest.TestCase):
                     ) as captured:
                         self.assertEqual(raw, asyncio.run(client.receive_message()))
                     self.assertNotIn(TOKEN_SENTINEL, "\n".join(captured.output))
+
+        raw = team_identity_event()
+        payload = raw.rsplit("|", 1)[1]
+        client = self.client((raw,))
+        with self.assertLogs("fp.websocket_client", logging.DEBUG) as captured:
+            self.assertEqual(raw, asyncio.run(client.receive_message()))
+        rendered = "\n".join(captured.output)
+        self.assertNotIn(payload, rendered)
+        self.assertNotIn(PLAYER_TEAM_ID, rendered)
 
 
 class ExactLifecycleTests(BlindPoolLifecycleFixture):
@@ -389,6 +509,105 @@ class ExactLifecycleTests(BlindPoolLifecycleFixture):
             room_timeout_seconds=timeout,
             exact_protocol=BlindExactChallengeProtocol.from_transport(transport),
         )
+
+    def test_team_identity_requires_offer_and_correlates_only_by_exact_token(self):
+        coordinator = self.coordinator_exact(FakeTransport())
+        event = parse_challenge_team_identity(team_identity_event())
+        self.assertFalse(coordinator._record_exact_team_identity(event))
+        self.assertIsNone(coordinator._next_pending_exact_challenge())
+
+        challenge = parse_exact_challenge_offer(OFFER)
+        coordinator._record_exact_offer(challenge)
+        coordinator._queue_exact_challenge(challenge)
+        self.assertTrue(coordinator._record_exact_team_identity(event))
+        correlated = coordinator._next_pending_exact_challenge()
+        self.assertEqual(
+            "Synthetic Offense",
+            correlated.player_team_identity.display_name,
+        )
+        self.assertTrue(correlated.challenge_token.matches(event.challenge_token))
+        self.assertFalse(coordinator._record_exact_team_identity(event))
+
+    def test_team_identity_info_logs_never_expose_private_identity(self):
+        coordinator = self.coordinator_exact(FakeTransport())
+        event = parse_challenge_team_identity(team_identity_event())
+        payload = team_identity_event().rsplit("|", 1)[1]
+        with self.assertLogs("fp.data.blind_pool.lifecycle", logging.INFO) as captured:
+            self.assertFalse(coordinator._record_exact_team_identity(event))
+        rendered = "\n".join(captured.output)
+        self.assertNotIn(payload, rendered)
+        self.assertNotIn(PLAYER_TEAM_ID, rendered)
+
+    def test_conflicting_team_identity_quarantines_without_reservation_or_exposure(
+        self,
+    ):
+        coordinator = self.coordinator_exact(FakeTransport())
+        challenge = parse_exact_challenge_offer(OFFER)
+        coordinator._record_exact_offer(challenge)
+        coordinator._queue_exact_challenge(challenge)
+        coordinator._record_exact_team_identity(
+            parse_challenge_team_identity(team_identity_event())
+        )
+        conflict = parse_challenge_team_identity(
+            team_identity_event(display_name="Different Public Name")
+        )
+        with self.assertNoLogs(
+            "fp.data.blind_pool.lifecycle", logging.DEBUG
+        ), self.assertRaises(BlindPoolLifecycleError) as caught:
+            coordinator._record_exact_team_identity(conflict)
+        self.assertEqual("exact_team_identity_conflict", caught.exception.code)
+        self.assertTrue(coordinator._reconciliation_pending)
+        self.assertFalse(self.state_path.exists())
+        rendered = str(caught.exception) + repr(coordinator)
+        self.assertNotIn(PLAYER_TEAM_ID, rendered)
+
+    def test_end_tombstones_team_identity_and_stale_event_cannot_bind_next_offer(self):
+        coordinator = self.coordinator_exact(FakeTransport())
+        first = parse_exact_challenge_offer(OFFER)
+        event = parse_challenge_team_identity(team_identity_event())
+        coordinator._record_exact_offer(first)
+        coordinator._queue_exact_challenge(first)
+        coordinator._record_exact_team_identity(event)
+        coordinator._remember_resolved_token(first.challenge_token)
+        self.assertFalse(coordinator._record_exact_team_identity(event))
+        self.assertEqual(0, len(coordinator._exact_team_identities))
+
+        second = parse_exact_challenge_offer(offer(TOKEN_TWO))
+        coordinator._record_exact_offer(second)
+        coordinator._queue_exact_challenge(second)
+        next_challenge = coordinator._next_pending_exact_challenge()
+        self.assertIsNone(next_challenge.player_team_identity)
+
+    def test_legacy_challenge_has_no_player_team_identity_authority(self):
+        challenge = type(parse_exact_challenge_offer(OFFER))(
+            challenger_id="syntheticopponent",
+            challenger_name="Synthetic Opponent",
+            format_id="gen9tugs",
+            source="pm",
+        )
+        self.assertIsNone(challenge.challenge_token)
+        self.assertIsNone(challenge.player_team_identity)
+
+    async def test_combined_server_offer_exposes_correlated_identity_only_to_attempt(
+        self,
+    ):
+        room_id = "battle-gen9tugs-499"
+        transport = FakeTransport(
+            (
+                "\n".join((OFFER, team_identity_event())),
+                room_message(room_id),
+                binding(TOKEN, room_id),
+            )
+        )
+        room = await self.coordinator_exact(transport).run_once()
+        self.assertEqual(room_id, room.room_id)
+        self.assertEqual(1, len(transport.sent))
+        attempted = transport.sent[0]
+        self.assertEqual(
+            "Synthetic Offense",
+            attempted.player_team_identity.display_name,
+        )
+        self.assertNotIn(PLAYER_TEAM_ID, repr(attempted))
 
     async def test_stale_matching_room_and_new_room_have_no_authority_before_binding(
         self,

@@ -81,6 +81,8 @@ def _redact_received_message(message: str) -> str:
             line = "|tugschallengeend|<redacted>"
         elif line.startswith("|tugschallengeroom|"):
             line = "|tugschallengeroom|<redacted>"
+        elif line.startswith("|tugschallengeteam|"):
+            line = "|tugschallengeteam|<redacted>"
         elif line.startswith("|challstr|"):
             line = "|challstr|<redacted>"
         elif line.startswith("|nametaken|"):

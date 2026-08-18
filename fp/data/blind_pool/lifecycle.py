@@ -8,12 +8,15 @@ and battle initialization through the narrow protocols defined here.
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
+from dataclasses import dataclass, replace
+import json
 import logging
 import math
 import re
 import time
 from collections import OrderedDict, deque
-from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, NoReturn, Protocol
 
 from .bag import BlindPoolBagStore
@@ -25,11 +28,17 @@ from .errors import (
 from .models import (
     BlindChallengeEndEvent,
     BlindChallengeRoomBinding,
+    BlindChallengeTeamIdentity,
     BlindChallengeToken,
     BlindPoolBagState,
     BlindPoolBattleRoom,
     BlindPoolChallenge,
     BlindPoolReservation,
+    is_valid_player_team_id,
+)
+from .leaderboard import (
+    PUBLIC_TEAM_KIND_PLAYER,
+    BlindTeamPublicIdentity,
 )
 from .state import ACCEPT_SENT_PHASE, RESERVATION_PHASE
 
@@ -49,6 +58,7 @@ _PRIVATE_CHALLENGE_EVENT_PREFIXES = (
     "|tugschallenge|",
     "|tugschallengeend|",
     "|tugschallengeroom|",
+    "|tugschallengeteam|",
 )
 _MAX_ROOM_MESSAGES = 16
 _MAX_ROOM_EVENTS = 256
@@ -131,9 +141,81 @@ def parse_challenge_room_binding(message: str) -> BlindChallengeRoomBinding:
     return BlindChallengeRoomBinding(token, fields[3])
 
 
+def _decode_player_team_payload(payload: str) -> BlindTeamPublicIdentity:
+    if not payload or re.fullmatch(r"[A-Za-z0-9_-]+", payload) is None:
+        _private_protocol_error()
+    try:
+        raw = base64.b64decode(
+            payload + "=" * (-len(payload) % 4),
+            altchars=b"-_",
+            validate=True,
+        )
+        if base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii") != payload:
+            _private_protocol_error()
+        text = raw.decode("utf-8", errors="strict")
+    except (binascii.Error, UnicodeDecodeError, ValueError):
+        _private_protocol_error()
+
+    def reject_duplicate_key(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        document: dict[str, object] = {}
+        for key, value in pairs:
+            if key in document:
+                _private_protocol_error()
+            document[key] = value
+        return document
+
+    try:
+        document = json.loads(text, object_pairs_hook=reject_duplicate_key)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        _private_protocol_error()
+    if (
+        not isinstance(document, dict)
+        or list(document) != ["v", "team_id", "display_name"]
+        or document["v"] != 1
+        or type(document["v"]) is not int
+        or not is_valid_player_team_id(document["team_id"])
+    ):
+        _private_protocol_error()
+    canonical = json.dumps(
+        document,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    if raw != canonical:
+        _private_protocol_error()
+    try:
+        return BlindTeamPublicIdentity(
+            team_id=document["team_id"],
+            display_name=document["display_name"],
+            kind=PUBLIC_TEAM_KIND_PLAYER,
+        )
+    except (BlindPoolValidationError, TypeError):
+        _private_protocol_error()
+
+
+def parse_challenge_team_identity(message: str) -> BlindChallengeTeamIdentity:
+    """Parse one private player-team identity event without logging its ID."""
+
+    if not isinstance(message, str) or "\n" in message or "\r" in message:
+        _private_protocol_error()
+    fields = message.split("|")
+    if len(fields) != 4 or fields[:2] != ["", "tugschallengeteam"]:
+        _private_protocol_error()
+    try:
+        token = BlindChallengeToken(fields[2])
+    except BlindPoolValidationError:
+        _private_protocol_error()
+    return BlindChallengeTeamIdentity(token, _decode_player_team_payload(fields[3]))
+
+
 def parse_private_challenge_event(
     message: str,
-) -> BlindPoolChallenge | BlindChallengeEndEvent | BlindChallengeRoomBinding:
+) -> (
+    BlindPoolChallenge
+    | BlindChallengeEndEvent
+    | BlindChallengeRoomBinding
+    | BlindChallengeTeamIdentity
+):
     """Dispatch one exact private event to its strict parser."""
 
     if isinstance(message, str) and message.startswith("|tugschallenge|"):
@@ -142,6 +224,8 @@ def parse_private_challenge_event(
         return parse_challenge_end(message)
     if isinstance(message, str) and message.startswith("|tugschallengeroom|"):
         return parse_challenge_room_binding(message)
+    if isinstance(message, str) and message.startswith("|tugschallengeteam|"):
+        return parse_challenge_team_identity(message)
     _private_protocol_error()
 
 
@@ -649,6 +733,9 @@ class BlindPoolLifecycleCoordinator:
         ] = deque(maxlen=96)
         self._pending_exact_challenges: deque[BlindPoolChallenge] = deque(maxlen=32)
         self._resolved_challenge_tokens: deque[BlindChallengeToken] = deque(maxlen=64)
+        self._exact_team_identities: deque[
+            tuple[BlindChallengeToken, BlindTeamPublicIdentity]
+        ] = deque(maxlen=64)
 
     def __repr__(self) -> str:
         return (
@@ -827,7 +914,10 @@ class BlindPoolLifecycleCoordinator:
         self,
         message: str,
     ) -> tuple[
-        BlindPoolChallenge | BlindChallengeEndEvent | BlindChallengeRoomBinding,
+        BlindPoolChallenge
+        | BlindChallengeEndEvent
+        | BlindChallengeRoomBinding
+        | BlindChallengeTeamIdentity,
         ...,
     ]:
         events = []
@@ -858,6 +948,14 @@ class BlindPoolLifecycleCoordinator:
                 or not challenge.challenge_token.matches(token)
             ),
             maxlen=32,
+        )
+        self._exact_team_identities = deque(
+            (
+                (known_token, identity)
+                for known_token, identity in self._exact_team_identities
+                if not known_token.matches(token)
+            ),
+            maxlen=64,
         )
 
     def _record_exact_offer(self, challenge: BlindPoolChallenge) -> bool:
@@ -892,11 +990,76 @@ class BlindPoolLifecycleCoordinator:
             ) from None
         self._pending_exact_challenges.append(challenge)
 
+    def _record_exact_team_identity(self, event: BlindChallengeTeamIdentity) -> bool:
+        token = event.challenge_token
+        identity = event.public_identity
+        if not isinstance(identity, BlindTeamPublicIdentity):
+            self._quarantine()
+            raise BlindPoolLifecycleError(
+                "exact_team_identity_invalid",
+                "Blind Ladder exact team identity is invalid",
+            ) from None
+        if self._token_is_resolved(token):
+            logger.info("Ignored resolved Blind Ladder team identity event")
+            return False
+        if not any(
+            known.matches(token) for known, _metadata in self._exact_offer_metadata
+        ):
+            logger.info("Ignored orphan Blind Ladder team identity event")
+            return False
+        for known_token, known_identity in self._exact_team_identities:
+            if not known_token.matches(token):
+                continue
+            if known_identity == identity:
+                logger.info("Ignored duplicate Blind Ladder team identity event")
+                return False
+            self._quarantine()
+            raise BlindPoolLifecycleError(
+                "exact_team_identity_conflict",
+                "Blind Ladder exact team identity conflicts",
+            ) from None
+        self._exact_team_identities.append((token, identity))
+        self._pending_exact_challenges = deque(
+            (
+                replace(challenge, player_team_identity=identity)
+                if challenge.challenge_token is not None
+                and challenge.challenge_token.matches(token)
+                else challenge
+                for challenge in self._pending_exact_challenges
+            ),
+            maxlen=32,
+        )
+        if (
+            self._active_challenge is not None
+            and self._active_challenge.challenge_token is not None
+            and self._active_challenge.challenge_token.matches(token)
+        ):
+            self._active_challenge = replace(
+                self._active_challenge,
+                player_team_identity=identity,
+            )
+        return True
+
+    def _identity_for_token(
+        self, token: BlindChallengeToken
+    ) -> BlindTeamPublicIdentity | None:
+        return next(
+            (
+                identity
+                for known_token, identity in self._exact_team_identities
+                if known_token.matches(token)
+            ),
+            None,
+        )
+
     def _next_pending_exact_challenge(self) -> BlindPoolChallenge | None:
         while self._pending_exact_challenges:
             challenge = self._pending_exact_challenges.popleft()
             token = challenge.challenge_token
             if token is not None and not self._token_is_resolved(token):
+                identity = self._identity_for_token(token)
+                if identity is not None and challenge.player_team_identity is None:
+                    challenge = replace(challenge, player_team_identity=identity)
                 return challenge
         return None
 
@@ -951,6 +1114,8 @@ class BlindPoolLifecycleCoordinator:
                     self._queue_exact_challenge(event)
                 elif isinstance(event, BlindChallengeEndEvent):
                     self._remember_resolved_token(event.challenge_token)
+                elif isinstance(event, BlindChallengeTeamIdentity):
+                    self._record_exact_team_identity(event)
                 # A room binding has no authority before an accepted attempt.
             pending = self._next_pending_exact_challenge()
             if pending is None:
@@ -1253,6 +1418,8 @@ class BlindPoolLifecycleCoordinator:
                             "Blind Ladder exact challenge ended after acceptance; reconciliation is required",
                         ) from None
                     self._remember_resolved_token(event.challenge_token)
+                elif isinstance(event, BlindChallengeTeamIdentity):
+                    self._record_exact_team_identity(event)
                 elif event.challenge_token.matches(token):
                     if bound_room_id is None:
                         bound_room_id = event.room_id

@@ -7,15 +7,19 @@ import hmac
 from pathlib import Path
 import re
 from types import MappingProxyType
-from typing import Iterator, Mapping, NoReturn
+from typing import TYPE_CHECKING, Iterator, Mapping, NoReturn
 
 from .errors import BlindPoolValidationError
+
+if TYPE_CHECKING:
+    from .leaderboard import BlindTeamPublicIdentity
 
 
 SCHEMA_VERSION = 1
 SUPPORTED_FORMAT_ID = "gen9tugs"
 OPAQUE_TEAM_ID_PATTERN = re.compile(r"^BL-[0-9]{3,}-v[1-9][0-9]*$")
 CHALLENGE_TOKEN_PATTERN = re.compile(r"^[0-9a-f]{32}$")
+PLAYER_TEAM_ID_PATTERN = re.compile(r"^player-team:[0-9a-f]{32}$")
 
 
 def is_valid_opaque_team_id(value: object) -> bool:
@@ -23,6 +27,14 @@ def is_valid_opaque_team_id(value: object) -> bool:
 
     return (
         isinstance(value, str) and OPAQUE_TEAM_ID_PATTERN.fullmatch(value) is not None
+    )
+
+
+def is_valid_player_team_id(value: object) -> bool:
+    """Return whether a value satisfies the private player-team ID contract."""
+
+    return (
+        isinstance(value, str) and PLAYER_TEAM_ID_PATTERN.fullmatch(value) is not None
     )
 
 
@@ -241,6 +253,9 @@ class BlindPoolChallenge:
     format_id: str
     source: str
     challenge_token: BlindChallengeToken | None = field(default=None, repr=False)
+    player_team_identity: BlindTeamPublicIdentity | None = field(
+        default=None, repr=False
+    )
 
     @property
     def deduplication_identity(self) -> BlindChallengeToken | tuple[str, str]:
@@ -258,6 +273,24 @@ class BlindPoolChallenge:
 
     def __reduce__(self) -> NoReturn:
         raise TypeError("BlindPoolChallenge serialization is disabled")
+
+
+@dataclass(frozen=True, repr=False)
+class BlindChallengeTeamIdentity:
+    """One private player-team identity correlated to an exact challenge token."""
+
+    challenge_token: BlindChallengeToken = field(repr=False)
+    public_identity: BlindTeamPublicIdentity = field(repr=False)
+
+    def __repr__(self) -> str:
+        display_name = getattr(self.public_identity, "display_name", None)
+        return "BlindChallengeTeamIdentity(display_name={!r})".format(display_name)
+
+    def __str__(self) -> str:
+        return repr(self)
+
+    def __reduce__(self) -> NoReturn:
+        raise TypeError("BlindChallengeTeamIdentity serialization is disabled")
 
 
 @dataclass(frozen=True, repr=False)

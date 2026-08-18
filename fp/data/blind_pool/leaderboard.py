@@ -21,6 +21,7 @@ PUBLIC_TEAM_KIND_PLAYER = "player"
 PUBLIC_TEAM_KIND_BOT = "bot"
 PUBLIC_TEAM_KINDS = frozenset({PUBLIC_TEAM_KIND_PLAYER, PUBLIC_TEAM_KIND_BOT})
 _UNSAFE_MARKUP_CHARACTERS = frozenset("<>&")
+_RESERVED_BOT_NAME_PREFIX = "bot team"
 
 
 def _fail(code: str, message: str) -> NoReturn:
@@ -68,6 +69,13 @@ class BlindTeamPublicIdentity:
         validate_public_team_name(self.display_name)
         if not isinstance(self.kind, str) or self.kind not in PUBLIC_TEAM_KINDS:
             _fail("team_public_kind_invalid", "Public team kind is invalid")
+        if self.kind == PUBLIC_TEAM_KIND_PLAYER and _normalized_public_name_key(
+            self.display_name
+        ).startswith(_RESERVED_BOT_NAME_PREFIX):
+            _fail(
+                "team_public_name_reserved",
+                "Public team name uses a reserved namespace",
+            )
 
     def __repr__(self) -> str:
         return "BlindTeamPublicIdentity(display_name={!r}, kind={!r})".format(

@@ -29,6 +29,10 @@ from fp.data.blind_pool.reconciliation import (
     BlindReconciliationDisposition,
     derive_reconciliation_case,
 )
+from fp.data.blind_pool.rating_state import (
+    BlindRatingStateStore,
+    validate_rating_state_config,
+)
 from fp.data.blind_pool.result_ledger import (
     BlindResultLedgerStore,
     validate_result_ledger_config,
@@ -54,15 +58,31 @@ class ReconciliationFixture(MaintenanceFixture):
         result_directory = self.fixture.base / "results"
         result_directory.mkdir()
         self.result_path = result_directory / "ledger.json"
-        self.config = replace(self.config, result_ledger_path=self.result_path)
-        BlindResultLedgerStore(
+        self.rating_path = result_directory / "ratings.json"
+        self.config = replace(
+            self.config,
+            result_ledger_path=self.result_path,
+            rating_state_path=self.rating_path,
+        )
+        result_store = BlindResultLedgerStore(
             validate_result_ledger_config(
                 self.result_path,
                 private_root=self.fixture.private_root,
                 registry_path=self.fixture.registry_path,
                 selection_state_path=self.state_path,
             )
-        ).initialize_empty()
+        )
+        result_store.initialize_empty()
+        rating_store = BlindRatingStateStore(
+            validate_rating_state_config(
+                self.rating_path,
+                private_root=self.fixture.private_root,
+                registry_path=self.fixture.registry_path,
+                selection_state_path=self.state_path,
+                result_ledger_path=self.result_path,
+            )
+        )
+        rating_store.initialize(result_store.require_ready())
 
     def quarantine(self, token: str = TOKEN_A):
         store = self.initialize()

@@ -10,6 +10,10 @@ from fp.data.blind_pool.errors import (
     BlindPoolValidationError,
 )
 from fp.data.blind_pool.lifecycle import BlindExactChallengeProtocol
+from fp.data.blind_pool.rating_state import (
+    BlindRatingStateStore,
+    validate_rating_state_config,
+)
 from fp.data.blind_pool.result_ledger import (
     OUTCOME_PLAYER_LOSS,
     OUTCOME_PLAYER_WIN,
@@ -48,6 +52,19 @@ class ResultRuntimeFixture(RuntimeFixture):
             lock_timeout_seconds=1,
         )
         self.result_store.initialize_empty()
+        self.rating_path = result_directory / "ratings.json"
+        rating_config = validate_rating_state_config(
+            self.rating_path,
+            private_root=self.fixture.private_root,
+            registry_path=self.fixture.registry_path,
+            selection_state_path=self.state_path,
+            result_ledger_path=self.result_path,
+        )
+        self.rating_store = BlindRatingStateStore(
+            rating_config,
+            lock_timeout_seconds=1,
+        )
+        self.rating_store.initialize(self.result_store.require_ready())
 
     def result_runtime(self, transport, initialize_battle):
         return CanonicalBlindRuntime(
@@ -62,6 +79,7 @@ class ResultRuntimeFixture(RuntimeFixture):
             lock_timeout_seconds=1,
             room_timeout_seconds=0.1,
             result_store=self.result_store,
+            rating_store=self.rating_store,
         )
 
     def selection_state(self):
@@ -126,6 +144,9 @@ class CanonicalResultRuntimeTests(ResultRuntimeFixture):
         ledger = self.result_store.load()
         self.assertEqual(1, ledger.completed_count)
         self.assertEqual(0, ledger.pending_count)
+        rating = self.rating_store.verify(self.result_store.require_ready())
+        self.assertEqual((1, 1), (rating.processed_sequence, rating.rated_results))
+        self.assertEqual(-16, runtime.last_rating_update.rating_delta)
 
     async def test_player_bot_tie_and_forfeit_winner_events_normalize(self):
         cases = (
@@ -165,6 +186,51 @@ class CanonicalResultRuntimeTests(ResultRuntimeFixture):
         holder["runtime"] = runtime
         await runtime.run_once()
         self.assertEqual(1, self.result_store.load().completed_count)
+        self.assertEqual(1, self.rating_store.load().rated_results)
+
+    async def test_result_finalization_failure_never_invokes_rating_sync(self):
+        transport = FakeTransport((EXACT_CHALLENGE, exact_room_message()))
+        holder = {}
+
+        async def initialize(_room, _projection):
+            holder["runtime"].record_terminal_result("Blind Bot", tied=False)
+
+        runtime = self.result_runtime(transport, initialize)
+        holder["runtime"] = runtime
+        with mock.patch.object(
+            self.result_store,
+            "finalize_terminal",
+            side_effect=BlindPoolValidationError("synthetic", "synthetic failure"),
+        ), mock.patch.object(self.rating_store, "sync") as rating_sync:
+            with self.assertRaises(BlindPoolLifecycleError):
+                await runtime.run_once()
+        rating_sync.assert_not_called()
+        self.assertEqual(0, self.rating_store.load().processed_sequence)
+        self.assertEqual(1, self.result_store.load().pending_count)
+
+    async def test_rating_failure_after_result_finalization_stops_runtime_behind(self):
+        transport = FakeTransport((EXACT_CHALLENGE, exact_room_message()))
+        holder = {}
+
+        async def initialize(_room, _projection):
+            holder["runtime"].record_terminal_result("Synthetic Opponent", tied=False)
+
+        runtime = self.result_runtime(transport, initialize)
+        holder["runtime"] = runtime
+        with mock.patch.object(
+            self.rating_store,
+            "sync",
+            side_effect=BlindPoolValidationError("synthetic", "synthetic failure"),
+        ):
+            with self.assertRaises(BlindPoolLifecycleError) as caught:
+                await runtime.run_once()
+        self.assertEqual("canonical_rating_sync_failed", caught.exception.code)
+        ledger = self.result_store.require_ready()
+        self.assertEqual(1, ledger.completed_count)
+        self.assertEqual(0, self.rating_store.load().processed_sequence)
+        recovered = self.rating_store.sync(ledger)
+        self.assertEqual(1, recovered.state.processed_sequence)
+        self.assertEqual(1, recovered.state.rated_results)
 
     async def test_conflicting_duplicate_terminal_event_fails_closed(self):
         transport = FakeTransport((EXACT_CHALLENGE, exact_room_message()))

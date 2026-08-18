@@ -31,6 +31,8 @@ from .models import (
     BlindPoolReservation,
     BlindPoolStateConfig,
 )
+from .rating import BlindRatingUpdate
+from .rating_state import BlindRatingStateStore
 from .result_ledger import (
     OUTCOME_PLAYER_LOSS,
     OUTCOME_PLAYER_WIN,
@@ -314,6 +316,7 @@ class CanonicalBlindRuntime:
         monotonic: Callable[[], float] | None = None,
         max_room_candidates: int = 8,
         result_store: BlindResultLedgerStore | None = None,
+        rating_store: BlindRatingStateStore | None = None,
     ) -> None:
         if not isinstance(exact_protocol, BlindExactChallengeProtocol):
             raise _runtime_error(
@@ -348,6 +351,18 @@ class CanonicalBlindRuntime:
                 "canonical_result_store_invalid",
                 "Canonical Blind Ladder result store is invalid",
             ) from None
+        if rating_store is not None and not isinstance(
+            rating_store, BlindRatingStateStore
+        ):
+            raise _runtime_error(
+                "canonical_rating_store_invalid",
+                "Canonical Blind Ladder rating store is invalid",
+            ) from None
+        if (result_store is None) != (rating_store is None):
+            raise _runtime_error(
+                "canonical_rating_store_invalid",
+                "Canonical Blind Ladder result and rating stores must be paired",
+            ) from None
         bot_id = normalize_showdown_identity(getattr(transport, "username", ""))
         if result_store is not None and not bot_id:
             raise _runtime_error(
@@ -355,10 +370,13 @@ class CanonicalBlindRuntime:
                 "Canonical Blind Ladder result identity is invalid",
             ) from None
         self._result_store = result_store
+        self._rating_store = rating_store
         self._registry_fingerprint = canonical_registry.registry_fingerprint
         self._bot_id = bot_id
         self._active_result_battle_id: str | None = None
         self._result_finalized = False
+        self._rating_synchronized = False
+        self._last_rating_update: BlindRatingUpdate | None = None
         self._session = CanonicalBlindRuntimeSession(
             canonical_registry,
             submit_team,
@@ -401,6 +419,12 @@ class CanonicalBlindRuntime:
         """Expose only whether private selected material is currently retained."""
 
         return self._session.prepared
+
+    @property
+    def last_rating_update(self) -> BlindRatingUpdate | None:
+        """Return the latest public-safe persisted player rating update."""
+
+        return self._last_rating_update
 
     async def startup(self) -> None:
         await self._coordinator.startup()
@@ -460,6 +484,8 @@ class CanonicalBlindRuntime:
         )
         self._active_result_battle_id = pending.battle_id
         self._result_finalized = False
+        self._rating_synchronized = False
+        self._last_rating_update = None
         return pending.battle_id
 
     def _mark_result_selection_committed(self, battle_id: str) -> None:
@@ -524,6 +550,16 @@ class CanonicalBlindRuntime:
                 ) from None
         store.finalize_terminal(battle_id, outcome)
         self._result_finalized = True
+        rating_store = self._rating_store
+        if rating_store is None:
+            raise _runtime_error(
+                "canonical_rating_store_invalid",
+                "Canonical Blind Ladder rating store is unavailable",
+            ) from None
+        synchronized = rating_store.sync(store.require_ready())
+        if synchronized.last_update is not None:
+            self._last_rating_update = synchronized.last_update
+        self._rating_synchronized = True
 
     async def run_once(self) -> Any:
         if self._running:
@@ -592,16 +628,31 @@ class CanonicalBlindRuntime:
         if cancelled:
             raise asyncio.CancelledError from None
         if lifecycle_failure is not None:
+            if self._result_finalized and not self._rating_synchronized:
+                raise _runtime_error(
+                    "canonical_rating_sync_failed",
+                    "Blind Ladder rating persistence requires recovery",
+                ) from None
             error_type, code, message = lifecycle_failure
             raise error_type(code, message) from None
         if self._result_store is not None:
-            if self._active_result_battle_id is None or not self._result_finalized:
+            if (
+                self._active_result_battle_id is None
+                or not self._result_finalized
+                or not self._rating_synchronized
+            ):
+                if self._result_finalized:
+                    raise _runtime_error(
+                        "canonical_rating_sync_failed",
+                        "Blind Ladder rating persistence requires recovery",
+                    ) from None
                 raise _runtime_error(
                     "canonical_result_terminal_missing",
                     "Canonical Blind Ladder terminal result was not persisted",
                 ) from None
             self._active_result_battle_id = None
             self._result_finalized = False
+            self._rating_synchronized = False
         return result
 
     def reconcile_as_room_created(self, reservation_id: str):

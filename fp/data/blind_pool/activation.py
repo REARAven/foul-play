@@ -78,25 +78,32 @@ async def _run_sequential_battles(
     runtime_holder[0] = runtime
 
     battles_run = 0
-    wins = 0
-    losses = 0
     while True:
         runtime_error = None
         try:
-            winner = await runtime.run_once()
+            await runtime.run_once()
         except (BlindPoolLifecycleError, BlindPoolValidationError) as error:
             runtime_error = error
-            winner = None
         if runtime_error is not None:
             raise classify_blind_canonical_runtime_error(runtime_error) from None
 
-        if winner == process_config.username:
-            wins += 1
-            logger.info("Battle won with selected team")
-        else:
-            losses += 1
-            logger.info("Battle lost with selected team")
-        logger.info("W: {}\tL: {}".format(wins, losses))
+        update = runtime.last_rating_update
+        if update is None:
+            raise classify_blind_canonical_runtime_error(
+                BlindPoolLifecycleError(
+                    "canonical_rating_update_missing",
+                    "Blind Ladder persisted rating update is unavailable",
+                )
+            ) from None
+        logger.info(
+            "Ladder rating: {} ({:+d})".format(
+                update.rating_after,
+                update.rating_delta,
+            )
+        )
+        logger.info("Record: {}-{}-{}".format(update.wins, update.losses, update.ties))
+        logger.info("Current streak: {}".format(update.streak_label))
+        logger.info("Peak rating: {}".format(update.peak_rating))
         integrity_checker(original_pokedex, original_move_json)
 
         battles_run += 1

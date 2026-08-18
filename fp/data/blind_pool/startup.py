@@ -19,6 +19,8 @@ from .ownership import (
     BlindPoolDeploymentOwnerGuard,
     acquire_blind_pool_deployment_owner,
 )
+from .rating import RATING_STATE_PATH_ENV
+from .rating_state import BlindRatingStateStore, validate_rating_state_config
 from .result_ledger import (
     RESULT_LEDGER_PATH_ENV,
     BlindResultLedgerStore,
@@ -83,6 +85,7 @@ class BlindCanonicalStartupConfig:
     canonical_registry_path: Path = field(repr=False)
     state_path: Path = field(repr=False)
     result_ledger_path: Path | None = field(default=None, repr=False)
+    rating_state_path: Path | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         invalid = False
@@ -95,9 +98,13 @@ class BlindCanonicalStartupConfig:
                 if self.result_ledger_path is None
                 else Path(self.result_ledger_path)
             )
+            rating_state_path = (
+                None if self.rating_state_path is None else Path(self.rating_state_path)
+            )
         except (TypeError, ValueError):
             invalid = True
             private_root = registry_path = state_path = result_ledger_path = None
+            rating_state_path = None
         if (
             invalid
             or not all(
@@ -105,6 +112,7 @@ class BlindCanonicalStartupConfig:
                 for path in (private_root, registry_path, state_path)
             )
             or (result_ledger_path is not None and not result_ledger_path.is_absolute())
+            or (rating_state_path is not None and not rating_state_path.is_absolute())
         ):
             raise _error(
                 BlindCanonicalErrorCategory.CONFIGURATION,
@@ -115,6 +123,7 @@ class BlindCanonicalStartupConfig:
         object.__setattr__(self, "canonical_registry_path", registry_path)
         object.__setattr__(self, "state_path", state_path)
         object.__setattr__(self, "result_ledger_path", result_ledger_path)
+        object.__setattr__(self, "rating_state_path", rating_state_path)
 
     def __repr__(self) -> str:
         return "BlindCanonicalStartupConfig(configured=True)"
@@ -137,6 +146,7 @@ class PreparedBlindCanonicalDeployment:
     _store: BlindPoolBagStore = field(repr=False)
     _owner: BlindPoolDeploymentOwnerGuard = field(repr=False)
     _result_store: BlindResultLedgerStore = field(repr=False)
+    _rating_store: BlindRatingStateStore = field(repr=False)
 
     @property
     def active_count(self) -> int:
@@ -167,6 +177,7 @@ class PreparedBlindCanonicalDeployment:
             exact_protocol=BlindExactChallengeProtocol.from_transport(transport),
             prepared_store=self._store,
             result_store=self._result_store,
+            rating_store=self._rating_store,
             **runtime_options,
         )
 
@@ -199,6 +210,7 @@ def load_blind_canonical_startup_config(
         CANONICAL_REGISTRY_PATH_ENV,
         STATE_PATH_ENV,
         RESULT_LEDGER_PATH_ENV,
+        RATING_STATE_PATH_ENV,
     )
     configured = tuple(values.get(name) for name in names)
     if any(not isinstance(value, str) or not value for value in configured):
@@ -332,6 +344,37 @@ def prepare_blind_canonical_deployment(
         ) from None
     assert result_store is not None
 
+    if config.rating_state_path is None:
+        raise _error(
+            BlindCanonicalErrorCategory.CONFIGURATION,
+            "blind_rating_config_incomplete",
+            "Blind canonical startup requires explicit rating persistence",
+        ) from None
+    rating_config_failed = False
+    try:
+        rating_config = validate_rating_state_config(
+            config.rating_state_path,
+            private_root=config.private_root,
+            registry_path=config.canonical_registry_path,
+            selection_state_path=config.state_path,
+            result_ledger_path=config.result_ledger_path,
+            repository_root=repository_root,
+        )
+        rating_store = BlindRatingStateStore(
+            rating_config,
+            lock_timeout_seconds=lock_timeout_seconds,
+        )
+    except BlindPoolValidationError:
+        rating_config_failed = True
+        rating_store = None
+    if rating_config_failed:
+        raise _error(
+            BlindCanonicalErrorCategory.CONFIGURATION,
+            "blind_rating_config_invalid",
+            "Blind canonical rating persistence configuration is invalid",
+        ) from None
+    assert rating_store is not None
+
     ownership_code: str | None = None
     try:
         owner = acquire_blind_pool_deployment_owner(
@@ -352,7 +395,7 @@ def prepare_blind_canonical_deployment(
 
     result_code: str | None = None
     try:
-        result_store.require_ready()
+        result_state = result_store.require_ready()
     except BlindPoolValidationError as error:
         result_code = error.code
     if result_code is not None:
@@ -367,6 +410,25 @@ def prepare_blind_canonical_deployment(
             BlindCanonicalErrorCategory.DEPLOYMENT_INTEGRITY,
             "blind_result_ledger_invalid",
             "Blind canonical result persistence is invalid",
+        ) from None
+
+    rating_code: str | None = None
+    try:
+        rating_store.sync(result_state)
+    except BlindPoolValidationError as error:
+        rating_code = error.code
+    if rating_code is not None:
+        _close_owner_after_failure(owner)
+        if rating_code == "rating_not_initialized":
+            raise _error(
+                BlindCanonicalErrorCategory.RECOVERY_REQUIRED,
+                "blind_rating_initialization_required",
+                "Blind canonical rating state requires explicit initialization",
+            ) from None
+        raise _error(
+            BlindCanonicalErrorCategory.RECOVERY_REQUIRED,
+            "blind_rating_recovery_required",
+            "Blind canonical rating state requires explicit recovery",
         ) from None
 
     state_code: str | None = None
@@ -433,6 +495,7 @@ def prepare_blind_canonical_deployment(
         store,
         owner,
         result_store,
+        rating_store,
     )
 
 
@@ -448,6 +511,15 @@ def classify_blind_canonical_runtime_error(
             "Blind canonical acceptance state requires explicit recovery",
         )
     code = getattr(error, "code", "")
+    if code in {
+        "canonical_rating_sync_failed",
+        "canonical_rating_update_missing",
+    }:
+        return _error(
+            BlindCanonicalErrorCategory.RECOVERY_REQUIRED,
+            "blind_rating_recovery_required",
+            "Blind canonical rating persistence requires recovery",
+        )
     if code in {
         "battle_initialization_failed",
         "result_intent_failed",

@@ -34,6 +34,11 @@ from fp.data.blind_pool.models import (
     BlindPoolStateConfig,
 )
 from fp.data.blind_pool.ownership import acquire_blind_pool_deployment_owner
+from fp.data.blind_pool.rating import RATING_STATE_PATH_ENV
+from fp.data.blind_pool.rating_state import (
+    BlindRatingStateStore,
+    validate_rating_state_config,
+)
 from fp.data.blind_pool.result_ledger import (
     RESULT_LEDGER_PATH_ENV,
     BlindResultLedgerStore,
@@ -170,11 +175,22 @@ class TestBlindCanonicalStartup(unittest.TestCase):
         )
         self.result_store = BlindResultLedgerStore(result_config)
         self.result_store.initialize_empty()
+        self.rating_path = self.result_directory / "ratings.json"
+        rating_config = validate_rating_state_config(
+            self.rating_path,
+            private_root=self.fixture.private_root,
+            registry_path=self.fixture.registry_path,
+            selection_state_path=self.state_path,
+            result_ledger_path=self.result_path,
+        )
+        self.rating_store = BlindRatingStateStore(rating_config)
+        self.rating_store.initialize(self.result_store.require_ready())
         self.environ = {
             "TUGS_BLIND_POOL_ROOT": str(self.fixture.private_root),
             CANONICAL_REGISTRY_PATH_ENV: str(self.fixture.registry_path),
             "TUGS_BLIND_POOL_STATE": str(self.state_path),
             RESULT_LEDGER_PATH_ENV: str(self.result_path),
+            RATING_STATE_PATH_ENV: str(self.rating_path),
         }
         self.config = load_blind_canonical_startup_config(self.environ)
         self.deployments = []
@@ -201,6 +217,7 @@ class TestBlindCanonicalStartup(unittest.TestCase):
             str(self.fixture.registry_path),
             str(self.state_path),
             str(self.result_path),
+            str(self.rating_path),
             TOKEN,
         ):
             self.assertNotIn(sentinel, rendered)
@@ -386,6 +403,83 @@ class TestBlindCanonicalStartup(unittest.TestCase):
         self.result_store.finalize_terminal(pending.battle_id, "player_win")
         deployment = self.prepare()
         self.assertTrue(deployment.owner_held)
+        rating = self.rating_store.verify(self.result_store.require_ready())
+        self.assertEqual(1, rating.processed_sequence)
+        self.assertEqual(1, rating.rated_results)
+
+    def test_missing_rating_state_requires_explicit_initialization_and_releases_owner(
+        self,
+    ):
+        self.rating_path.unlink()
+        with self.assertRaises(BlindCanonicalActivationError) as caught:
+            prepare_blind_canonical_deployment(
+                self.config,
+                owner_timeout_seconds=0.05,
+            )
+        self.assertEqual(
+            BlindCanonicalErrorCategory.RECOVERY_REQUIRED,
+            caught.exception.category,
+        )
+        self.assertEqual(
+            "blind_rating_initialization_required",
+            caught.exception.code,
+        )
+        self.assert_safe(caught.exception)
+        state_config = BlindPoolStateConfig(
+            BlindPoolConfig(self.fixture.private_root, self.fixture.registry_path),
+            self.state_path,
+        )
+        owner = acquire_blind_pool_deployment_owner(
+            state_config,
+            timeout_seconds=0.05,
+        )
+        owner.close()
+
+    def test_malformed_ahead_and_diverged_rating_states_fail_closed(self):
+        variants = []
+        variants.append(b"{")
+        empty = json.loads(self.rating_path.read_text(encoding="utf-8"))
+        ahead = json.loads(json.dumps(empty))
+        ahead["processed_sequence"] = 1
+        ahead["processed_record_hash"] = "a" * 64
+        variants.append((json.dumps(ahead) + "\n").encode())
+        for payload in variants:
+            self.rating_path.write_bytes(payload)
+            with self.subTest(payload_size=len(payload)):
+                with self.assertRaises(BlindCanonicalActivationError) as caught:
+                    prepare_blind_canonical_deployment(
+                        self.config,
+                        owner_timeout_seconds=0.05,
+                    )
+                self.assertEqual(
+                    "blind_rating_recovery_required",
+                    caught.exception.code,
+                )
+                self.assert_safe(caught.exception)
+            self.rating_path.write_text(json.dumps(empty) + "\n", encoding="utf-8")
+
+    def test_unresolved_result_is_rejected_before_rating_sync(self):
+        fingerprint = self.fixture.load().registry_fingerprint
+        self.result_store.create_pending_intent(
+            player_id="syntheticplayer",
+            bot_id="syntheticbot",
+            team_id="BL-001-v1",
+            reservation_id="2" * 32,
+            room_id="battle-gen9tugs-402",
+            format_id="gen9tugs",
+            registry_fingerprint=fingerprint,
+        )
+        with mock.patch.object(
+            BlindRatingStateStore,
+            "sync",
+            side_effect=AssertionError("rating sync must not run"),
+        ):
+            with self.assertRaises(BlindCanonicalActivationError) as caught:
+                prepare_blind_canonical_deployment(
+                    self.config,
+                    owner_timeout_seconds=0.05,
+                )
+        self.assertEqual("blind_result_recovery_required", caught.exception.code)
 
     def test_schema_one_malformed_and_fingerprint_mismatch_preserve_bytes(self):
         first = self.prepare()
@@ -607,6 +701,19 @@ class _FakeRuntime:
             raise result
         return result
 
+    @property
+    def last_rating_update(self):
+        won = self.results == ["Other"]
+        return SimpleNamespace(
+            rating_after=1516 if won else 1500,
+            rating_delta=16 if won else -16,
+            wins=1 if won else 1,
+            losses=0 if won else 1,
+            ties=0,
+            streak_label="W1" if won else "L1",
+            peak_rating=1516,
+        )
+
 
 class _FakePrepared:
     def __init__(self, runtime):
@@ -697,7 +804,9 @@ class TestBlindCanonicalActivation(unittest.IsolatedAsyncioTestCase):
             return client
 
         checks = []
-        with mock.patch(
+        with self.assertLogs(
+            "fp.data.blind_pool.activation", level="INFO"
+        ) as captured, mock.patch(
             "fp.data.blind_pool.activation.load_blind_canonical_startup_config",
             side_effect=load_config,
         ), mock.patch(
@@ -716,6 +825,14 @@ class TestBlindCanonicalActivation(unittest.IsolatedAsyncioTestCase):
             )
         self.assertEqual(["config", "prepare", "connect"], events)
         self.assertEqual(2, runtime.calls)
+        rendered = "\n".join(captured.output)
+        self.assertIn("Ladder rating: 1516 (+16)", rendered)
+        self.assertIn("Record: 1-0-0", rendered)
+        self.assertIn("Current streak: W1", rendered)
+        self.assertIn("Peak rating: 1516", rendered)
+        self.assertIn("Ladder rating: 1500 (-16)", rendered)
+        self.assertNotIn("W: ", rendered)
+        self.assertNotIn("BL-", rendered)
         self.assertEqual(1, len(prepared.create_calls))
         self.assertEqual(2, len(checks))
         self.assertTrue(client.closed)
@@ -844,6 +961,7 @@ class TestBlindCanonicalActivation(unittest.IsolatedAsyncioTestCase):
             (
                 BlindPoolReconciliationRequired("reconciliation_required", "safe"),
                 BlindCanonicalErrorCategory.RECOVERY_REQUIRED,
+                "blind_canonical_recovery_required",
             ),
             (
                 BlindPoolLifecycleError(
@@ -851,13 +969,20 @@ class TestBlindCanonicalActivation(unittest.IsolatedAsyncioTestCase):
                     "safe",
                 ),
                 BlindCanonicalErrorCategory.DEPLOYMENT_INTEGRITY,
+                "blind_canonical_runtime_failed",
             ),
             (
                 BlindPoolLifecycleError("team_submission_failed", "safe"),
                 BlindCanonicalErrorCategory.TRANSIENT_NETWORK,
+                "blind_canonical_transport_failed",
+            ),
+            (
+                BlindPoolLifecycleError("canonical_rating_sync_failed", "safe"),
+                BlindCanonicalErrorCategory.RECOVERY_REQUIRED,
+                "blind_rating_recovery_required",
             ),
         )
-        for failure, category in errors:
+        for failure, category, expected_code in errors:
             runtime = _FakeRuntime((failure, "SyntheticBot"))
             prepared = _FakePrepared(runtime)
             client = _FakeClient()
@@ -880,6 +1005,7 @@ class TestBlindCanonicalActivation(unittest.IsolatedAsyncioTestCase):
                         integrity_checker=mock.Mock(),
                     )
             self.assertEqual(category, caught.exception.category)
+            self.assertEqual(expected_code, caught.exception.code)
             self.assertEqual(1, runtime.calls)
             self.assertTrue(prepared.closed)
             self.assertTrue(client.closed)
@@ -1121,6 +1247,14 @@ class TestBlindCanonicalTopLevel(unittest.TestCase):
         result_state = self.result_store.load()
         self.assertEqual(1, result_state.completed_count)
         self.assertEqual(0, result_state.pending_count)
+        rating_state = self.rating_store.verify(self.result_store.require_ready())
+        self.assertEqual(
+            (1, 1),
+            (
+                rating_state.processed_sequence,
+                rating_state.rated_results,
+            ),
+        )
         self.assertEqual(1, len(client.sent))
         self.assertEqual(1, len(client.submitted))
         self.assertTrue(client.closed)
@@ -1167,6 +1301,14 @@ class TestBlindCanonicalTopLevel(unittest.TestCase):
         self.assertEqual([1, 2], battle_calls)
         self.assertEqual(2, state.completed_count)
         self.assertEqual(0, state.pending_count)
+        rating_state = self.rating_store.verify(self.result_store.require_ready())
+        self.assertEqual(
+            (2, 2),
+            (
+                rating_state.processed_sequence,
+                rating_state.rated_results,
+            ),
+        )
         self.assertEqual(2, len(client.sent))
         self.assertEqual(2, len(client.submitted))
         self.assertTrue(client.closed)
